@@ -3,3 +3,33 @@
 
 # Exportaciones generadas; los documentos fuente se mantienen en docs/
 /output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Django
+*.log
+db.sqlite3
+staticfiles/
+media/
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# IDE y sistema operativo
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

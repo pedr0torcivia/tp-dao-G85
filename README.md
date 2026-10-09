@@ -22,7 +22,25 @@ La definición funcional y los modelos están en propuesta v1. Las reglas pendie
 
 ## Estado
 
-Planificación inicial. Todavía no se implementaron la aplicación ni el despliegue. Los comandos de instalación, ejecución y prueba se incorporarán cuando estén verificados.
+La estructura inicial del backend está implementada y verificada. Incluye Django REST Framework, configuración para PostgreSQL, módulos del dominio, documentación OpenAPI, endpoint de salud, pruebas y contenedores para backend y base de datos. El frontend todavía no fue inicializado.
+
+## Inicio rápido del backend y PostgreSQL
+
+Crear el archivo local de configuración y levantar los servicios:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
+```
+
+Una vez iniciados:
+
+- API: `http://localhost:8000/api/`
+- Estado: `http://localhost:8000/api/health/`
+- Swagger: `http://localhost:8000/api/docs/`
+- Administración: `http://localhost:8000/admin/`
+
+Los comandos para ejecutar y comprobar el backend sin contenedores se encuentran en [`backend/README.md`](backend/README.md).
 
 ## Formato de commits
 
