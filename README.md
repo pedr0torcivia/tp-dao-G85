@@ -26,7 +26,7 @@ Planificación inicial. Todavía no se implementaron la aplicación ni el despli
 
 ## Formato de commits
 
-Se utiliza el mismo formato observado en enCuota: `TIPO(Área): Descripción en español`.
+Se utiliza el siguiente formato: `TIPO(Área): Descripción en español`.
 
 - `ADD`: agregar funcionalidad o archivos.
 - `UPD`: actualizar comportamiento o contenido.
