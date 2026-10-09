@@ -1,0 +1,5 @@
+# Archivos temporales de generación y revisión de documentos
+/tmp/
+
+# Exportaciones generadas; los documentos fuente se mantienen en docs/
+/output/
