@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EntreLibros · Acceso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;--bg:#faf7ef;--surface:#fff;--ink:#242b27;--title:#234d3c;--muted:#626a62;--border:#d9dfd6;--action:#234d3c;--letter-filter:brightness(0);--letter-opacity:.06}
+:root[data-theme=dark]{color-scheme:dark;--bg:#242424;--surface:#2d2b29;--ink:#e1e5dd;--title:#e0d4c6;--muted:#b4ada5;--border:#4b4642;--action:#506d5b;--letter-filter:none;--letter-opacity:.07}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"DM Sans",system-ui,sans-serif;min-height:100svh}
+.letters{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.letters img{position:absolute;width:var(--size,180px);height:auto;filter:var(--letter-filter);opacity:var(--letter-opacity);animation:drift var(--duration,18s) ease-in-out var(--delay,0s) infinite alternate;user-select:none;will-change:transform}
+@keyframes drift{from{transform:translate3d(0,0,0) rotate(-2deg)}to{transform:translate3d(var(--dx),var(--dy),0) rotate(2deg)}}
+.page{position:relative;z-index:1;min-height:100svh;max-width:1440px;margin:auto;padding:90px 112px 64px}
+.theme{position:absolute;right:112px;top:52px;padding:10px 15px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--muted);font:500 13px "DM Sans",sans-serif;cursor:pointer}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 448px;gap:96px;align-items:center;min-height:700px}
+.hero .isotipo{display:block;width:112px;height:112px;object-fit:contain;margin-bottom:88px}
+.dark-isotipo{display:none!important}
+[data-theme=dark] .light-isotipo{display:none!important}
+[data-theme=dark] .dark-isotipo{display:block!important}
+.eyebrow{margin:0 0 24px;font-size:12px;letter-spacing:2px;color:var(--muted)}
+h1{font-family:"Lora",Georgia,serif;font-size:clamp(42px,4.5vw,64px);font-weight:500;line-height:1.18;color:var(--title);margin:0 0 35px;letter-spacing:-1.4px}
+.hero p{font-size:18px;line-height:1.65;color:var(--muted);max-width:510px}
+.card{padding:40px 36px 44px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+h2{margin:0 0 14px;font-size:26px;font-weight:600;letter-spacing:-.5px;color:var(--title)}
+.card .intro{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 36px}
+label{display:block;font-size:13px;font-weight:500;margin:0 0 11px}
+input{width:100%;height:46px;padding:12px 14px;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:8px;font:400 15px "DM Sans",sans-serif;margin:0 0 26px}
+input::placeholder{color:var(--muted)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--title);outline-offset:4px}
+.submit{display:block;width:100%;height:48px;margin-top:22px;border:0;border-radius:8px;color:#edf1ea;background:var(--action);font:500 15px "DM Sans",sans-serif;cursor:pointer}
+.help{padding-top:30px;margin:0;color:var(--muted);font-size:13px;line-height:1.7}
+footer{display:flex;justify-content:space-between;gap:24px;padding-top:25px;color:var(--muted);font-size:12px}
+.motion{border:0;background:none;padding:0;color:var(--muted);font:inherit;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+[data-motion=paused] .letters img{animation-play-state:paused}
+@media(max-width:1050px){.page{padding:90px 40px 40px}.theme{right:40px}.layout{gap:48px;grid-template-columns:1fr 400px}h1{font-size:48px}.hero .isotipo{margin-bottom:64px}}
+@media(max-width:760px){.page{padding:32px 24px}.theme{right:24px;top:32px}.layout{display:block;min-height:0}.hero .isotipo{width:96px;height:96px;margin-bottom:56px}.eyebrow{font-size:10px;letter-spacing:1.5px}h1{font-size:38px;letter-spacing:-.6px;margin-bottom:20px}.hero p{font-size:16px;margin-bottom:36px}.card{padding:28px 20px 30px}h2{font-size:23px}.card .intro{margin-bottom:28px}footer{flex-direction:column;gap:16px;padding-top:30px}.letters img{width:clamp(52px,calc(var(--size)*.7),320px)}}
+@media(prefers-reduced-motion:reduce){.letters img{animation:none!important;will-change:auto}}
+</style>
+</head>
+<body>
+<div class="letters" aria-hidden="true">
+<img src="assets/motion/letra-L.png" alt="" style="left:-6%;top:-5%;--size:380px;--duration:16s;--dx:84px;--dy:58px;--delay:-4s">
+<img src="assets/motion/letra-e.png" alt="" style="left:15%;top:4%;--size:120px;--duration:18s;--dx:-60px;--dy:70px;--delay:-11s">
+<img src="assets/motion/letra-b.png" alt="" style="left:37%;top:-7%;--size:260px;--duration:21s;--dx:78px;--dy:-48px;--delay:-5s">
+<img src="assets/motion/letra-r.png" alt="" style="left:61%;top:7%;--size:90px;--duration:15s;--dx:-54px;--dy:64px;--delay:-9s">
+<img src="assets/motion/letra-o.png" alt="" style="left:80%;top:-4%;--size:330px;--duration:19s;--dx:-72px;--dy:56px;--delay:-15s">
+<img src="assets/motion/letra-s.png" alt="" style="left:2%;top:31%;--size:100px;--duration:17s;--dx:58px;--dy:-42px;--delay:-7s">
+<img src="assets/motion/letra-L.png" alt="" style="left:22%;top:22%;--size:230px;--duration:20s;--dx:-80px;--dy:62px;--delay:-17s">
+<img src="assets/motion/letra-e.png" alt="" style="left:46%;top:28%;--size:160px;--duration:14s;--dx:64px;--dy:76px;--delay:-3s">
+<img src="assets/motion/letra-b.png" alt="" style="left:72%;top:28%;--size:110px;--duration:22s;--dx:-68px;--dy:-56px;--delay:-13s">
+<img src="assets/motion/letra-r.png" alt="" style="left:90%;top:33%;--size:270px;--duration:18s;--dx:-86px;--dy:58px;--delay:-6s">
+<img src="assets/motion/letra-o.png" alt="" style="left:-6%;top:59%;--size:250px;--duration:23s;--dx:72px;--dy:-64px;--delay:-18s">
+<img src="assets/motion/letra-s.png" alt="" style="left:14%;top:57%;--size:145px;--duration:16s;--dx:-60px;--dy:78px;--delay:-12s">
+<img src="assets/motion/letra-L.png" alt="" style="left:35%;top:52%;--size:100px;--duration:19s;--dx:80px;--dy:-50px;--delay:-4s">
+<img src="assets/motion/letra-e.png" alt="" style="left:53%;top:54%;--size:350px;--duration:21s;--dx:-76px;--dy:68px;--delay:-14s">
+<img src="assets/motion/letra-b.png" alt="" style="left:78%;top:62%;--size:165px;--duration:15s;--dx:-52px;--dy:-74px;--delay:-8s">
+<img src="assets/motion/letra-r.png" alt="" style="left:4%;top:86%;--size:150px;--duration:20s;--dx:64px;--dy:-80px;--delay:-16s">
+<img src="assets/motion/letra-o.png" alt="" style="left:26%;top:84%;--size:310px;--duration:17s;--dx:-86px;--dy:-56px;--delay:-10s">
+<img src="assets/motion/letra-s.png" alt="" style="left:47%;top:84%;--size:95px;--duration:24s;--dx:60px;--dy:-68px;--delay:-6s">
+<img src="assets/motion/letra-L.png" alt="" style="left:66%;top:85%;--size:210px;--duration:18s;--dx:-72px;--dy:-62px;--delay:-13s">
+<img src="assets/motion/letra-e.png" alt="" style="left:87%;top:89%;--size:135px;--duration:16s;--dx:-66px;--dy:-78px;--delay:-5s">
+</div>
+<main class="page">
+<button class="theme" type="button" aria-label="Cambiar tema">Tema claro</button>
+<div class="layout">
+<section class="hero" aria-labelledby="hero-title">
+<img class="isotipo light-isotipo" src="../brand/isotipo.svg" alt="EntreLibros">
+<svg class="isotipo dark-isotipo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="EntreLibros"><defs><mask id="smile"><rect width="100" height="100" fill="white"/><path d="M26 45 Q50 71 74 45" fill="none" stroke="black" stroke-width="5" stroke-linecap="round"/></mask></defs><g mask="url(#smile)"><path fill="#9DBDA8" d="M10 14 C25 10 37 15 48 24 V78 C35 66 23 62 10 66 Z"/><path fill="#D09880" d="M52 24 C63 15 75 10 90 14 V66 C77 62 65 66 52 78 Z"/></g></svg>
+<p class="eyebrow">ENTRELIBROS · RED DE BIBLIOTECAS</p>
+<h1 id="hero-title">Una red.<br>Muchas historias.</h1>
+<p>Libros, personas y sedes conectadas<br>en un mismo lugar.</p>
+</section>
+<section class="card" aria-labelledby="login-title">
+<h2 id="login-title">Ingresá a tu biblioteca</h2>
+<p class="intro">Acceso para el personal de EntreLibros.</p>
+<form onsubmit="event.preventDefault()">
+<label for="username">Usuario</label><input id="username" name="username" autocomplete="username" placeholder="nombre.apellido">
+<label for="password">Contraseña</label><input id="password" type="password" name="password" autocomplete="current-password" placeholder="Tu contraseña">
+<button class="submit" type="button">Ingresar</button>
+</form>
+<p class="help">¿Necesitás acceso?<br>Contactá a la administración de tu sede.</p>
+</section>
+</div>
+<footer><span>EntreLibros · Un espacio para cada historia.</span><button class="motion" type="button">Pausar movimiento</button></footer>
+</main>
+<script>
+const root=document.documentElement;
+let storedTheme=null;
+try{storedTheme=localStorage.getItem("entrelibros-preview-theme")}catch{}
+root.dataset.theme=storedTheme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+const themeButton=document.querySelector(".theme");
+const labelTheme=()=>themeButton.textContent=root.dataset.theme==="dark"?"Tema oscuro":"Tema claro";
+labelTheme();
+themeButton.addEventListener("click",()=>{root.dataset.theme=root.dataset.theme==="dark"?"light":"dark";try{localStorage.setItem("entrelibros-preview-theme",root.dataset.theme)}catch{}labelTheme()});
+const motionButton=document.querySelector(".motion");
+motionButton.addEventListener("click",()=>{const paused=root.dataset.motion!=="paused";root.dataset.motion=paused?"paused":"playing";motionButton.textContent=paused?"Activar movimiento":"Pausar movimiento";motionButton.setAttribute("aria-pressed",String(paused))});
+</script>
+</body>
+</html>

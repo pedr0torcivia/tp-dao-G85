@@ -1,6 +1,6 @@
 # EntreLibros — Manual de identidad visual
 
-Versión 1.0 · 9 de octubre de 2026 · Grupo 85
+Versión 1.1 · 9 de octubre de 2026 · Grupo 85
 
 La identidad de EntreLibros representa una red de bibliotecas con un libro abierto y una sonrisa entre sus páginas. La página izquierda y «Entre» son verde bosque; la página derecha y «Libros» son naranja terracota. El nombre se escribe **EntreLibros**, unido y con E y L mayúsculas.
 
@@ -51,11 +51,11 @@ Escalar siempre con la relación de aspecto original. En CSS, definir el ancho y
 
 - Usar el logo a color sobre **papel**, **blanco** o **salvia**.
 - Sobre una fotografía, colocarlo en una superficie uniforme de papel o blanco que respete el área de protección.
-- Sobre un fondo oscuro, colocar la versión oficial en una superficie clara. Este paquete no incluye una variante invertida aprobada.
+- Sobre un fondo oscuro, usar la adaptación de interfaz descrita en la sección 8, conservando exactamente los trazados del SVG. También puede colocarse la versión oficial sobre una superficie clara.
 - Usar el isotipo cuando la marca ya está identificada por contexto o cuando no cabe el nombre completo.
 - Usar el logo completo para presentar la marca por primera vez.
 
-No estirar, comprimir, rotar, añadir sombras, degradados, contornos ni texturas. No cambiar los colores, reconstruir el nombre con una fuente parecida, separar los elementos, invertir la sonrisa ni sustituirla por otro gesto. No usar como botón de una operación ajena a la navegación de la marca.
+No estirar, comprimir, rotar, añadir sombras, degradados, contornos ni texturas. No cambiar los colores fuera de la adaptación de tema oscuro, reconstruir el nombre con una fuente parecida, separar los elementos, invertir la sonrisa ni sustituirla por otro gesto. No usar como botón de una operación ajena a la navegación de la marca.
 
 ## 4. Colores oficiales
 
@@ -162,3 +162,39 @@ Estos nombres son una referencia para la página, no una implementación de comp
 Tono cercano, claro y confiable, en español rioplatense. Ejemplos: «Buscá un libro», «Ver ejemplares», «Registrar devolución». En una operación, explicar el resultado sin adornos: «Este ejemplar ya no está disponible. Elegí otro para continuar».
 
 El lema opcional **«Historias que nos acercan»** se utiliza en comunicación y presentación. No forma parte del logo y no debe agregarse dentro del SVG ni repetirse en pantallas de trabajo.
+
+## 8. Tema oscuro suave
+
+El tema oscuro mantiene la jerarquía, los espacios y los componentes del tema claro. Usar superficies próximas entre sí, sin negro puro, blanco brillante de fondo ni acentos saturados. La navegación tiene una paleta gris cálida; el verde no se utiliza en sus superficies, iconos ni selección.
+
+| Función | HEX |
+|---|---|
+| Fondo general | `#1F2522` |
+| Superficie de trabajo | `#272E29` |
+| Texto principal | `#E1E5DD` |
+| Texto secundario | `#A9B2A8` |
+| Borde suave | `#414A42` |
+| Acción principal | `#506D5B` |
+| Texto sobre acción principal | `#EDF1EA` |
+| Navegación | `#262525` |
+| Texto de navegación | `#DDD8D1` |
+| Selección de navegación | `#3D3530` |
+| Texto de selección | `#E8D2BE` |
+| Borde de navegación | `#48413B` |
+| Fondo del acceso | `#242424` |
+| Formulario de acceso | `#2D2B29` |
+| Títulos del acceso | `#E0D4C6` |
+
+En el logo y el isotipo sobre superficies oscuras, sustituir exclusivamente el bosque por `#9DBDA8` y la terracota por `#D09880`. Mantener el fondo, la ranura y la sonrisa transparentes. Los SVG oficiales siguen siendo la fuente de geometría; no redibujar la marca. La adaptación no cambia los colores oficiales del tema claro.
+
+Texto principal, secundario, navegación y etiquetas de acciones deben mantener al menos 4,5:1 de contraste contra su fondo. Los estados usan fondos discretos con etiquetas explícitas. Compartir los componentes de shadcn/ui entre temas y cambiar los tokens, evitando duplicar el comportamiento de los controles.
+
+## 9. Acceso y movimiento tipográfico
+
+La pantalla de acceso usa un fondo continuo, el isotipo a la izquierda, el mensaje «Una red. Muchas historias.» y un formulario a la derecha. En móvil, organizar los elementos en una sola columna. El isotipo mide aproximadamente 112 px y conserva su área de protección. El nombre de EntreLibros permanece visible en el contenido, aunque no se utilice el logotipo completo en esta pantalla.
+
+Las letras de fondo son formas tipográficas de Lora, separadas del contenido y del isotipo. Usar unas 20 letras distribuidas en tamaños distintos, aproximadamente 90–380 px en escritorio y menores en móvil. Mantener una opacidad de 6–7 %, desplazamientos visibles de 40–90 px y recorridos de 14–24 segundos, con desfases independientes y cambios suaves de dirección. No animar el formulario ni la marca. Las letras no deben interceptar clics, recibir foco ni leerse con tecnologías de asistencia.
+
+Permitir pausar el movimiento y respetar `prefers-reduced-motion: reduce`, mostrando un fondo estático. Mantener los controles y el texto principal por encima de la decoración, con una superficie uniforme detrás de los campos.
+
+Los diseños editables están en `pen/mocks.pen`. El prototipo visual animado está en `pen/acceso.html`; permite cambiar tema y pausar el fondo, pero no conecta la autenticación. El shader del canvas y las texturas tipográficas se encuentran en `pen/assets/motion`. Las portadas de ejemplo de `pen/assets/portadas` provienen de [Open Library Covers API](https://openlibrary.org/dev/docs/api/covers) y son contenido editorial de demostración, no elementos de la identidad de marca.
