@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+:root {
+  color-scheme: light;
+  --primary: #234d3c;
+  --primary-foreground: #ffffff;
+  --brand-orange: #b84f36;
+  --background: #faf7ef;
+  --card: #ffffff;
+  --foreground: #242b27;
+  --muted: #e6ede5;
+  --muted-foreground: #626a62;
+  --border: #d9dfd6;
+  --input: #aeb8ab;
+  --destructive: #a1362d;
+  --action: #234d3c;
+  --success: #285c42;
+  --success-bg: #e6ede5;
+  --warning: #805516;
+  --warning-bg: #fff1d6;
+  --info: #285a70;
+  --info-bg: #e6f0f5;
+  --nav-background: #ffffff;
+  --nav-foreground: #242b27;
+  --nav-muted: #626a62;
+  --nav-active-bg: #e6ede5;
+  --nav-active-fg: #234d3c;
+  --nav-border: #d9dfd6;
+  --access-background: #faf7ef;
+  --access-card: #ffffff;
+  --access-border: #d9dfd6;
+  --access-title: #234d3c;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #b3cdbb;
+  --primary-foreground: #edf1ea;
+  --brand-orange: #d4987f;
+  --background: #1f2522;
+  --card: #272e29;
+  --foreground: #e1e5dd;
+  --muted: #323d35;
+  --muted-foreground: #a9b2a8;
+  --border: #414a42;
+  --input: #617063;
+  --destructive: #d79c91;
+  --action: #506d5b;
+  --success: #b1cbb7;
+  --success-bg: #33463a;
+  --warning: #d6c299;
+  --warning-bg: #443e30;
+  --info: #afbcc8;
+  --info-bg: #34404a;
+  --nav-background: #262525;
+  --nav-foreground: #ddd8d1;
+  --nav-muted: #aaa29a;
+  --nav-active-bg: #3d3530;
+  --nav-active-fg: #e8d2be;
+  --nav-border: #48413b;
+  --access-background: #242424;
+  --access-card: #2d2b29;
+  --access-border: #4b4642;
+  --access-title: #e0d4c6;
+}
+@layer base {
+  body {
+    font-family: "DM Sans", system-ui, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+  }
+  .font-heading {
+    font-family: "Lora", Georgia, serif;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled),
+  select {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 4px;
+  }
+  dialog {
+    color: var(--foreground);
+  }
+}
+@keyframes letter-drift {
+  from {
+    transform: translateY(-15px) rotate(-3deg);
+  }
+  to {
+    transform: translateY(30px) rotate(4deg);
+  }
+}
+@utility drift {
+  animation: letter-drift 18s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .drift {
+    animation: none;
+  }
+}
