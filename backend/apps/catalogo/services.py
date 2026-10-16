@@ -113,7 +113,8 @@ def asignar_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
 
     if ejemplar.estado != EstadoEjemplar.DISPONIBLE:
         raise EjemplarNoDisponibleError(
-            f"El ejemplar está en estado {ejemplar.get_estado_display()}.")
+            f"El ejemplar está en estado {ejemplar.get_estado_display()}."
+        )
 
     ejemplar.estado = EstadoEjemplar.ASIGNADO
     ejemplar.save(update_fields=["estado"])

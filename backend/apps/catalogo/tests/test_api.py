@@ -22,9 +22,7 @@ class LibroApiTest(APITestCase):
     def test_listar_libros(self):
         self.crear_libro()
 
-        response = self.client.get(
-            reverse("libro-list")
-        )
+        response = self.client.get(reverse("libro-list"))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
@@ -107,18 +105,14 @@ class LibroApiTest(APITestCase):
     def test_consultar_libro(self):
         libro = self.crear_libro()
 
-        response = self.client.get(
-            reverse("libro-detail", args=[libro.id])
-        )
+        response = self.client.get(reverse("libro-detail", args=[libro.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], libro.id)
         self.assertEqual(response.data["titulo"], "El principito")
 
     def test_consultar_libro_inexistente(self):
-        response = self.client.get(
-            reverse("libro-detail", args=[9999])
-        )
+        response = self.client.get(reverse("libro-detail", args=[9999]))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -133,6 +127,7 @@ class LibroApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["titulo"], "El principito actualizado")
+
 
 class EjemplarApiTest(APITestCase):
     def setUp(self):
@@ -258,9 +253,7 @@ class EjemplarApiTest(APITestCase):
         creado = self.crear_ejemplar()
         ejemplar_id = creado.data["id"]
 
-        response = self.client.get(
-            reverse("ejemplar-detail", args=[ejemplar_id])
-        )
+        response = self.client.get(reverse("ejemplar-detail", args=[ejemplar_id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["codigo_inventario"], "EJ-0001")
@@ -282,12 +275,8 @@ class EjemplarApiTest(APITestCase):
         creado = self.crear_ejemplar()
         ejemplar_id = creado.data["id"]
 
-        asignar = self.client.post(
-            reverse("ejemplar-asignar", args=[ejemplar_id])
-        )
-        liberar = self.client.post(
-            reverse("ejemplar-liberar", args=[ejemplar_id])
-        )
+        asignar = self.client.post(reverse("ejemplar-asignar", args=[ejemplar_id]))
+        liberar = self.client.post(reverse("ejemplar-liberar", args=[ejemplar_id]))
 
         self.assertEqual(asignar.status_code, status.HTTP_200_OK)
         self.assertEqual(asignar.data["estado"], EstadoEjemplar.ASIGNADO)

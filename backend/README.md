@@ -56,3 +56,32 @@ SQLite es solo una facilidad para pruebas rápidas. El desarrollo integrado y el
 - `GET /api/schema/`: contrato OpenAPI.
 - `GET /api/docs/`: interfaz Swagger.
 - `/admin/`: administración de Django.
+
+## Catálogo
+
+El módulo `catalogo` administra libros, ejemplares y la disponibilidad por sede.
+
+```http
+GET   /api/libros/
+POST  /api/libros/
+GET   /api/libros/{id}/
+PATCH /api/libros/{id}/
+
+GET   /api/ejemplares/
+POST  /api/ejemplares/
+GET   /api/ejemplares/{id}/
+PATCH /api/ejemplares/{id}/
+POST  /api/ejemplares/{id}/asignar/
+POST  /api/ejemplares/{id}/liberar/
+
+GET   /api/disponibilidad/
+```
+
+La lista de libros admite `?search=` para buscar por título, autor o ISBN. La lista
+de ejemplares admite `?libro_id=`, `?sede_id=` y `?estado=`. El reporte de
+disponibilidad devuelve cantidades totales, disponibles, no disponibles y
+proporción disponible por sede; también acepta `libro_id` y `sede_id`.
+
+Los ejemplares se crean como `DISPONIBLE`, con su sede actual igual a la sede
+propietaria. Las operaciones de asignar y liberar usan transacciones y bloquean
+la fila para impedir asignaciones simultáneas del mismo ejemplar.

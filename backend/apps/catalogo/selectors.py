@@ -89,9 +89,7 @@ def disponibilidad_por_sede(
             "total": fila["total"],
             "disponibles": fila["disponibles"],
             "no_disponibles": fila["total"] - fila["disponibles"],
-            "proporcion_disponible": (
-                fila["disponibles"] / fila["total"] if fila["total"] else 0
-            ),
+            "proporcion_disponible": (fila["disponibles"] / fila["total"] if fila["total"] else 0),
         }
         for fila in filas
     ]
