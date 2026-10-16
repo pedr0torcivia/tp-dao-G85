@@ -1,6 +1,6 @@
 from django.db.models import Q, QuerySet
 
-from .models import Libro
+from .models import Ejemplar, Libro
 
 
 def listar_libros(*, search: str | None = None) -> QuerySet[Libro]:
@@ -8,6 +8,7 @@ def listar_libros(*, search: str | None = None) -> QuerySet[Libro]:
 
     if search:
         termino = search.strip()
+
         if termino:
             libros = libros.filter(
                 Q(titulo__icontains=termino)
@@ -20,3 +21,27 @@ def listar_libros(*, search: str | None = None) -> QuerySet[Libro]:
 
 def obtener_libro(*, libro_id: int) -> Libro:
     return Libro.objects.get(id=libro_id)
+
+
+def listar_ejemplares(
+    *,
+    libro_id: int | None = None,
+    sede_id: int | None = None,
+    estado: str | None = None,
+) -> QuerySet[Ejemplar]:
+    ejemplares = Ejemplar.objects.select_related(
+        "libro",
+        "sede_propietaria",
+        "sede_actual",
+    ).order_by("codigo_inventario", "id")
+
+    if libro_id:
+        ejemplares = ejemplares.filter(libro_id=libro_id)
+
+    if sede_id:
+        ejemplares = ejemplares.filter(sede_propietaria_id=sede_id)
+
+    if estado:
+        ejemplares = ejemplares.filter(estado=estado)
+
+    return ejemplares

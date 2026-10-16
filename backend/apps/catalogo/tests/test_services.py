@@ -1,52 +1,76 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from apps.catalogo.models import Libro
-from apps.catalogo.services import crear_libro
+from apps.catalogo.models import Ejemplar, EstadoEjemplar
+from apps.catalogo.services import crear_ejemplar, crear_libro
+from apps.sedes.exceptions import SedeInactivaError
+from apps.sedes.models import EstadoSede, Sede
 
 
-class LibroServicesTest(TestCase):
-    def crear_libro(self, isbn=None):
-        return crear_libro(
-            titulo="  El principito  ",
-            autor="  Antoine de Saint-Exupéry  ",
-            editorial="  Salamandra  ",
-            edicion="  1  ",
-            isbn=isbn,
+class EjemplarServicesTest(TestCase):
+    def setUp(self):
+        self.sede = Sede.objects.create(
+            nombre="Biblioteca Central",
+            direccion="Av. Siempre Viva 123",
+            contacto="central@biblioteca.test",
+            horarios="Lunes a viernes",
+            estado=EstadoSede.ACTIVA,
         )
 
-    def test_crear_libro_guarda_y_limpia_espacios(self):
-        libro = self.crear_libro(isbn="  9780156012195  ")
+        self.libro = crear_libro(
+            titulo="El principito",
+            autor="Antoine de Saint-Exupéry",
+            editorial="Salamandra",
+            edicion="1",
+            isbn="9780000000001",
+        )
 
-        libro.refresh_from_db()
+    def crear_ejemplar(self, **cambios):
+        datos = {
+            "codigo_inventario": "EJ-0001",
+            "libro": self.libro,
+            "sede_propietaria": self.sede,
+            "condicion_fisica": "Bueno",
+        }
+        datos.update(cambios)
 
-        self.assertEqual(Libro.objects.count(), 1)
-        self.assertEqual(libro.titulo, "El principito")
-        self.assertEqual(libro.autor, "Antoine de Saint-Exupéry")
-        self.assertEqual(libro.editorial, "Salamandra")
-        self.assertEqual(libro.edicion, "1")
-        self.assertEqual(libro.isbn, "9780156012195")
+        return crear_ejemplar(**datos)
 
-    def test_rechaza_isbn_duplicado(self):
-        self.crear_libro(isbn="9780156012195")
+    def test_crear_ejemplar_comienza_disponible(self):
+        ejemplar = self.crear_ejemplar()
 
-        with self.assertRaises(ValidationError) as contexto:
-            self.crear_libro(isbn="9780156012195")
+        self.assertEqual(ejemplar.estado, EstadoEjemplar.DISPONIBLE)
+        self.assertEqual(ejemplar.sede_propietaria, self.sede)
+        self.assertEqual(ejemplar.sede_actual, self.sede)
+        self.assertEqual(ejemplar.condicion_fisica, "Bueno")
 
-        self.assertIn("isbn", contexto.exception.message_dict)
-        self.assertEqual(Libro.objects.count(), 1)
+    def test_crear_ejemplar_limpia_espacios(self):
+        ejemplar = self.crear_ejemplar(
+            codigo_inventario="  EJ-0002  ",
+            condicion_fisica="  Muy bueno  ",
+        )
 
-    def test_permite_varios_libros_sin_isbn(self):
-        primero = self.crear_libro()
-        segundo = self.crear_libro()
+        self.assertEqual(ejemplar.codigo_inventario, "EJ-0002")
+        self.assertEqual(ejemplar.condicion_fisica, "Muy bueno")
 
-        self.assertIsNone(primero.isbn)
-        self.assertIsNone(segundo.isbn)
-        self.assertEqual(Libro.objects.count(), 2)
+    def test_no_permite_ejemplar_en_sede_inactiva(self):
+        sede_inactiva = Sede.objects.create(
+            nombre="Biblioteca Cerrada",
+            direccion="Calle 123",
+            contacto="cerrada@biblioteca.test",
+            horarios="Sin atención",
+            estado=EstadoSede.BAJA,
+        )
 
-    def test_isbn_vacio_se_guarda_como_null(self):
-        libro = self.crear_libro(isbn="   ")
+        with self.assertRaises(SedeInactivaError):
+            self.crear_ejemplar(sede_propietaria=sede_inactiva)
 
-        libro.refresh_from_db()
+        self.assertEqual(Ejemplar.objects.count(), 0)
 
-        self.assertIsNone(libro.isbn)
+    def test_no_permite_codigo_de_inventario_duplicado(self):
+        self.crear_ejemplar()
+
+        with self.assertRaises(ValidationError):
+            self.crear_ejemplar()
+
+        self.assertEqual(Ejemplar.objects.count(), 1)

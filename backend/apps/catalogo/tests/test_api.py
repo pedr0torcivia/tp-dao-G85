@@ -2,7 +2,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.catalogo.models import Libro
+from apps.catalogo.models import Ejemplar, EstadoEjemplar, Libro
+from apps.sedes.models import EstadoSede, Sede
 
 
 class LibroApiTest(APITestCase):
@@ -120,3 +121,123 @@ class LibroApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+class EjemplarApiTest(APITestCase):
+    def setUp(self):
+        self.sede_central = Sede.objects.create(
+            nombre="Biblioteca Central",
+            direccion="Av. Siempre Viva 123",
+            contacto="central@biblioteca.test",
+            horarios="Lunes a viernes",
+            estado=EstadoSede.ACTIVA,
+        )
+
+        self.sede_norte = Sede.objects.create(
+            nombre="Biblioteca Norte",
+            direccion="Calle Norte 456",
+            contacto="norte@biblioteca.test",
+            horarios="Lunes a viernes",
+            estado=EstadoSede.ACTIVA,
+        )
+
+        self.libro = Libro.objects.create(
+            isbn="9780000000101",
+            titulo="El principito",
+            autor="Antoine de Saint-Exupéry",
+            editorial="Salamandra",
+            edicion="1",
+        )
+
+        self.otro_libro = Libro.objects.create(
+            isbn="9780000000102",
+            titulo="Don Quijote",
+            autor="Miguel de Cervantes",
+            editorial="Austral",
+            edicion="2",
+        )
+
+    def crear_ejemplar(self, **cambios):
+        datos = {
+            "codigo_inventario": "EJ-0001",
+            "libro_id": self.libro.id,
+            "sede_propietaria_id": self.sede_central.id,
+            "condicion_fisica": "Bueno",
+        }
+        datos.update(cambios)
+
+        return self.client.post(
+            reverse("ejemplar-list"),
+            datos,
+            format="json",
+        )
+
+    def test_listar_ejemplares(self):
+        self.crear_ejemplar()
+
+        response = self.client.get(reverse("ejemplar-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["codigo_inventario"], "EJ-0001")
+
+    def test_crear_ejemplar(self):
+        response = self.crear_ejemplar()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["estado"], EstadoEjemplar.DISPONIBLE)
+        self.assertEqual(
+            response.data["sede_actual_id"],
+            self.sede_central.id,
+        )
+        self.assertEqual(Ejemplar.objects.count(), 1)
+
+    def test_filtrar_por_libro(self):
+        self.crear_ejemplar()
+
+        self.crear_ejemplar(
+            codigo_inventario="EJ-0002",
+            libro_id=self.otro_libro.id,
+        )
+
+        response = self.client.get(
+            reverse("ejemplar-list"),
+            {"libro_id": self.otro_libro.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["codigo_inventario"], "EJ-0002")
+
+    def test_filtrar_por_sede(self):
+        self.crear_ejemplar(
+            sede_propietaria_id=self.sede_norte.id,
+        )
+
+        response = self.client.get(
+            reverse("ejemplar-list"),
+            {"sede_id": self.sede_norte.id},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["sede_propietaria_id"], self.sede_norte.id)
+
+    def test_filtrar_por_estado(self):
+        self.crear_ejemplar()
+
+        response = self.client.get(
+            reverse("ejemplar-list"),
+            {"estado": EstadoEjemplar.DISPONIBLE},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["estado"], EstadoEjemplar.DISPONIBLE)
+
+    def test_rechazar_codigo_duplicado(self):
+        self.crear_ejemplar()
+
+        response = self.crear_ejemplar()
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Ejemplar.objects.count(), 1)
