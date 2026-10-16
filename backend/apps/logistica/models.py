@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import F, Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from apps.catalogo.models import CondicionFisica
@@ -15,7 +16,7 @@ class EstadoRemito(models.TextChoices):
 
 
 class Remito(models.Model):
-    numero = models.CharField(max_length=40, unique=True)
+    numero = models.CharField(max_length=40)
     sede_origen = models.ForeignKey(
         "sedes.Sede", on_delete=models.PROTECT, related_name="remitos_enviados"
     )
@@ -33,6 +34,10 @@ class Remito(models.Model):
 
     class Meta:
         constraints = [
+            models.UniqueConstraint(
+                Lower("numero"),
+                name="remito_numero_unico_sin_mayusculas",
+            ),
             models.CheckConstraint(
                 condition=~Q(sede_origen=F("sede_destino")),
                 name="remito_sedes_diferentes",
