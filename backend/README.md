@@ -7,12 +7,14 @@ API del sistema de préstamos interbibliotecarios construida con Django y Django
 - `common`: comportamiento transversal, errores y endpoint de salud.
 - `sedes`: administración y baja lógica de las bibliotecas.
 - `socios`: socios, habilitación y detección de duplicados.
-- `catalogo`: libros, autores, ejemplares y disponibilidad.
+- `catalogo`: libros, autor como dato bibliográfico, ejemplares y disponibilidad.
 - `circulacion`: solicitudes, préstamos, reservas y devoluciones.
 - `logistica`: remitos, eventos y trazabilidad.
 - `reportes`: consultas agregadas de la entrega.
 
 Cada módulo incorporará sus modelos, servicios, selectores, serializers, vistas y pruebas a medida que se implementen sus casos de uso. Las reglas de negocio no deben depender de las vistas HTTP.
+
+El esquema relacional se implementa con modelos y migraciones de Django. Para generar una base SQLite local, configurar `$env:DJANGO_USE_SQLITE = "true"` y ejecutar `python manage.py migrate`.
 
 ## Desarrollo local
 

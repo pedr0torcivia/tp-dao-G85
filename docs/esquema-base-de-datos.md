@@ -1,6 +1,6 @@
 # Esquema de la base de datos
 
-Versión documentada del [DER limpio en FigJam](https://www.figma.com/board/aYOy4RyT0MaeW0a69ivvxJ/Modelos?node-id=84-1715), 16 de octubre de 2026. Es la referencia para acordar los modelos y migraciones de Django; este documento no crea tablas en PostgreSQL.
+Versión documentada del [DER limpio en FigJam](https://www.figma.com/board/aYOy4RyT0MaeW0a69ivvxJ/Modelos?node-id=84-1715), 16 de octubre de 2026. Los modelos Django y sus migraciones en `backend/apps/*/migrations/` son la implementación ejecutable de este esquema.
 
 La base tiene diez tablas. `Libro` representa la obra o edición catalogada; `Ejemplar` representa cada copia física. El autor se guarda como texto en `Libro.autor`: no hay tablas `Autor` ni `LibroAutor`.
 
@@ -57,3 +57,20 @@ La base tiene diez tablas. `Libro` representa la obra o edición catalogada; `Ej
 ## Reglas por cerrar antes de migrar
 
 El DER no decide por sí solo dónde se devuelve una copia y cómo regresa a su sede propietaria, si se admite recepción parcial de un remito, la prioridad y el vencimiento de reservas, ni el criterio de duplicados para libros sin ISBN. Estas reglas deben acordarse antes de fijar restricciones y flujos de negocio en Django.
+
+## Crear la base SQLite
+
+Desde `backend/`, con las dependencias instaladas:
+
+```powershell
+$env:DJANGO_USE_SQLITE = "true"
+python manage.py migrate
+```
+
+Esto crea `backend/db.sqlite3`. Para consultar su esquema con SQLite:
+
+```powershell
+sqlite3 db.sqlite3 ".schema"
+```
+
+En el despliegue con Docker se usa PostgreSQL; Django aplica las mismas migraciones con `python manage.py migrate`.
