@@ -6,6 +6,7 @@ Sistema de préstamos interbibliotecarios para una red de bibliotecas.
 
 - [Definición del producto](docs/definicion-producto.md)
 - [Plan de proyecto y sprints](docs/plan-proyecto.md)
+- [Distribución del trabajo del backend](docs/distribucion-backend.md)
 - [Modelos compartidos en FigJam](https://www.figma.com/board/aYOy4RyT0MaeW0a69ivvxJ/Modelos)
 
 ## Decisiones acordadas
