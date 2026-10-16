@@ -1,6 +1,11 @@
 from django.db import models
 
 
+class CondicionFisica(models.TextChoices):
+    APTO = "APTO", "Apto para préstamo"
+    NO_APTO = "NO_APTO", "No apto para préstamo"
+
+
 class EstadoEjemplar(models.TextChoices):
     DISPONIBLE = "DISPONIBLE", "Disponible"
     ASIGNADO = "ASIGNADO", "Asignado"
@@ -40,7 +45,23 @@ class Ejemplar(models.Model):
         choices=EstadoEjemplar.choices,
         default=EstadoEjemplar.DISPONIBLE,
     )
-    condicion_fisica = models.CharField(max_length=80)
+    condicion_fisica = models.CharField(
+        max_length=80,
+        choices=CondicionFisica.choices,
+        default=CondicionFisica.APTO,
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(estado__in=EstadoEjemplar.values),
+                name="ejemplar_estado_valido",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(condicion_fisica__in=CondicionFisica.values),
+                name="ejemplar_condicion_valida",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.codigo_inventario

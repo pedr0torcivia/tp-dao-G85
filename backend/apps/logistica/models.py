@@ -2,6 +2,8 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
 
+from apps.catalogo.models import CondicionFisica
+
 
 class EstadoRemito(models.TextChoices):
     EN_PREPARACION = "EN_PREPARACION", "En preparación"
@@ -58,14 +60,31 @@ class DetalleRemito(models.Model):
         null=True,
         blank=True,
     )
-    condicion_salida = models.CharField(max_length=80)
-    condicion_recepcion = models.CharField(max_length=80, null=True, blank=True)
+    condicion_salida = models.CharField(
+        max_length=80,
+        choices=CondicionFisica.choices,
+    )
+    condicion_recepcion = models.CharField(
+        max_length=80,
+        choices=CondicionFisica.choices,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["remito", "ejemplar"], name="detalle_remito_ejemplar_unico"
-            )
+            ),
+            models.CheckConstraint(
+                condition=Q(condicion_salida__in=CondicionFisica.values),
+                name="detalle_condicion_salida_valida",
+            ),
+            models.CheckConstraint(
+                condition=Q(condicion_recepcion__isnull=True)
+                | Q(condicion_recepcion__in=CondicionFisica.values),
+                name="detalle_condicion_recepcion_valida",
+            ),
         ]
 
     def __str__(self) -> str:
