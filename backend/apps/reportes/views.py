@@ -1,6 +1,8 @@
 from datetime import date
 
 from django.utils.dateparse import parse_date
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ValidationError as ApiValidationError
@@ -16,6 +18,7 @@ def _fecha(request, clave: str) -> date:
     return valor
 
 
+@extend_schema(responses={200: OpenApiTypes.OBJECT}, summary="RP03 — movimiento entre sedes")
 @api_view(["GET"])
 def reportes_movimientos(request):
     desde = _fecha(request, "desde")
