@@ -4,6 +4,8 @@ Fecha de actualización: 16 de octubre de 2026.
 
 Este documento define cómo se divide el desarrollo del backend de EntreLibros entre los cuatro integrantes del Grupo 85. Complementa la [definición del producto](definicion-producto.md), el [plan del proyecto](plan-proyecto.md) y la guía de integración frontend-backend.
 
+El [esquema de la base de datos](esquema-base-de-datos.md) documenta el DER acordado para los cuatro módulos.
+
 ## Criterio de división
 
 El trabajo se divide por módulos funcionales completos y no por capas técnicas. Cada responsable desarrolla y comprende los modelos, migraciones, servicios, consultas, serializers, vistas, rutas y pruebas de su área.
@@ -67,16 +69,14 @@ I2 es responsable de `apps/catalogo`.
 
 ### Entidades
 
-- `Autor`.
 - `Libro`.
-- `LibroAutor`.
 - `Ejemplar`.
 
 ### Reglas principales
 
 - ISBN único cuando está informado y `null` cuando no existe.
 - Código de inventario único.
-- Asociación `(libro_id, autor_id)` única.
+- Autor registrado como texto en `Libro.autor`; el esquema no incluye una tabla de autores.
 - Sede propietaria obligatoria.
 - Sede actual opcional durante el tránsito.
 - Disponibilidad calculada a partir del ejemplar; no almacenada en `Libro`.
@@ -99,13 +99,10 @@ Endpoints previstos:
 
 ```http
 /api/libros/
-/api/autores/
-/api/libro-autores/
 /api/ejemplares/
-/api/libros/{id}/autores/
 ```
 
-La actualización de un libro y sus autores debe ser atómica para no dejar relaciones parcialmente guardadas.
+La actualización de los datos bibliográficos de un libro, incluido su autor, corresponde al módulo de catálogo.
 
 ### Responsabilidades transversales
 
