@@ -1,4 +1,8 @@
-from django.test import TestCase
+import threading
+from unittest import skipIf
+
+from django.db import connection
+from django.test import TestCase, TransactionTestCase
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
 from apps.circulacion.models import (
@@ -8,21 +12,26 @@ from apps.circulacion.models import (
 )
 from apps.sedes.exceptions import SedeInactivaError
 from apps.sedes.models import Sede
-from apps.socios.models import Socio
+from apps.socios.models import EstadoSocio, Socio
 
 from ..exceptions import (
     EjemplarInvalidoError,
     NumeroRemitoDuplicadoError,
+    RecepcionInvalidaError,
     RemitoVacioError,
     SedesInvalidasError,
+    SocioInhabilitadoError,
     TransicionInvalidaError,
 )
-from ..models import EstadoRemito, EventoRemito, Remito
+from ..models import DetalleRemito, EstadoRemito, EventoRemito, Remito
 from ..services import (
     agregar_ejemplar,
     cancelar_remito,
     crear_remito,
+    despachar_remito,
     empaquetar_remito,
+    recibir_remito,
+    registrar_salida_remito,
 )
 
 
@@ -329,3 +338,275 @@ class CancelarRemitoTest(BaseLogisticaTest):
         remito = cancelar_remito(remito=remito)
 
         self.assertEqual(remito.estado, EstadoRemito.CANCELADO)
+
+
+class DespacharTest(BaseLogisticaTest):
+    def preparado(self, numero="REM-0040"):
+        remito = crear_remito(
+            numero=numero,
+            sede_origen_id=self.central.id,
+            sede_destino_id=self.norte.id,
+        )
+        agregar_ejemplar(remito=remito, ejemplar_id=self.crear_ejemplar().id)
+        empaquetar_remito(remito=remito)
+        return remito
+
+    def test_despacha_y_manda_ejemplares_en_transito(self):
+        remito = self.preparado()
+        detalle = remito.detalles.first()
+        detalle.solicitud = self.crear_solicitud_asignada(detalle.ejemplar)
+        detalle.save()
+
+        remito = despachar_remito(remito=remito, responsable="Logística")
+
+        self.assertEqual(remito.estado, EstadoRemito.DESPACHADO)
+        self.assertIsNotNone(remito.fecha_despacho)
+        detalle.ejemplar.refresh_from_db()
+        self.assertEqual(detalle.ejemplar.estado, EstadoEjemplar.EN_TRANSITO)
+        self.assertIsNone(detalle.ejemplar.sede_actual)
+        detalle.solicitud.refresh_from_db()
+        self.assertEqual(detalle.solicitud.estado, EstadoSolicitud.EN_TRASLADO)
+
+    def test_rechaza_con_socio_inhabilitado_y_no_deja_cambios(self):
+        remito = self.preparado()
+        detalle = remito.detalles.first()
+        detalle.solicitud = self.crear_solicitud_asignada(detalle.ejemplar)
+        detalle.save()
+        self.socio.estado = EstadoSocio.INHABILITADO
+        self.socio.save()
+
+        with self.assertRaises(SocioInhabilitadoError):
+            despachar_remito(remito=remito)
+
+        detalle.ejemplar.refresh_from_db()
+        self.assertEqual(detalle.ejemplar.estado, EstadoEjemplar.ASIGNADO)
+        self.assertIsNotNone(detalle.ejemplar.sede_actual)
+
+    def test_rechaza_con_sede_de_baja(self):
+        from apps.sedes.services import dar_de_baja_sede
+
+        remito = self.preparado()
+        dar_de_baja_sede(sede=self.norte)
+
+        with self.assertRaises(SedeInactivaError):
+            despachar_remito(remito=remito)
+
+
+class RegistrarSalidaTest(BaseLogisticaTest):
+    def test_solo_despues_de_despachar(self):
+        remito = crear_remito(
+            numero="REM-0050",
+            sede_origen_id=self.central.id,
+            sede_destino_id=self.norte.id,
+        )
+        agregar_ejemplar(remito=remito, ejemplar_id=self.crear_ejemplar().id)
+        empaquetar_remito(remito=remito)
+
+        with self.assertRaises(TransicionInvalidaError):
+            registrar_salida_remito(remito=remito)
+
+        despachar_remito(remito=remito)
+        remito = registrar_salida_remito(remito=remito, responsable="Transporte")
+
+        self.assertEqual(remito.estado, EstadoRemito.EN_TRANSITO)
+
+
+class RecibirTest(BaseLogisticaTest):
+    def en_transito(self, numero="REM-0060"):
+        remito = crear_remito(
+            numero=numero,
+            sede_origen_id=self.central.id,
+            sede_destino_id=self.norte.id,
+        )
+        agregar_ejemplar(remito=remito, ejemplar_id=self.crear_ejemplar().id)
+        empaquetar_remito(remito=remito)
+        despachar_remito(remito=remito)
+        registrar_salida_remito(remito=remito)
+        return remito
+
+    def test_recibe_con_solicitud_y_deja_listo_para_entrega(self):
+        remito = self.en_transito()
+        detalle = remito.detalles.first()
+        detalle.solicitud = self.crear_solicitud_asignada(detalle.ejemplar)
+        detalle.save()
+        despacho = EventoRemito.objects.filter(remito=remito).count()
+
+        remito = recibir_remito(
+            remito=remito, verificados=[detalle.ejemplar_id], responsable="Personal Norte"
+        )
+
+        self.assertEqual(remito.estado, EstadoRemito.RECIBIDO)
+        self.assertIsNotNone(remito.fecha_recepcion)
+        detalle.ejemplar.refresh_from_db()
+        self.assertEqual(detalle.ejemplar.sede_actual_id, self.norte.id)
+        self.assertEqual(detalle.ejemplar.sede_propietaria_id, self.central.id)
+        self.assertEqual(detalle.ejemplar.estado, EstadoEjemplar.LISTO_PARA_ENTREGA)
+        detalle.solicitud.refresh_from_db()
+        self.assertEqual(detalle.solicitud.estado, EstadoSolicitud.LISTA_PARA_ENTREGA)
+        detalle.refresh_from_db()
+        self.assertEqual(detalle.condicion_recepcion, detalle.ejemplar.condicion_fisica)
+        self.assertEqual(EventoRemito.objects.filter(remito=remito).count(), despacho + 1)
+
+    def test_recibe_stock_sin_solicitud_y_queda_en_revision(self):
+        remito = self.en_transito()
+        detalle = remito.detalles.first()
+
+        recibir_remito(
+            remito=remito, verificados=[detalle.ejemplar_id], responsable="Personal Norte"
+        )
+
+        detalle.ejemplar.refresh_from_db()
+        self.assertEqual(detalle.ejemplar.estado, EstadoEjemplar.EN_REVISION)
+        self.assertEqual(detalle.ejemplar.sede_actual_id, self.norte.id)
+
+    def test_rechaza_recepcion_incompleta_sin_dejar_cambios(self):
+        remito = self.en_transito()
+        detalle = remito.detalles.first()
+
+        with self.assertRaises(RecepcionInvalidaError):
+            recibir_remito(remito=remito, verificados=[], responsable="Personal Norte")
+
+        remito.refresh_from_db()
+        self.assertEqual(remito.estado, EstadoRemito.EN_TRANSITO)
+        self.assertIsNone(remito.fecha_recepcion)
+        detalle.ejemplar.refresh_from_db()
+        self.assertEqual(detalle.ejemplar.estado, EstadoEjemplar.EN_TRANSITO)
+
+    def test_rechaza_recepcion_sin_responsable(self):
+        remito = self.en_transito()
+        detalle = remito.detalles.first()
+
+        with self.assertRaises(RecepcionInvalidaError):
+            recibir_remito(remito=remito, verificados=[detalle.ejemplar_id], responsable="  ")
+
+    def test_rechaza_recepcion_desde_empaquetado(self):
+        remito = crear_remito(
+            numero="REM-0061",
+            sede_origen_id=self.central.id,
+            sede_destino_id=self.norte.id,
+        )
+        agregar_ejemplar(remito=remito, ejemplar_id=self.crear_ejemplar().id)
+        empaquetar_remito(remito=remito)
+        detalle = remito.detalles.first()
+
+        with self.assertRaises(TransicionInvalidaError):
+            recibir_remito(
+                remito=remito, verificados=[detalle.ejemplar_id], responsable="Personal Norte"
+            )
+
+
+class CicloCompletoTest(BaseLogisticaTest):
+    """Porta el recorrido de workflows.test.ts del frontend."""
+
+    def test_recorrido_completo_del_remito(self):
+        remito = crear_remito(
+            numero="REM-CICLO",
+            sede_origen_id=self.central.id,
+            sede_destino_id=self.norte.id,
+        )
+        ejemplar = self.crear_ejemplar(estado=EstadoEjemplar.ASIGNADO)
+        self.crear_solicitud_asignada(ejemplar)
+        agregar_ejemplar(remito=remito, ejemplar_id=ejemplar.id)
+
+        empaquetar_remito(remito=remito)
+        despachar_remito(remito=remito)
+
+        ejemplar.refresh_from_db()
+        self.assertIsNone(ejemplar.sede_actual_id)
+        self.assertEqual(ejemplar.sede_propietaria_id, self.central.id)
+
+        with self.assertRaises(TransicionInvalidaError):
+            cancelar_remito(remito=remito)
+
+        registrar_salida_remito(remito=remito)
+
+        with self.assertRaises(RecepcionInvalidaError):
+            recibir_remito(remito=remito, verificados=[], responsable="Personal Norte")
+
+        recibir_remito(remito=remito, verificados=[ejemplar.id], responsable="Personal Sur")
+
+        ejemplar.refresh_from_db()
+        self.assertEqual(ejemplar.sede_actual_id, self.norte.id)
+        self.assertEqual(ejemplar.sede_propietaria_id, self.central.id)
+
+        estados = list(
+            EventoRemito.objects.filter(remito=remito)
+            .order_by("fecha_hora", "id")
+            .values_list("estado_nuevo", flat=True)
+        )
+        self.assertEqual(
+            estados,
+            [
+                EstadoRemito.EN_PREPARACION,
+                EstadoRemito.EMPAQUETADO,
+                EstadoRemito.DESPACHADO,
+                EstadoRemito.EN_TRANSITO,
+                EstadoRemito.RECIBIDO,
+            ],
+        )
+
+
+@skipIf(connection.vendor == "sqlite", "El bloqueo real requiere PostgreSQL")
+class ConcurrenciaTest(TransactionTestCase):
+    def setUp(self):
+        self.central = Sede.objects.create(
+            nombre="Central",
+            direccion="Av. 1",
+            contacto="central@biblioteca.test",
+            horarios="Lunes a viernes de 8 a 18",
+        )
+        self.norte = Sede.objects.create(
+            nombre="Norte",
+            direccion="Av. 2",
+            contacto="norte@biblioteca.test",
+            horarios="Lunes a viernes de 8 a 18",
+        )
+        libro = Libro.objects.create(
+            titulo="Rayuela",
+            autor="Cortázar",
+            editorial="Sudamericana",
+            edicion="1",
+        )
+        self.ejemplar = Ejemplar.objects.create(
+            codigo_inventario="E-C001",
+            libro=libro,
+            sede_propietaria=self.central,
+            sede_actual=self.central,
+            estado=EstadoEjemplar.DISPONIBLE,
+            condicion_fisica=CondicionFisica.APTO,
+        )
+
+    def test_dos_remitos_no_asignan_el_mismo_ejemplar(self):
+        remito_uno = crear_remito(
+            numero="REM-C01",
+            sede_origen_id=self.central.id,
+            sede_destino_id=self.norte.id,
+        )
+        remito_dos = crear_remito(
+            numero="REM-C02",
+            sede_origen_id=self.central.id,
+            sede_destino_id=self.norte.id,
+        )
+        ejemplar = self.ejemplar
+        resultados = []
+        barrera = threading.Barrier(2)
+
+        def intentar(remito):
+            try:
+                barrera.wait(timeout=10)
+                agregar_ejemplar(remito=remito, ejemplar_id=ejemplar.id)
+                resultados.append("ok")
+            except Exception as error:  # noqa: BLE001
+                resultados.append(error)
+            finally:
+                connection.close()
+
+        hilo_uno = threading.Thread(target=intentar, args=(remito_uno,))
+        hilo_dos = threading.Thread(target=intentar, args=(remito_dos,))
+        hilo_uno.start()
+        hilo_dos.start()
+        hilo_uno.join()
+        hilo_dos.join()
+
+        self.assertEqual(resultados.count("ok"), 1, resultados)
+        self.assertEqual(DetalleRemito.objects.count(), 1)

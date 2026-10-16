@@ -20,3 +20,11 @@ class SedesInvalidasError(LogisticaError):
 
 class EjemplarInvalidoError(LogisticaError):
     """El ejemplar no puede integrar el remito solicitado."""
+
+
+class SocioInhabilitadoError(LogisticaError):
+    """El socio de una solicitud vinculada no está habilitado."""
+
+
+class RecepcionInvalidaError(LogisticaError):
+    """La recepción no cumple los requisitos de verificación."""

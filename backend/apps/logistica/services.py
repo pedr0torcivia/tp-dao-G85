@@ -1,4 +1,5 @@
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar
 from apps.circulacion.models import (
@@ -8,11 +9,14 @@ from apps.circulacion.models import (
 )
 from apps.sedes.models import Sede
 from apps.sedes.services import validar_sede_activa
+from apps.socios.models import EstadoSocio
 
 from .exceptions import (
     EjemplarInvalidoError,
     NumeroRemitoDuplicadoError,
+    RecepcionInvalidaError,
     SedesInvalidasError,
+    SocioInhabilitadoError,
     TransicionInvalidaError,
 )
 from .models import DetalleRemito, EstadoRemito, EventoRemito, Remito
@@ -191,5 +195,125 @@ def cancelar_remito(
     )
     remito.estado = destino
     remito.save(update_fields=["estado"])
+
+    return remito
+
+
+@transaction.atomic
+def despachar_remito(
+    *,
+    remito: Remito,
+    responsable: str = "",
+    observacion: str = "",
+) -> Remito:
+    _validar_sedes_activas(
+        sede_origen_id=remito.sede_origen_id,
+        sede_destino_id=remito.sede_destino_id,
+    )
+
+    remito = Remito.objects.select_for_update().get(pk=remito.pk)
+    destino = estado_actual(remito).despachar(remito)
+
+    detalles = list(remito.detalles.select_related("ejemplar", "solicitud", "solicitud__socio"))
+    for detalle in detalles:
+        solicitud = detalle.solicitud
+        if solicitud is not None and solicitud.socio.estado != EstadoSocio.HABILITADO:
+            raise SocioInhabilitadoError("El socio debe estar habilitado.")
+
+    remito.fecha_despacho = timezone.now()
+    for detalle in detalles:
+        ejemplar = detalle.ejemplar
+        ejemplar.estado = EstadoEjemplar.EN_TRANSITO
+        ejemplar.sede_actual = None
+        ejemplar.save(update_fields=["estado", "sede_actual"])
+
+        solicitud = detalle.solicitud
+        if solicitud is not None:
+            solicitud.estado = EstadoSolicitud.EN_TRASLADO
+            solicitud.save(update_fields=["estado"])
+
+    _registrar_evento(
+        remito=remito,
+        destino=destino,
+        responsable=responsable,
+        observacion=observacion,
+    )
+    remito.estado = destino
+    remito.save(update_fields=["estado", "fecha_despacho"])
+
+    return remito
+
+
+@transaction.atomic
+def registrar_salida_remito(
+    *,
+    remito: Remito,
+    responsable: str = "",
+    observacion: str = "",
+) -> Remito:
+    _validar_sedes_activas(
+        sede_origen_id=remito.sede_origen_id,
+        sede_destino_id=remito.sede_destino_id,
+    )
+
+    remito = Remito.objects.select_for_update().get(pk=remito.pk)
+    destino = estado_actual(remito).registrar_salida(remito)
+
+    _registrar_evento(
+        remito=remito,
+        destino=destino,
+        responsable=responsable,
+        observacion=observacion,
+    )
+    remito.estado = destino
+    remito.save(update_fields=["estado"])
+
+    return remito
+
+
+@transaction.atomic
+def recibir_remito(
+    *,
+    remito: Remito,
+    verificados: list[int],
+    responsable: str,
+    observacion: str = "",
+) -> Remito:
+    remito = Remito.objects.select_for_update().get(pk=remito.pk)
+    destino = estado_actual(remito).recibir(remito)
+
+    detalles = list(remito.detalles.select_related("ejemplar", "solicitud"))
+    verificados_set = set(verificados)
+    if any(detalle.ejemplar_id not in verificados_set for detalle in detalles):
+        raise RecepcionInvalidaError(
+            "Verificá todos los ejemplares. La recepción parcial está pendiente de definición."
+        )
+    if not responsable.strip():
+        raise RecepcionInvalidaError("Indicá quién recibe el material.")
+
+    remito.fecha_recepcion = timezone.now()
+    for detalle in detalles:
+        ejemplar = detalle.ejemplar
+        detalle.condicion_recepcion = ejemplar.condicion_fisica
+        ejemplar.sede_actual_id = remito.sede_destino_id
+
+        solicitud = detalle.solicitud
+        if solicitud is not None:
+            ejemplar.estado = EstadoEjemplar.LISTO_PARA_ENTREGA
+            solicitud.estado = EstadoSolicitud.LISTA_PARA_ENTREGA
+            solicitud.save(update_fields=["estado"])
+        else:
+            ejemplar.estado = EstadoEjemplar.EN_REVISION
+        ejemplar.save(update_fields=["estado", "sede_actual"])
+        detalle.save(update_fields=["condicion_recepcion"])
+
+    _registrar_evento(
+        remito=remito,
+        destino=destino,
+        responsable=responsable,
+        observacion=observacion,
+    )
+    remito.estado = destino
+    remito.save(update_fields=["estado", "fecha_recepcion"])
 
     return remito
