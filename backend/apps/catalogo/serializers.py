@@ -54,3 +54,9 @@ class EjemplarSerializer(serializers.ModelSerializer):
             "sede_actual_id",
             "estado",
         ]
+
+
+class EjemplarUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ejemplar
+        fields = ["condicion_fisica"]

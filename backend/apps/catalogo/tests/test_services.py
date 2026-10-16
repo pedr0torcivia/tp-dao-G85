@@ -1,9 +1,20 @@
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from apps.catalogo.exceptions import (
+    CodigoInventarioDuplicadoError,
+    EjemplarNoAsignadoError,
+    EjemplarNoDisponibleError,
+    SedePropietariaInactivaError,
+)
 from apps.catalogo.models import Ejemplar, EstadoEjemplar
-from apps.catalogo.services import crear_ejemplar, crear_libro
-from apps.sedes.exceptions import SedeInactivaError
+from apps.catalogo.services import (
+    actualizar_condicion_ejemplar,
+    actualizar_libro,
+    asignar_ejemplar,
+    crear_ejemplar,
+    crear_libro,
+    liberar_ejemplar,
+)
 from apps.sedes.models import EstadoSede, Sede
 
 
@@ -62,7 +73,7 @@ class EjemplarServicesTest(TestCase):
             estado=EstadoSede.BAJA,
         )
 
-        with self.assertRaises(SedeInactivaError):
+        with self.assertRaises(SedePropietariaInactivaError):
             self.crear_ejemplar(sede_propietaria=sede_inactiva)
 
         self.assertEqual(Ejemplar.objects.count(), 0)
@@ -70,7 +81,56 @@ class EjemplarServicesTest(TestCase):
     def test_no_permite_codigo_de_inventario_duplicado(self):
         self.crear_ejemplar()
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(CodigoInventarioDuplicadoError):
             self.crear_ejemplar()
 
         self.assertEqual(Ejemplar.objects.count(), 1)
+
+    def test_actualizar_condicion_fisica(self):
+        ejemplar = self.crear_ejemplar()
+
+        ejemplar = actualizar_condicion_ejemplar(
+            ejemplar=ejemplar,
+            condicion_fisica="Muy bueno",
+        )
+
+        self.assertEqual(ejemplar.condicion_fisica, "Muy bueno")
+
+    def test_asignar_y_liberar_ejemplar(self):
+        ejemplar = self.crear_ejemplar()
+
+        ejemplar = asignar_ejemplar(ejemplar=ejemplar)
+        self.assertEqual(ejemplar.estado, EstadoEjemplar.ASIGNADO)
+
+        ejemplar = liberar_ejemplar(ejemplar=ejemplar)
+        self.assertEqual(ejemplar.estado, EstadoEjemplar.DISPONIBLE)
+
+    def test_no_asigna_ejemplar_dos_veces(self):
+        ejemplar = asignar_ejemplar(ejemplar=self.crear_ejemplar())
+
+        with self.assertRaises(EjemplarNoDisponibleError):
+            asignar_ejemplar(ejemplar=ejemplar)
+
+    def test_no_libera_ejemplar_disponible(self):
+        with self.assertRaises(EjemplarNoAsignadoError):
+            liberar_ejemplar(ejemplar=self.crear_ejemplar())
+
+
+class LibroServicesTest(TestCase):
+    def test_actualizar_datos_bibliograficos(self):
+        libro = crear_libro(
+            titulo="El principito",
+            autor="Antoine de Saint-Exupéry",
+            editorial="Salamandra",
+            edicion="1",
+        )
+
+        libro = actualizar_libro(
+            libro=libro,
+            datos={
+                "titulo": "El principito actualizado",
+                "autor": "Antoine de Saint-Exupéry",
+            },
+        )
+
+        self.assertEqual(libro.titulo, "El principito actualizado")

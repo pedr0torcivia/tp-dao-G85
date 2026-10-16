@@ -122,6 +122,18 @@ class LibroApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_modificar_datos_bibliograficos(self):
+        libro = self.crear_libro()
+
+        response = self.client.patch(
+            reverse("libro-detail", args=[libro.id]),
+            {"titulo": "El principito actualizado"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["titulo"], "El principito actualizado")
+
 class EjemplarApiTest(APITestCase):
     def setUp(self):
         self.sede_central = Sede.objects.create(
@@ -241,3 +253,55 @@ class EjemplarApiTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Ejemplar.objects.count(), 1)
+
+    def test_consultar_ejemplar(self):
+        creado = self.crear_ejemplar()
+        ejemplar_id = creado.data["id"]
+
+        response = self.client.get(
+            reverse("ejemplar-detail", args=[ejemplar_id])
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["codigo_inventario"], "EJ-0001")
+
+    def test_modificar_condicion_fisica(self):
+        creado = self.crear_ejemplar()
+        ejemplar_id = creado.data["id"]
+
+        response = self.client.patch(
+            reverse("ejemplar-detail", args=[ejemplar_id]),
+            {"condicion_fisica": "Muy bueno"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["condicion_fisica"], "Muy bueno")
+
+    def test_asignar_y_liberar_ejemplar(self):
+        creado = self.crear_ejemplar()
+        ejemplar_id = creado.data["id"]
+
+        asignar = self.client.post(
+            reverse("ejemplar-asignar", args=[ejemplar_id])
+        )
+        liberar = self.client.post(
+            reverse("ejemplar-liberar", args=[ejemplar_id])
+        )
+
+        self.assertEqual(asignar.status_code, status.HTTP_200_OK)
+        self.assertEqual(asignar.data["estado"], EstadoEjemplar.ASIGNADO)
+        self.assertEqual(liberar.status_code, status.HTTP_200_OK)
+        self.assertEqual(liberar.data["estado"], EstadoEjemplar.DISPONIBLE)
+
+    def test_disponibilidad_por_sede(self):
+        creado = self.crear_ejemplar()
+        ejemplar_id = creado.data["id"]
+        self.client.post(reverse("ejemplar-asignar", args=[ejemplar_id]))
+
+        response = self.client.get(reverse("disponibilidad-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["total"], 1)
+        self.assertEqual(response.data[0]["disponibles"], 0)
+        self.assertEqual(response.data[0]["no_disponibles"], 1)
