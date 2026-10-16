@@ -44,6 +44,11 @@ class TramitacionLocal(TramitacionPrestamo):
                 "El ejemplar no está asignado a la solicitud."
             )
 
+        if ejemplar.estado != EstadoEjemplar.ASIGNADO:
+            raise EstadoSolicitudInvalidoError(
+                "El ejemplar no se encuentra en estado asignado."
+            )
+
         solicitud.estado = EstadoSolicitud.LISTA_PARA_ENTREGA
         ejemplar.estado = EstadoEjemplar.LISTO_PARA_ENTREGA
 

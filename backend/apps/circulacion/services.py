@@ -70,7 +70,7 @@ def asignar_ejemplar(
     ejemplar: Ejemplar,
 ) -> SolicitudPrestamo:
     solicitud = (
-        SolicitudPrestamo.objects.select_for_update()
+        SolicitudPrestamo.objects.select_for_update(of=("self",))
         .select_related(
             "socio",
             "libro",
@@ -81,7 +81,7 @@ def asignar_ejemplar(
     )
 
     ejemplar = (
-        Ejemplar.objects.select_for_update()
+        Ejemplar.objects.select_for_update(of=("self",))
         .select_related(
             "libro",
             "sede_propietaria",
@@ -140,7 +140,7 @@ def preparar_entrega(
     solicitud: SolicitudPrestamo,
 ) -> SolicitudPrestamo:
     solicitud = (
-        SolicitudPrestamo.objects.select_for_update()
+        SolicitudPrestamo.objects.select_for_update(of=("self",))
         .select_related("ejemplar")
         .get(pk=solicitud.pk)
     )
@@ -171,7 +171,7 @@ def entregar_solicitud(
     fecha_vencimiento,
 ) -> Prestamo:
     solicitud = (
-        SolicitudPrestamo.objects.select_for_update()
+        SolicitudPrestamo.objects.select_for_update(of=("self",))
         .select_related(
             "socio",
             "sede_destino",
@@ -193,6 +193,11 @@ def entregar_solicitud(
     ejemplar = Ejemplar.objects.select_for_update().get(
         pk=solicitud.ejemplar_id
     )
+
+    if ejemplar.estado != EstadoEjemplar.LISTO_PARA_ENTREGA:
+        raise EstadoSolicitudInvalidoError(
+            "El ejemplar no está listo para entregar."
+        )
 
     validar_socio_habilitado(socio=solicitud.socio)
     validar_sede_activa(sede=solicitud.sede_destino)
@@ -230,7 +235,7 @@ def registrar_devolucion(
     condicion_devolucion: str,
 ) -> Prestamo:
     prestamo = (
-        Prestamo.objects.select_for_update()
+        Prestamo.objects.select_for_update(of=("self",))
         .select_related("solicitud")
         .get(pk=prestamo.pk)
     )

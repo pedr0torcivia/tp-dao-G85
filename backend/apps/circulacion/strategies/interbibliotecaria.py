@@ -1,12 +1,15 @@
 from apps.catalogo.models import Ejemplar
-from apps.circulacion.exceptions import TramitacionNoDisponibleError
+from apps.circulacion.exceptions import (
+    EstadoSolicitudInvalidoError,
+    TramitacionNoDisponibleError,
+)
 from apps.circulacion.models import SolicitudPrestamo
 from apps.sedes.models import Sede
 
 from .base import TramitacionPrestamo
 
 
-class TramitacionInterbibliotecaria:
+class TramitacionInterbibliotecaria(TramitacionPrestamo):
     def validar_creacion(
         self,
         *,
@@ -14,7 +17,7 @@ class TramitacionInterbibliotecaria:
         sede_destino: Sede,
     ) -> None:
         if sede_origen.pk == sede_destino.pk:
-            raise ValueError(
+            raise EstadoSolicitudInvalidoError(
                 "Una solicitud interbibliotecaria requiere sedes diferentes."
             )
 

@@ -14,10 +14,4 @@ router.register(
     basename="prestamo",
 )
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("api/sedes/", include("apps.sedes.urls")),
-    path("api/", include("apps.circulacion.urls")),
-    path("api/", include("apps.common.urls")),
-    # ...
-]
+urlpatterns = router.urls
