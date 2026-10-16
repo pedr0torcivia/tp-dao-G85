@@ -42,6 +42,9 @@ class Remito(models.Model):
             ),
         ]
 
+    def __str__(self) -> str:
+        return self.numero
+
 
 class DetalleRemito(models.Model):
     remito = models.ForeignKey(Remito, on_delete=models.PROTECT, related_name="detalles")
@@ -65,6 +68,9 @@ class DetalleRemito(models.Model):
             )
         ]
 
+    def __str__(self) -> str:
+        return f"{self.remito} · {self.ejemplar}"
+
 
 class EventoRemito(models.Model):
     remito = models.ForeignKey(Remito, on_delete=models.PROTECT, related_name="eventos")
@@ -76,3 +82,6 @@ class EventoRemito(models.Model):
 
     class Meta:
         ordering = ["fecha_hora", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.remito} · {self.estado_nuevo}"
