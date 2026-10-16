@@ -35,7 +35,7 @@ export const config: Partial<Record<Resource, ResourceConfig>> = {
     title: "Catálogo",
     singular: "libro",
     description:
-      "Encontrá tu próxima lectura y consultá dónde está disponible.",
+      "El fondo de la red, libro por libro. Consultá las copias y su disponibilidad antes de registrar una solicitud.",
     create: "Nuevo libro",
     search: "Buscar por título, autor o ISBN",
   },

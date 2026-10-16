@@ -26,7 +26,7 @@ import {
   Table,
 } from "../components/ui";
 import { config, pathOf } from "./resources";
-import { BookOpen } from "lucide-react";
+import { ArrowUpRight, BookOpen, Plus } from "lucide-react";
 
 export function Cover({
   id,
@@ -64,8 +64,12 @@ export function EntityList({ resource }: { resource: Resource }) {
     [state, setState] = useState(""),
     [page, setPage] = useState(1);
   const detail = (id: number) => (
-    <Link className={outlineClass} to={`/${pathOf(resource)}/${id}`}>
-      Ver detalle
+    <Link
+      className="record-link"
+      aria-label={`Ver detalle ${id}`}
+      to={`/${pathOf(resource)}/${id}`}
+    >
+      Abrir <ArrowUpRight size={14} />
     </Link>
   );
   const records: {
@@ -260,7 +264,7 @@ export function EntityList({ resource }: { resource: Resource }) {
   });
   const count = resource === "libros" ? books.length : filtered.length;
   return (
-    <>
+    <div className={`collection-page collection-${resource}`}>
       <Heading
         title={conf.title}
         description={conf.description}
@@ -274,12 +278,54 @@ export function EntityList({ resource }: { resource: Resource }) {
               className={primaryClass}
               to={`/${pathOf(resource)}/nuevo${resource === "ejemplares" && searchParams.get("libro_id") ? `?libro_id=${searchParams.get("libro_id")}` : ""}`}
             >
+              <Plus size={16} />
               {conf.create}
             </Link>
           )
         }
       />
-      <div className="mb-7 flex flex-col gap-4 md:flex-row">
+      {resource === "libros" ? (
+        <div className="collection-summary">
+          <span>
+            <strong>{db!.libros.length}</strong> títulos en el catálogo
+          </span>
+          <span>
+            <strong>{db!.ejemplares.length}</strong> ejemplares en la red
+          </span>
+          <span>
+            <strong>
+              {db!.sedes.filter((s) => s.estado === "ACTIVA").length}
+            </strong>{" "}
+            bibliotecas conectadas
+          </span>
+        </div>
+      ) : (
+        <div
+          className="state-index"
+          role="group"
+          aria-label={`Estado de ${conf.title.toLowerCase()}`}
+        >
+          {["", ...states].map((value) => (
+            <button
+              type="button"
+              key={value}
+              aria-pressed={state === value}
+              onClick={() => {
+                setState(value);
+                setPage(1);
+              }}
+            >
+              {value ? (statusLabels[value] ?? value) : "Todos"}
+              <span>
+                {value
+                  ? records.filter((r) => r.state === value).length
+                  : records.length}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="collection-tools mb-6 flex flex-col gap-3 md:flex-row">
         <SearchBox
           value={query}
           onChange={(v) => {
@@ -326,13 +372,20 @@ export function EntityList({ resource }: { resource: Resource }) {
           ))}
         </select>
       </div>
-      <p className="mb-7 text-[13px] text-[var(--muted-foreground)]">
-        {count}{" "}
-        {resource === "libros" ? "libros · Vista de portadas" : "registros"}
-      </p>
+      <div className="collection-caption">
+        <p>
+          {resource === "libros"
+            ? "EXPLORAR EL FONDO"
+            : "REGISTRO DE MOSTRADOR"}
+        </p>
+        <span>
+          {count} {resource === "libros" ? "títulos" : "registros"}
+          {query || sede || state ? " encontrados" : " en total"}
+        </span>
+      </div>
       {resource === "libros" ? (
         books.length ? (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="book-shelves">
             {books.map((b) => {
               const es = db!.ejemplares.filter(
                 (e) =>
@@ -341,31 +394,37 @@ export function EntityList({ resource }: { resource: Resource }) {
               );
               const av = es.filter((e) => available(e, db!));
               return (
-                <article
-                  key={b.id}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-[18px]"
-                >
-                  <div className="flex gap-[18px]">
+                <article key={b.id} className="book-entry">
+                  <Link
+                    className="book-display"
+                    to={`/catalogo/${b.id}`}
+                    aria-label={`Consultar ${b.titulo}`}
+                  >
+                    <span className="book-shelf-number">
+                      {String(db!.libros.indexOf(b) + 1).padStart(2, "0")}
+                    </span>
                     <Cover id={b.id} title={b.titulo} />
-                    <div className="min-w-0 flex-1">
-                      <h2 className="min-h-[55px] text-lg font-medium">
-                        {b.titulo}
-                      </h2>
-                      <p className="mb-5 text-[13px] text-[var(--muted-foreground)]">
-                        {authorNames(b, db!)}
-                      </p>
+                    <ArrowUpRight size={17} className="book-open-icon" />
+                  </Link>
+                  <div className="book-description">
+                    <p className="book-author">{authorNames(b, db!)}</p>
+                    <h2 className="font-heading">
+                      <Link to={`/catalogo/${b.id}`}>{b.titulo}</Link>
+                    </h2>
+                    <p className="book-edition">
+                      {b.editorial}
+                      {b.edicion ? ` · ${b.edicion}` : ""}
+                    </p>
+                    <div className="book-availability">
                       <Badge
                         value={av.length ? "DISPONIBLE" : "Sin disponibilidad"}
                       />
+                      <span>
+                        {av.length
+                          ? `${av.length} de ${es.length} copias`
+                          : "Admite reserva"}
+                      </span>
                     </div>
-                  </div>
-                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-[13px] text-[var(--muted-foreground)]">
-                      {av.length
-                        ? `${av.length} ${av.length === 1 ? "ejemplar disponible" : "ejemplares disponibles"}`
-                        : "Podés registrar una reserva"}
-                    </p>
-                    {detail(b.id)}
                   </div>
                 </article>
               );
@@ -401,6 +460,6 @@ export function EntityList({ resource }: { resource: Resource }) {
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }

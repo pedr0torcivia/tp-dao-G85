@@ -250,7 +250,9 @@ export function EntityDetail({ resource }: { resource: Resource }) {
           </Link>
         )}
       </div>
-      <section className={`${panelClass} mb-8 flex flex-col gap-8 sm:flex-row`}>
+      <section
+        className={`${panelClass} record-sheet mb-8 flex flex-col gap-8 sm:flex-row`}
+      >
         {resource === "libros" && <Cover id={n} title={name} large />}
         <dl className="grid flex-1 gap-x-8 gap-y-6 sm:grid-cols-2">
           {Object.entries(data)

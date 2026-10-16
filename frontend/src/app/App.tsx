@@ -24,9 +24,9 @@ export function App() {
     <LibraryProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Navigate to="/acceso" replace />} />
           <Route path="/acceso" element={<Access />} />
           <Route element={<Layout />}>
-            <Route index element={<Navigate to="/catalogo" replace />} />
             <Route path="inicio" element={<Home />} />
             <Route path="apariencia" element={<Appearance />} />
             <Route path="prestamos/devolucion" element={<Returns />} />

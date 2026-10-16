@@ -13,13 +13,13 @@ import { ArrowLeft, BookOpen, Search, X } from "lucide-react";
 import { statusLabels } from "../domain/selectors";
 
 export const buttonClass =
-  "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50";
+  "library-button inline-flex min-h-10 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50";
 export const primaryClass = `${buttonClass} border-transparent bg-[var(--action)] text-[var(--primary-foreground)]`;
 export const outlineClass = `${buttonClass} border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]`;
 export const inputClass =
-  "w-full min-h-11 rounded-lg border border-[var(--input)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]";
+  "library-input w-full min-h-11 rounded-md border border-[var(--input)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]";
 export const panelClass =
-  "rounded-xl border border-[var(--border)] bg-[var(--card)] p-6";
+  "library-panel rounded-md border border-[var(--border)] bg-[var(--card)] p-6";
 
 export function Button({
   variant = "primary",
@@ -60,8 +60,9 @@ export function Badge({ value }: { value: string }) {
         : "bg-[var(--info-bg)] text-[var(--info)]";
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${theme}`}
+      className={`library-status inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium ${theme}`}
     >
+      <span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />
       {statusLabels[value] ?? value}
     </span>
   );
@@ -76,13 +77,13 @@ export function Heading({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-10 flex flex-wrap items-start justify-between gap-4">
+    <div className="page-heading mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="font-heading text-[32px] leading-tight font-semibold text-[var(--primary)]">
+        <h1 className="font-heading text-[38px] leading-tight font-medium tracking-[-1px] text-[var(--foreground)]">
           {title}
         </h1>
         {description && (
-          <p className="mt-4 text-sm text-[var(--muted-foreground)]">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--muted-foreground)]">
             {description}
           </p>
         )}
@@ -175,9 +176,9 @@ export function Table({
 }) {
   if (!rows.length) return <Empty />;
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--card)]">
+    <div className="library-register overflow-x-auto border-y border-[var(--border)] bg-[var(--card)]">
       <table className="w-full text-left text-sm">
-        <thead className="bg-[var(--muted)] text-[var(--muted-foreground)]">
+        <thead className="text-[var(--muted-foreground)]">
           <tr>
             {headers.map((h, i) => (
               <th

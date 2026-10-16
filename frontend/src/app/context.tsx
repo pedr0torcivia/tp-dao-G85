@@ -29,7 +29,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [error, setError] = useState("");
   const [theme, setThemeState] = useState<Theme>(() => {
     const t = localStorage.getItem("entrelibros:theme");
-    return t === "light" || t === "dark" ? t : "system";
+    return t === "light" || t === "dark" || t === "system" ? t : "light";
   });
   const [sedeId, setSedeId] = useState(1),
     [toast, setToast] = useState("");

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLibrary } from "../app/context";
 import { api, isDemo } from "../api";
@@ -25,7 +25,15 @@ import {
   Table,
 } from "../components/ui";
 import { CommandDialog } from "./Commands";
-import { SunMoon } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpenCheck,
+  CornerDownLeft,
+  Plus,
+  SunMoon,
+  Truck,
+} from "lucide-react";
 import { Logo } from "../components/Logo";
 
 export function Home() {
@@ -59,47 +67,148 @@ export function Home() {
       "/remitos",
     ],
   ];
+  const dueLoans = [...loans]
+    .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento))
+    .slice(0, 4);
+  const inbound = db!.remitos.filter(
+    (r) => r.sede_destino_id === sedeId && r.estado === "EN_TRANSITO",
+  );
+  const date = new Intl.DateTimeFormat("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
   return (
-    <>
+    <div className="desk-page">
+      <p className="section-kicker">MOSTRADOR · {date}</p>
       <Heading
-        title="Buen día"
-        description={`Un vistazo al trabajo de ${sedeName(sedeId, db!)}.`}
+        title="Cada libro, en buenas manos."
+        description={`La jornada de ${sedeName(sedeId, db!)}: entregas, devoluciones y libros que viajan entre sedes.`}
+        action={
+          <Link className={primaryClass} to="/solicitudes/nuevo">
+            <Plus size={16} />
+            Nueva solicitud
+          </Link>
+        }
       />
-      <div className="mb-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="desk-numbers">
         {metrics.map(([label, value, path]) => (
-          <Link key={label} to={String(path)} className={panelClass}>
-            <p className="text-sm text-[var(--muted-foreground)]">{label}</p>
-            <p className="font-heading mt-5 text-4xl text-[var(--primary)]">
-              {value}
-            </p>
+          <Link key={label} to={String(path)}>
+            <span className="font-heading">
+              {String(value).padStart(2, "0")}
+            </span>
+            <div>
+              <p>{label}</p>
+              <small>
+                Consultar <ArrowUpRight size={12} />
+              </small>
+            </div>
           </Link>
         ))}
       </div>
-      <h2 className="font-heading mb-5 text-xl">Para atender hoy</h2>
-      <Table
-        headers={["Solicitud", "Socio", "Libro", "Estado", ""]}
-        rows={requests.map((s) => [
-          code("SOL", s.id),
-          socioName(s.socio_id, db!),
-          bookName(s.libro_id, db!),
-          <Badge value={s.estado} />,
-          <Link className={outlineClass} to={`/solicitudes/${s.id}`}>
-            Ver detalle
-          </Link>,
-        ])}
-      />
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Link className={primaryClass} to="/solicitudes/nuevo">
-          Nueva solicitud
-        </Link>
-        <Link className={outlineClass} to="/prestamos/devolucion">
-          Registrar devolución
-        </Link>
-        <Link className={outlineClass} to="/remitos/nuevo">
-          Preparar remito
-        </Link>
+      <div className="desk-columns">
+        <section>
+          <div className="section-heading">
+            <div>
+              <p className="section-kicker">CIRCULACIÓN</p>
+              <h2 className="font-heading">En el mostrador</h2>
+            </div>
+            <Link to="/solicitudes" className="record-link">
+              Ver todas <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className="desk-queue">
+            {requests.length ? (
+              requests.map((s) => (
+                <Link
+                  key={s.id}
+                  to={`/solicitudes/${s.id}`}
+                  className="queue-entry"
+                >
+                  <span className="queue-mark">
+                    <BookOpenCheck size={20} />
+                  </span>
+                  <div>
+                    <small>
+                      {code("SOL", s.id)} · {socioName(s.socio_id, db!)}
+                    </small>
+                    <h3>{bookName(s.libro_id, db!)}</h3>
+                    <Badge value={s.estado} />
+                  </div>
+                  <ArrowUpRight size={16} />
+                </Link>
+              ))
+            ) : (
+              <p className="quiet-message">
+                El mostrador está al día. No hay solicitudes pendientes en esta
+                sede.
+              </p>
+            )}
+          </div>
+          <div className="desk-action-row">
+            <CornerDownLeft size={19} />
+            <div>
+              <h3>Recibir un libro</h3>
+              <p>Buscá el préstamo y registrá su devolución.</p>
+            </div>
+            <Link className={outlineClass} to="/prestamos/devolucion">
+              Registrar devolución
+            </Link>
+          </div>
+        </section>
+        <aside className="desk-notebook">
+          <p className="section-kicker">AGENDA DE LA SEDE</p>
+          <h2 className="font-heading">Próximas devoluciones</h2>
+          {dueLoans.length ? (
+            dueLoans.map((p) => {
+              const s = db!.solicitudes.find((s) => s.id === p.solicitud_id)!;
+              return (
+                <Link
+                  key={p.id}
+                  className="due-entry"
+                  to={`/prestamos/${p.id}`}
+                >
+                  <span
+                    className={isOverdue(p) ? "due-date overdue" : "due-date"}
+                  >
+                    {new Intl.DateTimeFormat("es-AR", {
+                      day: "2-digit",
+                      month: "short",
+                    }).format(new Date(p.fecha_vencimiento))}
+                  </span>
+                  <div>
+                    <h3>{bookName(s.libro_id, db!)}</h3>
+                    <p>{socioName(s.socio_id, db!)}</p>
+                    {isOverdue(p) && (
+                      <small className="text-[var(--destructive)]">
+                        {daysLate(p)} días de atraso
+                      </small>
+                    )}
+                  </div>
+                </Link>
+              );
+            })
+          ) : (
+            <p className="quiet-message">
+              No hay préstamos activos en esta sede.
+            </p>
+          )}
+          <div className="inbound-note">
+            <Truck size={20} />
+            <div>
+              <h3>
+                {inbound.length}{" "}
+                {inbound.length === 1 ? "envío en camino" : "envíos en camino"}
+              </h3>
+              <p>Ejemplares que llegan desde otras bibliotecas.</p>
+              <Link className="record-link" to="/remitos">
+                Consultar remitos <ArrowRight size={14} />
+              </Link>
+            </div>
+          </div>
+        </aside>
       </div>
-    </>
+    </div>
   );
 }
 export function Appearance() {
@@ -223,6 +332,29 @@ export function Returns() {
     </>
   );
 }
+const loginLetters = [
+  ["L", -6, -5, 380, 16, 84, 58, -4],
+  ["e", 15, 4, 120, 18, -60, 70, -11],
+  ["b", 37, -7, 260, 21, 78, -48, -5],
+  ["r", 61, 7, 90, 15, -54, 64, -9],
+  ["o", 80, -4, 330, 19, -72, 56, -15],
+  ["s", 2, 31, 100, 17, 58, -42, -7],
+  ["L", 22, 22, 230, 20, -80, 62, -17],
+  ["e", 46, 28, 160, 14, 64, 76, -3],
+  ["b", 72, 28, 110, 22, -68, -56, -13],
+  ["r", 90, 33, 270, 18, -86, 58, -6],
+  ["o", -6, 59, 250, 23, 72, -64, -18],
+  ["s", 14, 57, 145, 16, -60, 78, -12],
+  ["L", 35, 52, 100, 19, 80, -50, -4],
+  ["e", 53, 54, 350, 21, -76, 68, -14],
+  ["b", 78, 62, 165, 15, -52, -74, -8],
+  ["r", 4, 86, 150, 20, 64, -80, -16],
+  ["o", 26, 84, 310, 17, -86, -56, -10],
+  ["s", 47, 84, 95, 24, 60, -68, -6],
+  ["L", 66, 85, 210, 18, -72, -62, -13],
+  ["e", 87, 89, 135, 16, -66, -78, -5],
+] as const;
+
 export function Access() {
   const { theme, setTheme } = useLibrary();
   const navigate = useNavigate();
@@ -248,16 +380,29 @@ export function Access() {
     <div className="relative min-h-svh overflow-hidden bg-[var(--access-background)]">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 grid grid-cols-3 gap-12 opacity-[0.06] dark:opacity-[0.07]"
+        className="login-letters"
+        style={{ animationPlayState: motion ? "running" : "paused" }}
       >
-        {["L", "e", "b", "r", "o", "s", "L", "b", "e"].map((letter, i) => (
-          <img
-            key={i}
-            src={`/assets/motion/letra-${letter}.png`}
-            alt=""
-            className={`w-[240px] object-contain ${motion ? "drift" : ""}`}
-          />
-        ))}
+        {loginLetters.map(
+          ([letter, left, top, size, duration, dx, dy, delay], i) => (
+            <img
+              key={i}
+              src={`/assets/motion/letra-${letter}.png`}
+              alt=""
+              style={
+                {
+                  left: `${left}%`,
+                  top: `${top}%`,
+                  "--size": `${size}px`,
+                  "--duration": `${duration}s`,
+                  "--dx": `${dx}px`,
+                  "--dy": `${dy}px`,
+                  "--delay": `${delay}s`,
+                } as CSSProperties
+              }
+            />
+          ),
+        )}
       </div>
       <div className="relative mx-auto max-w-[1440px] p-6 pt-12 md:px-16 lg:px-28">
         <div className="mb-14 flex justify-end">
@@ -332,6 +477,8 @@ export function Access() {
         <footer className="mt-14 flex flex-wrap justify-between gap-4 text-xs text-[var(--muted-foreground)]">
           <p>EntreLibros · Un espacio para cada historia.</p>
           <button
+            type="button"
+            aria-pressed={!motion}
             className="underline underline-offset-4"
             onClick={() => setMotion((v) => !v)}
           >

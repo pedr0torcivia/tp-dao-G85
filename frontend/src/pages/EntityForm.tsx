@@ -132,114 +132,157 @@ export function EntityForm({ resource }: { resource: Resource }) {
             : `Completá los datos de ${conf.singular}.`
         }
       />
-      <form onSubmit={submit} className={`${panelClass} max-w-[860px]`}>
-        {error && <Alert error>{error.message}</Alert>}
-        <div className="grid gap-6 sm:grid-cols-2">
-          {fields.map((f) => (
-            <Field key={f.key} label={f.label} error={error?.fields[f.key]}>
-              {f.type === "select" ? (
-                <select
-                  className={inputClass}
-                  required={f.required}
-                  value={values[f.key] ?? ""}
-                  disabled={
-                    !!id &&
-                    resource === "ejemplares" &&
-                    ["libro_id", "sede_propietaria_id"].includes(f.key)
-                  }
-                  onChange={(e) =>
-                    setValues((v) => ({
-                      ...v,
-                      [f.key]: e.target.value,
-                      ...(["libro_id", "sede_origen_id"].includes(f.key) &&
-                      resource === "solicitudes"
-                        ? { ejemplar_id: "" }
-                        : {}),
-                    }))
-                  }
-                >
-                  <option value="">
-                    {f.required ? "Seleccioná una opción" : "Sin asignar"}
-                  </option>
-                  {f.options?.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              ) : f.type === "textarea" ? (
-                <textarea
-                  className={inputClass}
-                  rows={3}
-                  required={f.required}
-                  value={values[f.key] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f.key]: e.target.value }))
-                  }
-                />
-              ) : (
-                <input
-                  className={inputClass}
-                  required={f.required}
-                  maxLength={
-                    ["contacto", "direccion"].includes(f.key)
-                      ? 255
-                      : ["numero_socio", "documento"].includes(f.key)
-                        ? 30
-                        : 150
-                  }
-                  value={values[f.key] ?? ""}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, [f.key]: e.target.value }))
-                  }
-                />
-              )}
-            </Field>
-          ))}
-        </div>
-        {resource === "socios" && (
-          <p className="mt-6 text-sm text-[var(--muted-foreground)]">
-            Los nuevos socios comienzan habilitados. La habilitación se
-            administra desde su ficha.
+      <div className="form-workspace">
+        <form onSubmit={submit} className={`${panelClass} max-w-[860px]`}>
+          <p className="section-kicker">
+            {id ? "ACTUALIZACIÓN DE FICHA" : "ALTA EN LA RED"} · {conf.singular}
           </p>
-        )}
-        {resource === "solicitudes" && (
-          <Alert>
-            {values.sede_origen_id === values.sede_destino_id
-              ? "Préstamo local"
-              : "Préstamo interbibliotecario"}{" "}
-            · La entrega al socio inicia el préstamo.
-          </Alert>
-        )}
-        {resource === "reservas" && (
-          <Alert>
-            La reserva puede registrarse antes de asignar un ejemplar. El plazo
-            de retiro se indica al preparar la asignación.
-          </Alert>
-        )}
-        {resource === "remitos" && (
-          <Alert>
-            Podés guardar un remito vacío en preparación. Después agregá los
-            ejemplares desde su detalle.
-          </Alert>
-        )}
-        <div className="mt-8 flex justify-end gap-3">
-          <Link className={outlineClass} to={`/${pathOf(resource)}`}>
-            Cancelar
-          </Link>
-          <Button disabled={busy} type="submit">
-            {busy
-              ? "Guardando…"
-              : resource === "solicitudes"
-                ? "Crear solicitud"
-                : resource === "reservas"
-                  ? "Crear reserva"
-                  : resource === "remitos"
-                    ? "Guardar preparación"
-                    : `Guardar ${conf.singular}`}
-          </Button>
-        </div>
-      </form>
+          {error && <Alert error>{error.message}</Alert>}
+          <div className="grid gap-6 sm:grid-cols-2">
+            {fields.map((f) => (
+              <Field key={f.key} label={f.label} error={error?.fields[f.key]}>
+                {f.type === "select" ? (
+                  <select
+                    className={inputClass}
+                    required={f.required}
+                    value={values[f.key] ?? ""}
+                    disabled={
+                      !!id &&
+                      resource === "ejemplares" &&
+                      ["libro_id", "sede_propietaria_id"].includes(f.key)
+                    }
+                    onChange={(e) =>
+                      setValues((v) => ({
+                        ...v,
+                        [f.key]: e.target.value,
+                        ...(["libro_id", "sede_origen_id"].includes(f.key) &&
+                        resource === "solicitudes"
+                          ? { ejemplar_id: "" }
+                          : {}),
+                      }))
+                    }
+                  >
+                    <option value="">
+                      {f.required ? "Seleccioná una opción" : "Sin asignar"}
+                    </option>
+                    {f.options?.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                ) : f.type === "textarea" ? (
+                  <textarea
+                    className={inputClass}
+                    rows={3}
+                    required={f.required}
+                    value={values[f.key] ?? ""}
+                    onChange={(e) =>
+                      setValues((v) => ({ ...v, [f.key]: e.target.value }))
+                    }
+                  />
+                ) : (
+                  <input
+                    className={inputClass}
+                    required={f.required}
+                    maxLength={
+                      ["contacto", "direccion"].includes(f.key)
+                        ? 255
+                        : ["numero_socio", "documento"].includes(f.key)
+                          ? 30
+                          : 150
+                    }
+                    value={values[f.key] ?? ""}
+                    onChange={(e) =>
+                      setValues((v) => ({ ...v, [f.key]: e.target.value }))
+                    }
+                  />
+                )}
+              </Field>
+            ))}
+          </div>
+          {resource === "socios" && (
+            <p className="mt-6 text-sm text-[var(--muted-foreground)]">
+              Los nuevos socios comienzan habilitados. La habilitación se
+              administra desde su ficha.
+            </p>
+          )}
+          {resource === "solicitudes" && (
+            <Alert>
+              {values.sede_origen_id === values.sede_destino_id
+                ? "Préstamo local"
+                : "Préstamo interbibliotecario"}{" "}
+              · La entrega al socio inicia el préstamo.
+            </Alert>
+          )}
+          {resource === "reservas" && (
+            <Alert>
+              La reserva puede registrarse antes de asignar un ejemplar. El
+              plazo de retiro se indica al preparar la asignación.
+            </Alert>
+          )}
+          {resource === "remitos" && (
+            <Alert>
+              Podés guardar un remito vacío en preparación. Después agregá los
+              ejemplares desde su detalle.
+            </Alert>
+          )}
+          <div className="mt-8 flex justify-end gap-3">
+            <Link className={outlineClass} to={`/${pathOf(resource)}`}>
+              Cancelar
+            </Link>
+            <Button disabled={busy} type="submit">
+              {busy
+                ? "Guardando…"
+                : resource === "solicitudes"
+                  ? "Crear solicitud"
+                  : resource === "reservas"
+                    ? "Crear reserva"
+                    : resource === "remitos"
+                      ? "Guardar preparación"
+                      : `Guardar ${conf.singular}`}
+            </Button>
+          </div>
+        </form>
+        <aside className="form-note">
+          <p className="section-kicker">EN ESTA OPERACIÓN</p>
+          <h2>
+            {(
+              {
+                libros: "Una ficha, muchas copias",
+                ejemplares: "Cada copia tiene su recorrido",
+                socios: "La ficha del lector",
+                sedes: "Una biblioteca en la red",
+                solicitudes: "Del pedido al préstamo",
+                reservas: "Un lugar en la espera",
+                remitos: "Libros que viajan",
+              } as Record<string, string>
+            )[resource] ?? "Registro de circulación"}
+          </h2>
+          <p>
+            {
+              (
+                {
+                  libros:
+                    "Registrá la información bibliográfica. Las copias físicas se incorporan como ejemplares desde el detalle del libro.",
+                  ejemplares:
+                    "El código de inventario identifica la copia física. La sede propietaria y su ubicación actual se consultan en su ficha.",
+                  socios:
+                    "Verificá el documento y el número de socio para evitar duplicados. Después podrás consultar sus solicitudes desde esta ficha.",
+                  sedes:
+                    "Estos datos permiten identificar el origen y destino de las solicitudes y los envíos de la red.",
+                  solicitudes:
+                    "La solicitud reúne al socio, al libro y a la sede de retiro. El préstamo comienza cuando se registra la entrega.",
+                  reservas:
+                    "Registrá el libro y la sede de retiro. La asignación del ejemplar se gestiona después desde el detalle de la reserva.",
+                  remitos:
+                    "Primero guardá la preparación. Luego incorporá los ejemplares y seguí el despacho y la recepción desde el remito.",
+                } as Record<string, string>
+              )[resource]
+            }
+          </p>
+        </aside>
+      </div>
     </>
   );
 }

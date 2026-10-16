@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowRight, ChartNoAxesColumn } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { useLibrary } from "../app/context";
 import { today } from "../domain/selectors";
 import {
@@ -48,30 +48,17 @@ export function ReportCenter() {
         title="Reportes"
         description="Consultá indicadores de circulación, logística y disponibilidad."
       />
-      <div className="grid gap-6 md:grid-cols-2">
-        {reports.map(([id, name, description]) => (
-          <Link
-            key={id}
-            to={`/reportes/${id}`}
-            className={`${panelClass} group`}
-          >
-            <ChartNoAxesColumn
-              className="mb-5 text-[var(--primary)]"
-              size={25}
-            />
-            <h2 className="font-heading text-xl text-[var(--primary)]">
-              {name}
-            </h2>
-            <p className="mt-3 text-sm text-[var(--muted-foreground)]">
-              {description}
-            </p>
-            <p className="mt-7 flex items-center gap-2 text-sm">
-              Ver reporte{" "}
-              <ArrowRight
-                size={16}
-                className="transition group-hover:translate-x-1"
-              />
-            </p>
+      <div className="report-index">
+        {reports.map(([id, name, description], i) => (
+          <Link key={id} to={`/reportes/${id}`} className="report-entry group">
+            <span className="report-number font-heading">0{i + 1}</span>
+            <div>
+              <h2 className="font-heading text-2xl">{name}</h2>
+              <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+                {description}
+              </p>
+            </div>
+            <ArrowUpRight size={21} />
           </Link>
         ))}
       </div>

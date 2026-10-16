@@ -92,7 +92,7 @@ footer{display:flex;justify-content:space-between;gap:24px;padding-top:25px;colo
 const root=document.documentElement;
 let storedTheme=null;
 try{storedTheme=localStorage.getItem("entrelibros-preview-theme")}catch{}
-root.dataset.theme=storedTheme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+root.dataset.theme=storedTheme==="dark"?"dark":"light";
 const themeButton=document.querySelector(".theme");
 const labelTheme=()=>themeButton.textContent=root.dataset.theme==="dark"?"Tema oscuro":"Tema claro";
 labelTheme();

@@ -13,6 +13,8 @@ import {
   Menu,
   X,
   LogOut,
+  House,
+  ChevronRight,
 } from "lucide-react";
 import { useLibrary } from "./context";
 import { api, isDemo } from "../api";
@@ -20,6 +22,7 @@ import { Alert, Button, ConfirmDialog, inputClass } from "../components/ui";
 import { Logo } from "../components/Logo";
 
 const nav = [
+  { path: "inicio", label: "Mesa de trabajo", icon: House },
   { path: "catalogo", label: "Catálogo", icon: LibraryBig },
   { path: "solicitudes", label: "Solicitudes", icon: ClipboardList },
   { path: "prestamos", label: "Préstamos", icon: BookOpenCheck },
@@ -56,7 +59,7 @@ export function Layout() {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-[248px] flex-col border-r border-[var(--nav-border)] bg-[var(--nav-background)] p-4 text-[var(--nav-foreground)] ${open ? "flex" : "hidden"} lg:flex`}
+        className={`library-nav fixed inset-y-0 left-0 z-40 w-[232px] flex-col border-r border-[var(--nav-border)] bg-[var(--nav-background)] p-4 text-[var(--nav-foreground)] ${open ? "flex" : "hidden"} lg:flex`}
       >
         <div className="flex items-center justify-between">
           <Link
@@ -65,7 +68,7 @@ export function Layout() {
             onClick={() => setOpen(false)}
             className="block px-1 pt-2"
           >
-            <Logo className="h-[55px] w-[208px]" />
+            <Logo className="h-[55px] w-[190px]" />
           </Link>
           <button
             className="lg:hidden"
@@ -80,22 +83,22 @@ export function Layout() {
         </p>
         <nav
           aria-label="Navegación principal"
-          className="mt-10 flex-1 overflow-y-auto"
+          className="mt-8 flex-1 overflow-y-auto"
         >
           {nav.map((n, i) => (
             <div key={n.path}>
-              {(i === 0 || i === 5) && (
+              {(i === 0 || i === 6) && (
                 <p
-                  className={`${i === 5 ? "mt-8" : ""} mb-4 px-2 text-[11px] tracking-wider text-[var(--nav-muted)]`}
+                  className={`${i === 6 ? "mt-8" : ""} mb-3 px-3 text-[10px] tracking-[1.8px] text-[var(--nav-muted)]`}
                 >
-                  {i === 0 ? "CIRCULACIÓN" : "ADMINISTRACIÓN"}
+                  {i === 0 ? "MOSTRADOR" : "LA RED"}
                 </p>
               )}
               <NavLink
                 to={`/${n.path}`}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `mb-1 flex min-h-[42px] items-center gap-3 rounded-lg px-3 text-sm ${isActive ? "bg-[var(--nav-active-bg)] font-semibold text-[var(--nav-active-fg)]" : "hover:bg-[var(--nav-active-bg)]"}`
+                  `nav-entry mb-1 flex min-h-[42px] items-center gap-3 px-3 text-sm ${isActive ? "is-active font-semibold" : ""}`
                 }
               >
                 <n.icon size={18} />
@@ -117,8 +120,8 @@ export function Layout() {
               : "Tema oscuro"}
         </Link>
         <div className="flex items-center gap-3 border-t border-[var(--nav-border)] pt-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--nav-active-bg)] text-xs font-semibold">
-            PB
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-[var(--nav-active-bg)] text-[var(--brand-orange)]">
+            <BookOpenCheck size={18} />
           </span>
           <div className="min-w-0">
             <p className="text-xs font-medium">Personal de biblioteca</p>
@@ -131,8 +134,8 @@ export function Layout() {
           </Link>
         </div>
       </aside>
-      <div className="lg:ml-[248px]">
-        <header className="flex min-h-[76px] items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--card)] px-5 lg:px-10">
+      <div className="lg:ml-[232px]">
+        <header className="library-topbar flex min-h-[76px] items-center justify-between gap-4 border-b border-[var(--border)] px-5 lg:px-10">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setOpen(true)}
@@ -141,32 +144,48 @@ export function Layout() {
             >
               <Menu size={22} />
             </button>
-            <p className="text-[13px] text-[var(--muted-foreground)]">
-              {section} / {section}
+            <Link
+              to="/inicio"
+              className="hidden text-xs text-[var(--muted-foreground)] sm:block"
+            >
+              EntreLibros
+            </Link>
+            <ChevronRight
+              size={12}
+              className="hidden text-[var(--muted-foreground)] sm:block"
+            />
+            <p className="text-[13px]">
+              {section === "Inicio" ? "Mesa de trabajo" : section}
             </p>
           </div>
-          <select
-            aria-label="Sede de trabajo"
-            className={`${inputClass} max-w-[220px]`}
-            value={sedeId}
-            onChange={(e) => setSedeId(Number(e.target.value))}
-          >
-            {db?.sedes
-              .filter((s) => s.estado === "ACTIVA")
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nombre}
-                </option>
-              ))}
-          </select>
+          <label className="flex items-center gap-3">
+            <span className="hidden text-[10px] tracking-widest text-[var(--muted-foreground)] xl:block">
+              SEDE DE TRABAJO
+            </span>
+            <select
+              aria-label="Sede de trabajo"
+              className={`${inputClass} max-w-[220px]`}
+              value={sedeId}
+              onChange={(e) => setSedeId(Number(e.target.value))}
+            >
+              {db?.sedes
+                .filter((s) => s.estado === "ACTIVA")
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre}
+                  </option>
+                ))}
+            </select>
+          </label>
         </header>
         <main
           id="contenido"
-          className="mx-auto max-w-[1600px] p-5 pt-9 lg:p-10"
+          className="workspace mx-auto max-w-[1600px] p-5 pt-9 lg:p-10"
         >
           {isDemo && (
-            <p className="mb-6 text-xs text-[var(--muted-foreground)]">
-              Demostración · Los cambios se guardan sólo en este navegador.
+            <p className="demo-note mb-7 text-[11px] text-[var(--muted-foreground)]">
+              <span>ESPACIO DE PRUEBA</span> Los cambios se guardan en este
+              navegador.
             </p>
           )}
           {error ? (
