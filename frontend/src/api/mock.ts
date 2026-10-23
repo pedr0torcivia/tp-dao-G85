@@ -268,6 +268,14 @@ export function applyCommand(
     const e = db.ejemplares.find(
       (x) => x.id === (s!.ejemplar_id ?? num(input, "ejemplar_id")),
     );
+    if (action === "rechazar") {
+      required(
+        s!.estado === "PENDIENTE",
+        "Sólo puede rechazarse una solicitud pendiente.",
+      );
+      s!.estado = "RECHAZADA";
+      return;
+    }
     if (action === "cancelar") {
       required(
         ["PENDIENTE", "ASIGNADA"].includes(s!.estado),

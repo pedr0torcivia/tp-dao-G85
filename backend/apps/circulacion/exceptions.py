@@ -46,17 +46,17 @@ class EstadoReservaInvalidoError(ErrorCirculacion):
     """La reserva no se encuentra en el estado requerido."""
 
 
-class ReservaVigenteDuplicadaError(ErrorCirculacion):
-    """Ya existe una reserva vigente para ese socio, libro y sede."""
+class ReservaDuplicadaError(ErrorCirculacion):
+    """Ya existe una reserva vigente equivalente."""
 
 
-class FechaLimiteRetiroInvalidaError(ErrorCirculacion):
-    """La fecha límite de retiro no es coherente."""
-
-    def __init__(self, mensaje: str = "", campo: str = "fecha_limite_retiro"):
-        super().__init__(mensaje)
-        self.campo = campo
+class ReservaVencidaError(ErrorCirculacion):
+    """La reserva superó su fecha límite de retiro."""
 
 
-class ReservaSinEjemplarError(ErrorCirculacion):
-    """La reserva no tiene un ejemplar asignado."""
+class FechaLimiteReservaInvalidaError(ErrorCirculacion):
+    """La fecha límite de retiro no es válida."""
+
+
+class SolicitudEnRemitoVigenteError(ErrorCirculacion):
+    """La solicitud forma parte de un remito que todavía está vigente."""

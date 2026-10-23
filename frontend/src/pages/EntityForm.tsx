@@ -20,7 +20,7 @@ import {
   outlineClass,
   panelClass,
 } from "../components/ui";
-import { config, fieldsFor, pathOf } from "./resources";
+import { config, fieldsFor, pathOf, tipoSolicitud } from "./resources";
 
 export function EntityForm({ resource }: { resource: Resource }) {
   const { db, sedeId, refresh, notify } = useLibrary();
@@ -64,22 +64,7 @@ export function EntityForm({ resource }: { resource: Resource }) {
         <Alert error>No encontramos ese registro.</Alert>
       </>
     );
-  let fields = fieldsFor(resource, db!);
-  if (resource === "solicitudes")
-    fields = fields.map((f) =>
-      f.key === "ejemplar_id"
-        ? {
-            ...f,
-            options: f.options?.filter(([id]) => {
-              const e = db!.ejemplares.find((e) => e.id === Number(id))!;
-              return (
-                e.libro_id === Number(values.libro_id) &&
-                e.sede_propietaria_id === Number(values.sede_origen_id)
-              );
-            }),
-          }
-        : f,
-    );
+  const fields = fieldsFor(resource, db!);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -98,6 +83,8 @@ export function EntityForm({ resource }: { resource: Resource }) {
               : values[f.key]?.trim() || null,
           ]),
       );
+      if (resource === "solicitudes")
+        data.tipo = tipoSolicitud(data.sede_origen_id, data.sede_destino_id);
       if (record)
         for (const [k, v] of Object.entries(record))
           if (data[k] === undefined) data[k] = v;

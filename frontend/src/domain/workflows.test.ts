@@ -3,9 +3,14 @@ import { seed } from "../data/seed";
 import { applyCommand, createMockApi, saveEntity } from "../api/mock";
 import { buildReport } from "./reports";
 import { available } from "./selectors";
+import { tipoSolicitud } from "../pages/resources";
 
 afterEach(() => vi.useRealTimers());
 describe("Recorridos de demostración basados en el modelo", () => {
+  it("deduce el tipo de solicitud con el mismo contrato que la API", () => {
+    expect(tipoSolicitud(1, 1)).toBe("LOCAL");
+    expect(tipoSolicitud(1, 2)).toBe("INTERBIBLIOTECARIO");
+  });
   it("completa préstamo local y devolución sin duplicar socio/libro en Prestamo", () => {
     const db = structuredClone(seed);
     const s = saveEntity(db, "solicitudes", {

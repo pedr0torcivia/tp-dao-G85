@@ -19,8 +19,7 @@ class TramitacionLocal(TramitacionPrestamo):
     ) -> None:
         if sede_origen.pk != sede_destino.pk:
             raise EstadoSolicitudInvalidoError(
-                "Una solicitud local debe tener la misma sede "
-                "de origen y destino."
+                "Una solicitud local debe tener la misma sede de origen y destino."
             )
 
     def preparar_entrega(
@@ -30,24 +29,16 @@ class TramitacionLocal(TramitacionPrestamo):
         ejemplar: Ejemplar,
     ) -> None:
         if solicitud.tipo != TipoSolicitud.LOCAL:
-            raise EstadoSolicitudInvalidoError(
-                "La solicitud no utiliza tramitación local."
-            )
+            raise EstadoSolicitudInvalidoError("La solicitud no utiliza tramitación local.")
 
         if solicitud.estado != EstadoSolicitud.ASIGNADA:
-            raise EstadoSolicitudInvalidoError(
-                "Solo se puede preparar una solicitud asignada."
-            )
+            raise EstadoSolicitudInvalidoError("Solo se puede preparar una solicitud asignada.")
 
         if solicitud.ejemplar_id != ejemplar.pk:
-            raise EstadoSolicitudInvalidoError(
-                "El ejemplar no está asignado a la solicitud."
-            )
+            raise EstadoSolicitudInvalidoError("El ejemplar no está asignado a la solicitud.")
 
         if ejemplar.estado != EstadoEjemplar.ASIGNADO:
-            raise EstadoSolicitudInvalidoError(
-                "El ejemplar no se encuentra en estado asignado."
-            )
+            raise EstadoSolicitudInvalidoError("El ejemplar no se encuentra en estado asignado.")
 
         solicitud.estado = EstadoSolicitud.LISTA_PARA_ENTREGA
         ejemplar.estado = EstadoEjemplar.LISTO_PARA_ENTREGA

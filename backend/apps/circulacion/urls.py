@@ -1,10 +1,7 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import (
-    PrestamoViewSet,
-    ReservaViewSet,
-    SolicitudPrestamoViewSet,
-)
+from .views import PrestamoViewSet, ReservaViewSet, SolicitudPrestamoViewSet
 
 router = DefaultRouter()
 router.register(
@@ -23,4 +20,6 @@ router.register(
     basename="reserva",
 )
 
-urlpatterns = router.urls
+urlpatterns = [
+    *router.urls,
+]

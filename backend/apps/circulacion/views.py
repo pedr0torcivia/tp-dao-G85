@@ -12,7 +12,7 @@ from .serializers import (
     AsignarEjemplarSerializer,
     AsignarReservaSerializer,
     CrearReservaSerializer,
-    CrearSolicitudLocalSerializer,
+    CrearSolicitudSerializer,
     DevolverPrestamoSerializer,
     EntregarSolicitudSerializer,
     PrestamoSerializer,
@@ -25,10 +25,11 @@ from .services import (
     cancelar_reserva,
     cancelar_solicitud,
     crear_reserva,
-    crear_solicitud_local,
+    crear_solicitud,
     entregar_solicitud,
     expirar_reserva,
     preparar_entrega,
+    rechazar_solicitud,
     registrar_devolucion,
 )
 
@@ -37,12 +38,7 @@ def ejecutar_operacion(operacion, **datos):
     try:
         return operacion(**datos)
     except (ErrorCirculacion, SedeInactivaError) as error:
-        campo = getattr(error, "campo", None)
-        if campo:
-            raise ValidationError({campo: [str(error)]}) from error
-        raise ValidationError(
-            {"non_field_errors": [str(error)]}
-        ) from error
+        raise ValidationError({"non_field_errors": [str(error)]}) from error
 
 
 class SolicitudPrestamoViewSet(viewsets.ReadOnlyModelViewSet):
@@ -51,11 +47,12 @@ class SolicitudPrestamoViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_serializer_class(self):
         serializers_por_accion = {
-            "create": CrearSolicitudLocalSerializer,
+            "create": CrearSolicitudSerializer,
             "asignar": AsignarEjemplarSerializer,
             "preparar_entrega": AccionVaciaSerializer,
             "entregar": EntregarSolicitudSerializer,
             "cancelar": AccionVaciaSerializer,
+            "rechazar": AccionVaciaSerializer,
         }
         return serializers_por_accion.get(
             self.action,
@@ -67,7 +64,7 @@ class SolicitudPrestamoViewSet(viewsets.ReadOnlyModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         solicitud = ejecutar_operacion(
-            crear_solicitud_local,
+            crear_solicitud,
             **serializer.validated_data,
         )
 
@@ -87,9 +84,7 @@ class SolicitudPrestamoViewSet(viewsets.ReadOnlyModelViewSet):
             **serializer.validated_data,
         )
 
-        return Response(
-            SolicitudPrestamoSerializer(solicitud).data
-        )
+        return Response(SolicitudPrestamoSerializer(solicitud).data)
 
     @action(
         detail=True,
@@ -105,9 +100,7 @@ class SolicitudPrestamoViewSet(viewsets.ReadOnlyModelViewSet):
             solicitud=self.get_object(),
         )
 
-        return Response(
-            SolicitudPrestamoSerializer(solicitud).data
-        )
+        return Response(SolicitudPrestamoSerializer(solicitud).data)
 
     @action(detail=True, methods=["post"])
     def entregar(self, request, pk=None):
@@ -135,74 +128,19 @@ class SolicitudPrestamoViewSet(viewsets.ReadOnlyModelViewSet):
             solicitud=self.get_object(),
         )
 
-        return Response(
-            SolicitudPrestamoSerializer(solicitud).data
-        )
-
-
-class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = listar_reservas()
-    serializer_class = ReservaSerializer
-
-    def get_serializer_class(self):
-        serializers_por_accion = {
-            "create": CrearReservaSerializer,
-            "asignar": AsignarReservaSerializer,
-            "cancelar": AccionVaciaSerializer,
-            "expirar": AccionVaciaSerializer,
-        }
-        return serializers_por_accion.get(self.action, ReservaSerializer)
-
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        reserva = ejecutar_operacion(
-            crear_reserva,
-            **serializer.validated_data,
-        )
-
-        return Response(
-            ReservaSerializer(reserva).data,
-            status=status.HTTP_201_CREATED,
-        )
-
-    @action(detail=True, methods=["post"], url_path="asignar-reserva")
-    def asignar(self, request, pk=None):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        reserva = ejecutar_operacion(
-            asignar_reserva,
-            reserva=self.get_object(),
-            **serializer.validated_data,
-        )
-
-        return Response(ReservaSerializer(reserva).data)
+        return Response(SolicitudPrestamoSerializer(solicitud).data)
 
     @action(detail=True, methods=["post"])
-    def cancelar(self, request, pk=None):
+    def rechazar(self, request, pk=None):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        reserva = ejecutar_operacion(
-            cancelar_reserva,
-            reserva=self.get_object(),
+        solicitud = ejecutar_operacion(
+            rechazar_solicitud,
+            solicitud=self.get_object(),
         )
 
-        return Response(ReservaSerializer(reserva).data)
-
-    @action(detail=True, methods=["post"])
-    def expirar(self, request, pk=None):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        reserva = ejecutar_operacion(
-            expirar_reserva,
-            reserva=self.get_object(),
-        )
-
-        return Response(ReservaSerializer(reserva).data)
+        return Response(SolicitudPrestamoSerializer(solicitud).data)
 
 
 class PrestamoViewSet(viewsets.ReadOnlyModelViewSet):
@@ -226,6 +164,61 @@ class PrestamoViewSet(viewsets.ReadOnlyModelViewSet):
             **serializer.validated_data,
         )
 
-        return Response(
-            PrestamoSerializer(prestamo).data
+        return Response(PrestamoSerializer(prestamo).data)
+
+
+class ReservaViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = listar_reservas()
+    serializer_class = ReservaSerializer
+
+    def get_serializer_class(self):
+        serializers_por_accion = {
+            "create": CrearReservaSerializer,
+            "asignar_reserva": AsignarReservaSerializer,
+            "cancelar": AccionVaciaSerializer,
+            "expirar": AccionVaciaSerializer,
+        }
+        return serializers_por_accion.get(self.action, ReservaSerializer)
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reserva = ejecutar_operacion(
+            crear_reserva,
+            **serializer.validated_data,
         )
+        return Response(
+            ReservaSerializer(reserva).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="asignar-reserva")
+    def asignar_reserva(self, request, pk=None):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reserva = ejecutar_operacion(
+            asignar_reserva,
+            reserva=self.get_object(),
+            **serializer.validated_data,
+        )
+        return Response(ReservaSerializer(reserva).data)
+
+    @action(detail=True, methods=["post"])
+    def cancelar(self, request, pk=None):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reserva = ejecutar_operacion(
+            cancelar_reserva,
+            reserva=self.get_object(),
+        )
+        return Response(ReservaSerializer(reserva).data)
+
+    @action(detail=True, methods=["post"])
+    def expirar(self, request, pk=None):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reserva = ejecutar_operacion(
+            expirar_reserva,
+            reserva=self.get_object(),
+        )
+        return Response(ReservaSerializer(reserva).data)

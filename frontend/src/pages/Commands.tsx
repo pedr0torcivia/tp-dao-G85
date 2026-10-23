@@ -21,6 +21,7 @@ export const actionLabels: Record<Command, string> = {
   "preparar-entrega": "Preparar entrega local",
   entregar: "Registrar entrega",
   cancelar: "Cancelar operación",
+  rechazar: "Rechazar solicitud",
   devolver: "Registrar devolución",
   empaquetar: "Empaquetar",
   despachar: "Despachar",

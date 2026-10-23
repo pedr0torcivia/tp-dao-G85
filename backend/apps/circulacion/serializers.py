@@ -8,7 +8,7 @@ from apps.catalogo.models import (
 from apps.sedes.models import Sede
 from apps.socios.models import Socio
 
-from .models import Prestamo, Reserva, SolicitudPrestamo
+from .models import Prestamo, Reserva, SolicitudPrestamo, TipoSolicitud
 
 
 class SolicitudPrestamoSerializer(serializers.ModelSerializer):
@@ -36,7 +36,7 @@ class SolicitudPrestamoSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class CrearSolicitudLocalSerializer(serializers.Serializer):
+class CrearSolicitudSerializer(serializers.Serializer):
     socio_id = serializers.PrimaryKeyRelatedField(
         source="socio",
         queryset=Socio.objects.all(),
@@ -53,6 +53,11 @@ class CrearSolicitudLocalSerializer(serializers.Serializer):
         source="sede_destino",
         queryset=Sede.objects.all(),
     )
+    tipo = serializers.ChoiceField(choices=TipoSolicitud.choices)
+
+
+# Alias temporal para no romper importaciones externas del primer incremento.
+CrearSolicitudLocalSerializer = CrearSolicitudSerializer
 
 
 class AsignarEjemplarSerializer(serializers.Serializer):
@@ -85,9 +90,7 @@ class PrestamoSerializer(serializers.ModelSerializer):
 
 class DevolverPrestamoSerializer(serializers.Serializer):
     fecha_devolucion = serializers.DateTimeField()
-    condicion_devolucion = serializers.ChoiceField(
-        choices=CondicionFisica.choices
-    )
+    condicion_devolucion = serializers.ChoiceField(choices=CondicionFisica.choices)
 
 
 class AccionVaciaSerializer(serializers.Serializer):

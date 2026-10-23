@@ -1,5 +1,5 @@
 import type { Database, Resource } from "../domain/models";
-import { available, statusLabels, today } from "../domain/selectors";
+import { statusLabels, today } from "../domain/selectors";
 
 export interface FormField {
   key: string;
@@ -79,6 +79,11 @@ export const config: Partial<Record<Resource, ResourceConfig>> = {
 };
 export const pathOf = (resource: Resource) =>
   resource === "libros" ? "catalogo" : resource;
+export const tipoSolicitud = (
+  sedeOrigenId: unknown,
+  sedeDestinoId: unknown,
+): "LOCAL" | "INTERBIBLIOTECARIO" =>
+  sedeOrigenId === sedeDestinoId ? "LOCAL" : "INTERBIBLIOTECARIO";
 const field = (
   key: string,
   label: string,
@@ -141,17 +146,6 @@ export function fieldsFor(resource: Resource, db: Database): FormField[] {
         select("libro_id", "Libro", libros),
         select("sede_origen_id", "Sede de origen", sedes),
         select("sede_destino_id", "Sede de retiro", sedes),
-        select(
-          "ejemplar_id",
-          "Ejemplar (opcional hasta asignación)",
-          db.ejemplares
-            .filter((e) => available(e, db))
-            .map((e) => [
-              String(e.id),
-              `${e.codigo_inventario} · ${db.libros.find((b) => b.id === e.libro_id)?.titulo}`,
-            ]),
-          false,
-        ),
       ];
     case "reservas":
       return [
