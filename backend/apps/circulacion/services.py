@@ -16,7 +16,6 @@ from .exceptions import (
     FechaPrestamoInvalidaError,
     PrestamoYaCreadoError,
     PrestamoYaDevueltoError,
-    ReservaSinEjemplarError,
     ReservaVigenteDuplicadaError,
     SocioInhabilitadoError,
 )

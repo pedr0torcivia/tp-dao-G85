@@ -6,8 +6,7 @@ from rest_framework.response import Response
 from apps.sedes.exceptions import SedeInactivaError
 
 from .exceptions import ErrorCirculacion
-from .models import Prestamo, Reserva, SolicitudPrestamo
-from .selectors import listar_prestamos, listar_solicitudes, listar_reservas
+from .selectors import listar_prestamos, listar_reservas, listar_solicitudes
 from .serializers import (
     AccionVaciaSerializer,
     AsignarEjemplarSerializer,

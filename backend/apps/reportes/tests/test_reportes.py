@@ -8,10 +8,9 @@ from rest_framework.test import APITestCase
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
 from apps.circulacion.models import SolicitudPrestamo
+from apps.reportes.services import demanda_interbibliotecaria, disponibilidad_catalogo
 from apps.sedes.models import EstadoSede, Sede
 from apps.socios.models import Socio
-
-from apps.reportes.services import demanda_interbibliotecaria, disponibilidad_catalogo
 
 
 def _momento(dia: int, hora: int = 12) -> datetime:
@@ -237,7 +236,8 @@ class DisponibilidadTest(APITestCase, BaseReportesTest):
         filas = datos["filas"]
         self.assertEqual(len(filas), 3)
 
-        # Ordenado por (libro, sede): "Don Quijote" . Central, "Don Quijote" . Norte, "El principito" . Central
+        # Ordenado por (libro, sede): Don Quijote · Central, Don Quijote · Norte,
+        # y al final El principito · Central
         quijote_central = filas[0]
         self.assertEqual(quijote_central["libro"], "Don Quijote")
         self.assertEqual(quijote_central["total"], 2)

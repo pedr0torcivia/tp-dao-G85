@@ -4,9 +4,6 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.catalogo.models import Ejemplar, EstadoEjemplar, Libro
-from apps.sedes.models import Sede
-from apps.socios.models import Socio
-
 from apps.circulacion.models import EstadoSolicitud
 from apps.circulacion.services import (
     asignar_ejemplar,
@@ -15,6 +12,8 @@ from apps.circulacion.services import (
     preparar_entrega,
     registrar_devolucion,
 )
+from apps.sedes.models import Sede
+from apps.socios.models import Socio
 
 
 class CirculacionLocalServiceTest(TestCase):
