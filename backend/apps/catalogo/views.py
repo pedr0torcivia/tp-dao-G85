@@ -16,11 +16,13 @@ from .serializers import (
     LibroSerializer,
 )
 from .services import (
+    aprobar_disponibilidad_ejemplar,
     actualizar_condicion_ejemplar,
     actualizar_libro,
     asignar_ejemplar,
     crear_ejemplar,
     crear_libro,
+    dar_de_baja_ejemplar,
     liberar_ejemplar,
 )
 
@@ -153,6 +155,30 @@ class EjemplarLiberarView(APIView):
 
         try:
             ejemplar = liberar_ejemplar(ejemplar=ejemplar)
+        except ErrorCatalogo as error:
+            return catalogo_error_response(error)
+
+        return Response(EjemplarSerializer(ejemplar).data)
+
+
+class EjemplarDarDeBajaView(APIView):
+    def post(self, request, ejemplar_id):
+        ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
+
+        try:
+            ejemplar = dar_de_baja_ejemplar(ejemplar=ejemplar)
+        except ErrorCatalogo as error:
+            return catalogo_error_response(error)
+
+        return Response(EjemplarSerializer(ejemplar).data)
+
+
+class EjemplarAprobarDisponibilidadView(APIView):
+    def post(self, request, ejemplar_id):
+        ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
+
+        try:
+            ejemplar = aprobar_disponibilidad_ejemplar(ejemplar=ejemplar)
         except ErrorCatalogo as error:
             return catalogo_error_response(error)
 

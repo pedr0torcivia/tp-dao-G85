@@ -1,6 +1,10 @@
 from rest_framework.routers import DefaultRouter
 
-from .views import PrestamoViewSet, SolicitudPrestamoViewSet
+from .views import (
+    PrestamoViewSet,
+    ReservaViewSet,
+    SolicitudPrestamoViewSet,
+)
 
 router = DefaultRouter()
 router.register(
@@ -12,6 +16,11 @@ router.register(
     "prestamos",
     PrestamoViewSet,
     basename="prestamo",
+)
+router.register(
+    "reservas",
+    ReservaViewSet,
+    basename="reserva",
 )
 
 urlpatterns = router.urls

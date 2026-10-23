@@ -258,6 +258,31 @@ class EjemplarApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["codigo_inventario"], "EJ-0001")
 
+    def test_dar_de_baja_por_http_pone_el_estado_en_baja(self):
+        creado = self.crear_ejemplar()
+        ejemplar_id = creado.data["id"]
+
+        response = self.client.post(reverse("ejemplar-dar-de-baja", args=[ejemplar_id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["estado"], EstadoEjemplar.BAJA)
+
+        # Un ejemplar de baja ya no puede darse de baja otra vez
+        response = self.client.post(reverse("ejemplar-dar-de-baja", args=[ejemplar_id]))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_aprobar_disponibilidad_por_http_vuelve_a_disponible(self):
+        creado = self.crear_ejemplar()
+        ejemplar_id = creado.data["id"]
+        Ejemplar.objects.filter(pk=ejemplar_id).update(estado=EstadoEjemplar.EN_REVISION)
+
+        response = self.client.post(
+            reverse("ejemplar-aprobar-disponibilidad", args=[ejemplar_id])
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["estado"], EstadoEjemplar.DISPONIBLE)
+
     def test_modificar_condicion_fisica(self):
         creado = self.crear_ejemplar()
         ejemplar_id = creado.data["id"]

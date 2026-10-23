@@ -10,4 +10,14 @@ urlpatterns = [
         name="reporte-prestamos-vencidos",
     ),
     path("reportes/movimientos/", views.reportes_movimientos, name="reportes-movimientos"),
+    path(
+        "reportes/demanda-interbibliotecaria/",
+        views.reportes_demanda,
+        name="reportes-demanda-interbibliotecaria",
+    ),
+    path(
+        "reportes/disponibilidad/",
+        views.reportes_disponibilidad,
+        name="reportes-disponibilidad",
+    ),
 ]

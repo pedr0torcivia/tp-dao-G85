@@ -6,12 +6,15 @@ from apps.sedes.services import validar_sede_activa
 
 from .exceptions import (
     CodigoInventarioDuplicadoError,
+    EjemplarComprometidoError,
     EjemplarDadoDeBajaError,
+    EjemplarInconsistenteError,
     EjemplarNoAsignadoError,
     EjemplarNoDisponibleError,
+    EjemplarNoRevisadoError,
     SedePropietariaInactivaError,
 )
-from .models import Ejemplar, EstadoEjemplar, Libro
+from .models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
 
 
 @transaction.atomic
@@ -127,6 +130,48 @@ def liberar_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
 
     if ejemplar.estado != EstadoEjemplar.ASIGNADO:
         raise EjemplarNoAsignadoError("El ejemplar no está asignado.")
+
+    ejemplar.estado = EstadoEjemplar.DISPONIBLE
+    ejemplar.save(update_fields=["estado"])
+    return ejemplar
+
+
+@transaction.atomic
+def dar_de_baja_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
+    """Baja lógica del ejemplar: el registro se conserva con estado BAJA."""
+    ejemplar = Ejemplar.objects.select_for_update().get(pk=ejemplar.pk)
+
+    if ejemplar.estado == EstadoEjemplar.BAJA:
+        raise EjemplarDadoDeBajaError("El ejemplar ya está dado de baja.")
+
+    if ejemplar.estado not in (EstadoEjemplar.DISPONIBLE, EstadoEjemplar.EN_REVISION):
+        raise EjemplarComprometidoError("No se puede dar de baja un ejemplar comprometido.")
+
+    ejemplar.estado = EstadoEjemplar.BAJA
+    ejemplar.save(update_fields=["estado"])
+    return ejemplar
+
+
+@transaction.atomic
+def aprobar_disponibilidad_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
+    """Da por revisado un ejemplar apto en su sede propietaria activa."""
+    ejemplar = Ejemplar.objects.select_for_update().get(pk=ejemplar.pk)
+
+    if ejemplar.estado != EstadoEjemplar.EN_REVISION:
+        raise EjemplarNoRevisadoError("El ejemplar debe estar en revisión.")
+
+    if ejemplar.condicion_fisica != CondicionFisica.APTO:
+        raise EjemplarInconsistenteError("La condición física debe ser apta para préstamo.")
+
+    if ejemplar.sede_actual_id != ejemplar.sede_propietaria_id:
+        raise EjemplarInconsistenteError(
+            "El ejemplar debe estar en su sede propietaria."
+        )
+
+    try:
+        validar_sede_activa(sede=ejemplar.sede_propietaria)
+    except SedeInactivaError as error:
+        raise SedePropietariaInactivaError(str(error)) from error
 
     ejemplar.estado = EstadoEjemplar.DISPONIBLE
     ejemplar.save(update_fields=["estado"])

@@ -1,10 +1,7 @@
 from django.db import transaction
+from django.utils import timezone
 
-from apps.catalogo.models import (
-    CondicionFisica,
-    Ejemplar,
-    EstadoEjemplar,
-)
+from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar
 from apps.sedes.services import validar_sede_activa
 from apps.socios.models import EstadoSocio, Socio
 
@@ -13,15 +10,21 @@ from .exceptions import (
     EjemplarNoAptoError,
     EjemplarNoCorrespondeError,
     EjemplarNoDisponibleError,
+    EstadoReservaInvalidoError,
     EstadoSolicitudInvalidoError,
+    FechaLimiteRetiroInvalidaError,
     FechaPrestamoInvalidaError,
     PrestamoYaCreadoError,
     PrestamoYaDevueltoError,
+    ReservaSinEjemplarError,
+    ReservaVigenteDuplicadaError,
     SocioInhabilitadoError,
 )
 from .models import (
+    EstadoReserva,
     EstadoSolicitud,
     Prestamo,
+    Reserva,
     SolicitudPrestamo,
     TipoSolicitud,
 )
@@ -319,3 +322,167 @@ def cancelar_solicitud(
     solicitud.save(update_fields=["estado"])
 
     return solicitud
+
+
+# Servicios de reservas
+
+
+def _reserva_con_bloqueo(reserva: Reserva) -> Reserva:
+    return Reserva.objects.select_for_update(of=("self",)).get(pk=reserva.pk)
+
+
+def _ejemplar_con_bloqueo(ejemplar_id: int) -> Ejemplar:
+    return (
+        Ejemplar.objects.select_for_update(of=("self",))
+        .select_related("libro", "sede_propietaria", "sede_actual")
+        .get(pk=ejemplar_id)
+    )
+
+
+def _cerrar_reserva(*, reserva: Reserva, estado_final: str) -> Reserva:
+    """Efectos comunes de cancelar y expirar: liberar material y solicitudes."""
+    ejemplar = reserva.ejemplar_asignado
+    if ejemplar is not None:
+        ejemplar = _ejemplar_con_bloqueo(ejemplar.pk)
+        if ejemplar.estado == EstadoEjemplar.LISTO_PARA_ENTREGA:
+            ejemplar.estado = EstadoEjemplar.DISPONIBLE
+            ejemplar.save(update_fields=["estado"])
+
+    for solicitud in SolicitudPrestamo.objects.filter(reserva=reserva):
+        if solicitud.estado != EstadoSolicitud.CUMPLIDA:
+            solicitud.estado = EstadoSolicitud.CANCELADA
+            solicitud.save(update_fields=["estado"])
+
+    reserva.estado = estado_final
+    reserva.save(update_fields=["estado"])
+    return reserva
+
+
+@transaction.atomic
+def crear_reserva(
+    *,
+    socio: Socio,
+    libro,
+    sede_retiro,
+) -> Reserva:
+    validar_sede_activa(sede=sede_retiro)
+
+    vigente = Reserva.objects.filter(
+        socio=socio,
+        libro=libro,
+        sede_retiro=sede_retiro,
+        estado__in=(EstadoReserva.PENDIENTE, EstadoReserva.LISTA_PARA_RETIRO),
+    ).exists()
+    if vigente:
+        raise ReservaVigenteDuplicadaError(
+            "Ya existe una reserva vigente para ese socio, libro y sede."
+        )
+
+    return Reserva.objects.create(
+        socio=socio,
+        libro=libro,
+        sede_retiro=sede_retiro,
+        estado=EstadoReserva.PENDIENTE,
+    )
+
+
+@transaction.atomic
+def asignar_reserva(
+    *,
+    reserva: Reserva,
+    ejemplar: Ejemplar,
+    fecha_limite_retiro,
+) -> Reserva:
+    """Deja el ejemplar listo para retiro y genera la solicitud local asociada."""
+    reserva = _reserva_con_bloqueo(reserva)
+
+    if reserva.estado != EstadoReserva.PENDIENTE:
+        raise EstadoReservaInvalidoError("La reserva debe estar pendiente.")
+
+    validar_socio_habilitado(socio=reserva.socio)
+    validar_sede_activa(sede=reserva.sede_retiro)
+
+    ejemplar = _ejemplar_con_bloqueo(ejemplar.pk)
+
+    disponible = (
+        ejemplar.estado == EstadoEjemplar.DISPONIBLE
+        and ejemplar.condicion_fisica == CondicionFisica.APTO
+        and ejemplar.sede_actual_id == ejemplar.sede_propietaria_id
+    )
+    if not disponible:
+        raise EjemplarNoDisponibleError(
+            "Elegí un ejemplar disponible en la sede de retiro."
+        )
+    if ejemplar.libro_id != reserva.libro_id:
+        raise EjemplarNoCorrespondeError("El ejemplar no corresponde al libro reservado.")
+    if ejemplar.sede_actual_id != reserva.sede_retiro_id:
+        raise EjemplarEnOtraSedeError("El ejemplar no está en la sede de retiro.")
+
+    if fecha_limite_retiro is None:
+        raise FechaLimiteRetiroInvalidaError(
+            "Ingresá explícitamente una fecha límite futura.",
+            campo="fecha_limite_retiro",
+        )
+    if fecha_limite_retiro <= timezone.now():
+        raise FechaLimiteRetiroInvalidaError(
+            "Ingresá explícitamente una fecha límite futura.",
+            campo="fecha_limite_retiro",
+        )
+
+    reservado_por_otra = Reserva.objects.filter(
+        ejemplar_asignado=ejemplar,
+        estado__in=(EstadoReserva.PENDIENTE, EstadoReserva.LISTA_PARA_RETIRO),
+    ).exclude(pk=reserva.pk)
+    if reservado_por_otra.exists():
+        raise EjemplarNoDisponibleError(
+            "El ejemplar ya está reservado para otro retiro vigente."
+        )
+
+    reserva.ejemplar_asignado_id = ejemplar.pk
+    reserva.fecha_limite_retiro = fecha_limite_retiro
+    reserva.estado = EstadoReserva.LISTA_PARA_RETIRO
+    reserva.save(update_fields=["ejemplar_asignado", "fecha_limite_retiro", "estado"])
+
+    ejemplar.estado = EstadoEjemplar.LISTO_PARA_ENTREGA
+    ejemplar.save(update_fields=["estado"])
+
+    SolicitudPrestamo.objects.create(
+        socio=reserva.socio,
+        libro=reserva.libro,
+        ejemplar=ejemplar,
+        sede_origen=ejemplar.sede_propietaria,
+        sede_destino=reserva.sede_retiro,
+        reserva=reserva,
+        tipo=TipoSolicitud.LOCAL,
+        estado=EstadoSolicitud.LISTA_PARA_ENTREGA,
+    )
+
+    return reserva
+
+
+@transaction.atomic
+def cancelar_reserva(*, reserva: Reserva) -> Reserva:
+    reserva = _reserva_con_bloqueo(reserva)
+
+    if reserva.estado not in (EstadoReserva.PENDIENTE, EstadoReserva.LISTA_PARA_RETIRO):
+        raise EstadoReservaInvalidoError("La reserva ya está cerrada.")
+
+    return _cerrar_reserva(reserva=reserva, estado_final=EstadoReserva.CANCELADA)
+
+
+@transaction.atomic
+def expirar_reserva(*, reserva: Reserva) -> Reserva:
+    reserva = _reserva_con_bloqueo(reserva)
+
+    if reserva.estado not in (EstadoReserva.PENDIENTE, EstadoReserva.LISTA_PARA_RETIRO):
+        raise EstadoReservaInvalidoError("La reserva ya está cerrada.")
+
+    vencio = (
+        reserva.estado == EstadoReserva.LISTA_PARA_RETIRO
+        and reserva.fecha_limite_retiro is not None
+        and reserva.fecha_limite_retiro < timezone.now()
+    )
+    if not vencio:
+        raise EstadoReservaInvalidoError("Todavía no venció el plazo de retiro.")
+
+    return _cerrar_reserva(reserva=reserva, estado_final=EstadoReserva.EXPIRADA)

@@ -24,3 +24,15 @@ class EjemplarNoAsignadoError(ErrorCatalogo):
 
 class EjemplarDadoDeBajaError(ErrorCatalogo):
     """Un ejemplar dado de baja no puede modificarse."""
+
+
+class EjemplarComprometidoError(ErrorCatalogo):
+    """El ejemplar está comprometido y no puede darse de baja."""
+
+
+class EjemplarNoRevisadoError(ErrorCatalogo):
+    """El ejemplar no pasó por revisión para volver a estar disponible."""
+
+
+class EjemplarInconsistenteError(ErrorCatalogo):
+    """El estado físico o la ubicación del ejemplar no permiten la operación."""

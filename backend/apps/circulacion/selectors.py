@@ -1,7 +1,7 @@
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from .models import Prestamo, SolicitudPrestamo
+from .models import Prestamo, Reserva, SolicitudPrestamo
 
 
 def listar_solicitudes() -> QuerySet[SolicitudPrestamo]:
@@ -19,8 +19,20 @@ def listar_solicitudes() -> QuerySet[SolicitudPrestamo]:
     )
 
 
-def listar_prestamos() -> QuerySet[Prestamo]:
+def listar_reservas() -> QuerySet[Reserva]:
     return (
+        Reserva.objects.select_related(
+            "socio",
+            "libro",
+            "sede_retiro",
+            "ejemplar_asignado",
+        )
+        .all()
+        .order_by("-fecha_reserva")
+    )
+
+
+def listar_prestamos() -> QuerySet[Prestamo]:    return (
         Prestamo.objects.select_related(
             "solicitud",
             "solicitud__socio",
