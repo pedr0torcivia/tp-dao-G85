@@ -6,7 +6,7 @@ from apps.catalogo.exceptions import (
     EjemplarNoDisponibleError,
     SedePropietariaInactivaError,
 )
-from apps.catalogo.models import Ejemplar, EstadoEjemplar
+from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar
 from apps.catalogo.services import (
     actualizar_condicion_ejemplar,
     actualizar_libro,
@@ -41,7 +41,7 @@ class EjemplarServicesTest(TestCase):
             "codigo_inventario": "EJ-0001",
             "libro": self.libro,
             "sede_propietaria": self.sede,
-            "condicion_fisica": "Bueno",
+            "condicion_fisica": CondicionFisica.APTO,
         }
         datos.update(cambios)
 
@@ -53,16 +53,20 @@ class EjemplarServicesTest(TestCase):
         self.assertEqual(ejemplar.estado, EstadoEjemplar.DISPONIBLE)
         self.assertEqual(ejemplar.sede_propietaria, self.sede)
         self.assertEqual(ejemplar.sede_actual, self.sede)
-        self.assertEqual(ejemplar.condicion_fisica, "Bueno")
+        self.assertEqual(ejemplar.condicion_fisica, CondicionFisica.APTO)
 
     def test_crear_ejemplar_limpia_espacios(self):
+        """
+        La condición física es texto normalizado, por lo que se recorta
+        el espacio sobrante de las puntas.
+        """
         ejemplar = self.crear_ejemplar(
             codigo_inventario="  EJ-0002  ",
-            condicion_fisica="  Muy bueno  ",
+            condicion_fisica="  APTO  ",
         )
 
         self.assertEqual(ejemplar.codigo_inventario, "EJ-0002")
-        self.assertEqual(ejemplar.condicion_fisica, "Muy bueno")
+        self.assertEqual(ejemplar.condicion_fisica, "APTO")
 
     def test_no_permite_ejemplar_en_sede_inactiva(self):
         sede_inactiva = Sede.objects.create(
@@ -91,10 +95,10 @@ class EjemplarServicesTest(TestCase):
 
         ejemplar = actualizar_condicion_ejemplar(
             ejemplar=ejemplar,
-            condicion_fisica="Muy bueno",
+            condicion_fisica=CondicionFisica.NO_APTO,
         )
 
-        self.assertEqual(ejemplar.condicion_fisica, "Muy bueno")
+        self.assertEqual(ejemplar.condicion_fisica, CondicionFisica.NO_APTO)
 
     def test_asignar_y_liberar_ejemplar(self):
         ejemplar = self.crear_ejemplar()

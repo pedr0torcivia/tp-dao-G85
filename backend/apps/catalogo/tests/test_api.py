@@ -2,7 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.catalogo.models import Ejemplar, EstadoEjemplar, Libro
+from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
 from apps.sedes.models import EstadoSede, Sede
 
 
@@ -168,7 +168,7 @@ class EjemplarApiTest(APITestCase):
             "codigo_inventario": "EJ-0001",
             "libro_id": self.libro.id,
             "sede_propietaria_id": self.sede_central.id,
-            "condicion_fisica": "Bueno",
+            "condicion_fisica": CondicionFisica.APTO,
         }
         datos.update(cambios)
 
@@ -264,12 +264,12 @@ class EjemplarApiTest(APITestCase):
 
         response = self.client.patch(
             reverse("ejemplar-detail", args=[ejemplar_id]),
-            {"condicion_fisica": "Muy bueno"},
+            {"condicion_fisica": CondicionFisica.NO_APTO},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["condicion_fisica"], "Muy bueno")
+        self.assertEqual(response.data["condicion_fisica"], CondicionFisica.NO_APTO)
 
     def test_asignar_y_liberar_ejemplar(self):
         creado = self.crear_ejemplar()

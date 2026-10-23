@@ -9,15 +9,14 @@ from .selectors import obtener_prestamos_vencidos
 
 class PrestamosVencidosView(APIView):
     def get(self, request):
-        fecha_corte = date.fromisoformat(fecha_corte)
-        
-        if not fecha_corte:
+        crudo = request.GET.get("fecha_corte")
+        if not crudo:
             raise ValidationError(
                 {"fecha_corte": ["Debe indicar la fecha de corte en formato AAAA-MM-DD."]}
             )
 
         try:
-            fecha_corte = __import__("datetime").date.fromisoformat(fecha_corte)
+            fecha_corte = date.fromisoformat(crudo)
         except ValueError as error:
             raise ValidationError(
                 {"fecha_corte": ["El formato debe ser AAAA-MM-DD."]}
