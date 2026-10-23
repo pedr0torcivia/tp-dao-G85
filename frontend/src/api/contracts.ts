@@ -18,6 +18,7 @@ export type Command =
   | "preparar-entrega"
   | "entregar"
   | "cancelar"
+  | "rechazar"
   | "devolver"
   | "empaquetar"
   | "despachar"
@@ -45,8 +46,7 @@ export interface LibraryApi {
   reset(): Promise<void>;
 }
 
-// Sólo /sedes está implementado en Django. Las demás rutas son propuestas
-// de integración: se confirmarán al implementar cada módulo del backend.
+// Las rutas conservan el mismo nombre en los modos mock y HTTP.
 export const resourcePaths: Record<Resource, string> = {
   sedes: "sedes",
   socios: "socios",

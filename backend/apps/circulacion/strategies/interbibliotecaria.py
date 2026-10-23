@@ -1,7 +1,6 @@
 from apps.catalogo.models import Ejemplar
 from apps.circulacion.exceptions import (
     EstadoSolicitudInvalidoError,
-    TramitacionNoDisponibleError,
 )
 from apps.circulacion.models import SolicitudPrestamo
 from apps.sedes.models import Sede
@@ -27,6 +26,7 @@ class TramitacionInterbibliotecaria(TramitacionPrestamo):
         solicitud: SolicitudPrestamo,
         ejemplar: Ejemplar,
     ) -> None:
-        raise TramitacionNoDisponibleError(
-            "La tramitación interbibliotecaria todavía no está disponible."
+        raise EstadoSolicitudInvalidoError(
+            "La solicitud interbibliotecaria se prepara mediante un remito; "
+            "debe recibirse en destino antes de la entrega."
         )

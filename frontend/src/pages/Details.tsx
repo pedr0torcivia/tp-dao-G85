@@ -110,7 +110,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     if (data.estado === "EN_REVISION") actions.push("aprobar-disponibilidad");
   }
   if (resource === "solicitudes") {
-    if (data.estado === "PENDIENTE") actions.push("asignar");
+    if (data.estado === "PENDIENTE") actions.push("asignar", "rechazar");
     if (data.estado === "ASIGNADA" && data.tipo === "LOCAL")
       actions.push("preparar-entrega");
     if (data.estado === "LISTA_PARA_ENTREGA") actions.push("entregar");

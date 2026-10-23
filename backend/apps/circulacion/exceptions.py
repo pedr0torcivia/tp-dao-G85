@@ -40,3 +40,23 @@ class FechaPrestamoInvalidaError(ErrorCirculacion):
 
 class TramitacionNoDisponibleError(ErrorCirculacion):
     """El tipo de tramitación todavía no está disponible."""
+
+
+class EstadoReservaInvalidoError(ErrorCirculacion):
+    """La reserva no se encuentra en el estado requerido."""
+
+
+class ReservaDuplicadaError(ErrorCirculacion):
+    """Ya existe una reserva vigente equivalente."""
+
+
+class ReservaVencidaError(ErrorCirculacion):
+    """La reserva superó su fecha límite de retiro."""
+
+
+class FechaLimiteReservaInvalidaError(ErrorCirculacion):
+    """La fecha límite de retiro no es válida."""
+
+
+class SolicitudEnRemitoVigenteError(ErrorCirculacion):
+    """La solicitud forma parte de un remito que todavía está vigente."""

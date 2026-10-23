@@ -8,7 +8,7 @@ from apps.catalogo.models import (
 from apps.sedes.models import Sede
 from apps.socios.models import Socio
 
-from .models import Prestamo, SolicitudPrestamo
+from .models import Prestamo, Reserva, SolicitudPrestamo, TipoSolicitud
 
 
 class SolicitudPrestamoSerializer(serializers.ModelSerializer):
@@ -36,7 +36,7 @@ class SolicitudPrestamoSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class CrearSolicitudLocalSerializer(serializers.Serializer):
+class CrearSolicitudSerializer(serializers.Serializer):
     socio_id = serializers.PrimaryKeyRelatedField(
         source="socio",
         queryset=Socio.objects.all(),
@@ -53,6 +53,11 @@ class CrearSolicitudLocalSerializer(serializers.Serializer):
         source="sede_destino",
         queryset=Sede.objects.all(),
     )
+    tipo = serializers.ChoiceField(choices=TipoSolicitud.choices)
+
+
+# Alias temporal para no romper importaciones externas del primer incremento.
+CrearSolicitudLocalSerializer = CrearSolicitudSerializer
 
 
 class AsignarEjemplarSerializer(serializers.Serializer):
@@ -85,10 +90,52 @@ class PrestamoSerializer(serializers.ModelSerializer):
 
 class DevolverPrestamoSerializer(serializers.Serializer):
     fecha_devolucion = serializers.DateTimeField()
-    condicion_devolucion = serializers.ChoiceField(
-        choices=CondicionFisica.choices
-    )
+    condicion_devolucion = serializers.ChoiceField(choices=CondicionFisica.choices)
 
 
 class AccionVaciaSerializer(serializers.Serializer):
     pass
+
+
+class ReservaSerializer(serializers.ModelSerializer):
+    socio_id = serializers.IntegerField(read_only=True)
+    libro_id = serializers.IntegerField(read_only=True)
+    sede_retiro_id = serializers.IntegerField(read_only=True)
+    ejemplar_asignado_id = serializers.IntegerField(read_only=True, allow_null=True)
+
+    class Meta:
+        model = Reserva
+        fields = [
+            "id",
+            "socio_id",
+            "libro_id",
+            "sede_retiro_id",
+            "ejemplar_asignado_id",
+            "fecha_reserva",
+            "fecha_limite_retiro",
+            "estado",
+        ]
+        read_only_fields = fields
+
+
+class CrearReservaSerializer(serializers.Serializer):
+    socio_id = serializers.PrimaryKeyRelatedField(
+        source="socio",
+        queryset=Socio.objects.all(),
+    )
+    libro_id = serializers.PrimaryKeyRelatedField(
+        source="libro",
+        queryset=Libro.objects.all(),
+    )
+    sede_retiro_id = serializers.PrimaryKeyRelatedField(
+        source="sede_retiro",
+        queryset=Sede.objects.all(),
+    )
+
+
+class AsignarReservaSerializer(serializers.Serializer):
+    ejemplar_id = serializers.PrimaryKeyRelatedField(
+        source="ejemplar",
+        queryset=Ejemplar.objects.all(),
+    )
+    fecha_limite_retiro = serializers.DateTimeField()
