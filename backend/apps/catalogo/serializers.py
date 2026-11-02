@@ -43,6 +43,7 @@ class EjemplarSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "codigo_inventario",
+            "fecha_alta",
             "libro_id",
             "sede_propietaria_id",
             "sede_actual_id",

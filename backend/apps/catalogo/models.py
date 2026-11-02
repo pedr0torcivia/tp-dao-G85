@@ -1,4 +1,7 @@
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
+from django.utils import timezone
 
 
 class CondicionFisica(models.TextChoices):
@@ -23,11 +26,38 @@ class Libro(models.Model):
     editorial = models.CharField(max_length=255)
     edicion = models.CharField(max_length=100)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                Lower("titulo"),
+                Lower("autor"),
+                Lower("editorial"),
+                Lower("edicion"),
+                condition=models.Q(isbn__isnull=True),
+                name="libro_sin_isbn_edicion_unica",
+            )
+        ]
+
     def __str__(self) -> str:
         return self.titulo
 
+    def clean(self):
+        super().clean()
+        if self.isbn:
+            return
+        campos = ("titulo", "autor", "editorial", "edicion")
+        identidad = tuple(str(getattr(self, campo) or "").strip().casefold() for campo in campos)
+        candidatos = (
+            Libro.objects.filter(isbn__isnull=True).exclude(pk=self.pk).values_list(*campos)
+        )
+        if any(
+            tuple(valor.strip().casefold() for valor in fila) == identidad for fila in candidatos
+        ):
+            raise ValidationError({"titulo": "Ya existe esa edición sin ISBN en el catálogo."})
+
 
 class Ejemplar(models.Model):
+    fecha_alta = models.DateTimeField(default=timezone.now, db_index=True, editable=False)
     codigo_inventario = models.CharField(max_length=80, unique=True)
     libro = models.ForeignKey(Libro, on_delete=models.PROTECT, related_name="ejemplares")
     sede_propietaria = models.ForeignKey(

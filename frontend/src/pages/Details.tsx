@@ -65,6 +65,7 @@ const labels: Record<string, string> = {
   fecha_reserva: "Fecha de reserva",
   fecha_limite_retiro: "Fecha límite de retiro",
   fecha_creacion: "Fecha de creación",
+  fecha_alta: "Fecha de alta",
   fecha_despacho: "Fecha de despacho",
   fecha_recepcion: "Fecha de recepción",
 };
@@ -107,7 +108,11 @@ export function EntityDetail({ resource }: { resource: Resource }) {
   if (resource === "ejemplares") {
     if (["DISPONIBLE", "EN_REVISION"].includes(String(data.estado)))
       actions.push("dar-de-baja");
-    if (data.estado === "EN_REVISION") actions.push("aprobar-disponibilidad");
+    if (
+      data.estado === "EN_REVISION" &&
+      data.sede_actual_id === data.sede_propietaria_id
+    )
+      actions.push("aprobar-disponibilidad");
   }
   if (resource === "solicitudes") {
     if (data.estado === "PENDIENTE") actions.push("asignar", "rechazar");
@@ -237,8 +242,22 @@ export function EntityDetail({ resource }: { resource: Resource }) {
         {resource === "solicitudes" &&
           data.tipo === "INTERBIBLIOTECARIO" &&
           data.estado === "ASIGNADA" && (
-            <Link className={primaryClass} to="/remitos/nuevo">
+            <Link
+              className={primaryClass}
+              to={`/remitos/nuevo?sede_origen_id=${data.sede_origen_id}&sede_destino_id=${data.sede_destino_id}`}
+            >
               Preparar remito
+            </Link>
+          )}
+        {resource === "ejemplares" &&
+          data.estado === "EN_REVISION" &&
+          data.sede_actual_id &&
+          data.sede_actual_id !== data.sede_propietaria_id && (
+            <Link
+              className={primaryClass}
+              to={`/remitos/nuevo?sede_origen_id=${data.sede_actual_id}&sede_destino_id=${data.sede_propietaria_id}`}
+            >
+              Preparar retorno a sede propietaria
             </Link>
           )}
         {resource === "reservas" && data.estado === "LISTA_PARA_RETIRO" && (
@@ -254,6 +273,14 @@ export function EntityDetail({ resource }: { resource: Resource }) {
         className={`${panelClass} record-sheet mb-8 flex flex-col gap-8 sm:flex-row`}
       >
         {resource === "libros" && <Cover id={n} title={name} large />}
+        {resource === "ejemplares" && (
+          <Cover
+            key={String(data.libro_id)}
+            id={Number(data.libro_id)}
+            title={bookName(Number(data.libro_id), db!)}
+            large
+          />
+        )}
         <dl className="grid flex-1 gap-x-8 gap-y-6 sm:grid-cols-2">
           {Object.entries(data)
             .filter(([k]) => k !== "id")

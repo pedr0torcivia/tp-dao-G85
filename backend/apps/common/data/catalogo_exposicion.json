@@ -1,0 +1,302 @@
+[
+  {
+    "slug": "skywalker-strikes",
+    "titulo": "Star Wars Vol. 1: Skywalker Strikes",
+    "autor": "Jason Aaron; John Cassaday",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9780785192138",
+    "portada_isbn": "9780785192138",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785192138"
+  },
+  {
+    "slug": "heir-to-the-empire",
+    "titulo": "Heir to the Empire: Star Wars Legends",
+    "autor": "Timothy Zahn",
+    "editorial": "Random House Worlds",
+    "edicion": "Edición en inglés",
+    "isbn": "9780593358764",
+    "portada_isbn": "9780593358764",
+    "fuente": "https://prhcomics.com/book/?isbn=9780593358764"
+  },
+  {
+    "slug": "civil-war",
+    "titulo": "Civil War",
+    "autor": "Mark Millar; Steve McNiven",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9780785121794",
+    "portada_isbn": "9780785121794",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785121794"
+  },
+  {
+    "slug": "infinity-gauntlet",
+    "titulo": "Infinity Gauntlet",
+    "autor": "Jim Starlin; George Pérez; Ron Lim",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9780785156598",
+    "portada_isbn": "9780785156598",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785156598"
+  },
+  {
+    "slug": "batman-year-one",
+    "titulo": "Batman: Year One",
+    "autor": "Frank Miller; David Mazzucchelli",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781401207526",
+    "portada_isbn": "9781401207526",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401207526"
+  },
+  {
+    "slug": "watchmen",
+    "titulo": "Watchmen",
+    "autor": "Alan Moore; Dave Gibbons",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781779501127",
+    "portada_isbn": "9781779501127",
+    "fuente": "https://prhcomics.com/book/?isbn=9781779501127"
+  },
+  {
+    "slug": "all-star-superman",
+    "titulo": "All Star Superman Vol. 1",
+    "autor": "Grant Morrison; Frank Quitely",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": null,
+    "fuente": "https://www.dc.com/graphic-novels/all-star-superman-2005/all-star-superman-vol-1"
+  },
+  {
+    "slug": "thrawn",
+    "titulo": "Thrawn",
+    "autor": "Timothy Zahn",
+    "editorial": "Del Rey",
+    "edicion": "Edición en inglés",
+    "isbn": "9780345511270",
+    "portada_isbn": "9780345511270",
+    "fuente": "https://prhcomics.com/book/?isbn=9780345511270"
+  },
+  {
+    "slug": "dark-knight-returns",
+    "titulo": "Batman: The Dark Knight Returns",
+    "autor": "Frank Miller; Klaus Janson; Lynn Varley",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781401263119",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401263119"
+  },
+  {
+    "slug": "killing-joke",
+    "titulo": "Batman: The Killing Joke",
+    "autor": "Alan Moore; Brian Bolland",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781401216672",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401216672"
+  },
+  {
+    "slug": "long-halloween",
+    "titulo": "Batman: The Long Halloween",
+    "autor": "Jeph Loeb; Tim Sale",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781401232597",
+    "portada_isbn": "9781401232597",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401232597"
+  },
+  {
+    "slug": "batman-hush",
+    "titulo": "Batman: Hush",
+    "autor": "Jeph Loeb; Jim Lee; Scott Williams",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781401223175",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401223175"
+  },
+  {
+    "slug": "kingdom-come",
+    "titulo": "Kingdom Come",
+    "autor": "Mark Waid; Alex Ross",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781401220341",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401220341"
+  },
+  {
+    "slug": "red-son",
+    "titulo": "Superman: Red Son",
+    "autor": "Mark Millar; Dave Johnson; Kilian Plunkett",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781401247119",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401247119"
+  },
+  {
+    "slug": "superman-seasons",
+    "titulo": "Superman for All Seasons",
+    "autor": "Jeph Loeb; Tim Sale",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781563895296",
+    "fuente": "https://prhcomics.com/book/?isbn=9781563895296"
+  },
+  {
+    "slug": "v-for-vendetta",
+    "titulo": "V for Vendetta",
+    "autor": "Alan Moore; David Lloyd",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781779511195",
+    "fuente": "https://prhcomics.com/book/?isbn=9781779511195"
+  },
+  {
+    "slug": "sandman",
+    "titulo": "The Sandman Vol. 1: Preludes & Nocturnes",
+    "autor": "Neil Gaiman; Sam Kieth; Mike Dringenberg; Malcolm Jones III",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781401225759",
+    "fuente": "https://prhcomics.com/book/?isbn=9781401225759"
+  },
+  {
+    "slug": "maus",
+    "titulo": "The Complete Maus",
+    "autor": "Art Spiegelman",
+    "editorial": "Pantheon",
+    "edicion": "Edición en inglés",
+    "isbn": null,
+    "portada_isbn": "9780679406419",
+    "fuente": "https://prhcomics.com/book/?isbn=9780679406419"
+  },
+  {
+    "slug": "marvels",
+    "titulo": "Marvels",
+    "autor": "Kurt Busiek; Alex Ross",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785142867",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785142867"
+  },
+  {
+    "slug": "daredevil-born-again",
+    "titulo": "Daredevil: Born Again",
+    "autor": "Frank Miller; David Mazzucchelli",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785134817",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785134817"
+  },
+  {
+    "slug": "kravens-last-hunt",
+    "titulo": "Spider-Man: Kraven’s Last Hunt",
+    "autor": "J. M. DeMatteis; Mike Zeck; Bob McLeod",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785134503",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785134503"
+  },
+  {
+    "slug": "spider-man-blue",
+    "titulo": "Spider-Man: Blue",
+    "autor": "Jeph Loeb; Tim Sale",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785110712",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785110712"
+  },
+  {
+    "slug": "dark-phoenix",
+    "titulo": "X-Men: The Dark Phoenix Saga",
+    "autor": "Chris Claremont; John Byrne",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785164210",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785164210"
+  },
+  {
+    "slug": "days-future-past",
+    "titulo": "X-Men: Days of Future Past",
+    "autor": "Chris Claremont; John Byrne",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785164531",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785164531"
+  },
+  {
+    "slug": "wolverine",
+    "titulo": "Wolverine",
+    "autor": "Chris Claremont; Frank Miller",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785137245",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785137245"
+  },
+  {
+    "slug": "hawkeye",
+    "titulo": "Hawkeye Vol. 1: My Life as a Weapon",
+    "autor": "Matt Fraction; David Aja; Javier Pulido",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785165620",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785165620"
+  },
+  {
+    "slug": "deadpool",
+    "titulo": "Deadpool Kills the Marvel Universe",
+    "autor": "Cullen Bunn; Dalibor Talajić",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785164036",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785164036"
+  },
+  {
+    "slug": "iron-man-extremis",
+    "titulo": "Iron Man: Extremis",
+    "autor": "Warren Ellis; Adi Granov",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781302972523",
+    "fuente": "https://prhcomics.com/book/?isbn=9781302972523"
+  },
+  {
+    "slug": "thor-god-butcher",
+    "titulo": "Thor: God of Thunder Vol. 1: The God Butcher",
+    "autor": "Jason Aaron; Esad Ribić",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9780785168423",
+    "fuente": "https://prhcomics.com/book/?isbn=9780785168423"
+  },
+  {
+    "slug": "winter-soldier",
+    "titulo": "Captain America: Winter Soldier",
+    "autor": "Ed Brubaker; Steve Epting; Michael Lark",
+    "editorial": "Marvel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": null,
+    "portada_isbn": "9781302956387",
+    "fuente": "https://prhcomics.com/book/?isbn=9781302956387"
+  }
+]

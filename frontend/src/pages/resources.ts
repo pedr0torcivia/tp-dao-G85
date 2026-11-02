@@ -125,7 +125,7 @@ export function fieldsFor(resource: Resource, db: Database): FormField[] {
     case "libros":
       return [
         field("titulo", "Título"),
-        field("autores", "Autores (separados por coma)"),
+        field("autor", "Autor o autores"),
         field("isbn", "ISBN", "text", false),
         field("editorial", "Editorial"),
         field("edicion", "Edición"),

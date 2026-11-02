@@ -684,3 +684,25 @@
     will-change: auto;
   }
 }
+
+
+@media print {
+  @page { size: A4 landscape; margin: 14mm; }
+  body { background: white !important; color: black !important; font-size: 10pt; }
+  .library-nav, .library-topbar, .report-actions, .workspace > form,
+  .workspace > a, a[href="#contenido"], [role="status"] { display: none !important; }
+  [class*="lg:ml-"] { margin-left: 0 !important; }
+  .workspace { max-width: none !important; padding: 0 !important; }
+  .workspace table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .workspace th, .workspace td { white-space: normal !important; overflow-wrap: anywhere; padding: 6px; color: black !important; border-bottom: 1px solid #ccc; }
+  .workspace thead { display: table-header-group; }
+  .report-operaciones table { table-layout: fixed; }
+  .report-operaciones th:nth-child(1) { width: 12%; }
+  .report-operaciones th:nth-child(2) { width: 11%; }
+  .report-operaciones th:nth-child(3) { width: 7%; }
+  .report-operaciones th:nth-child(4) { width: 13%; }
+  .report-operaciones th:nth-child(5) { width: 11%; }
+  .report-operaciones th:nth-child(6) { width: 46%; }
+  .workspace tr { break-inside: avoid; }
+  .workspace [class*="overflow"] { overflow: visible !important; }
+}

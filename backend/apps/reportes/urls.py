@@ -4,6 +4,7 @@ from . import views
 from .views import PrestamosVencidosView
 
 urlpatterns = [
+    path("reportes/operaciones/", views.reportes_operaciones, name="reportes-operaciones"),
     path(
         "prestamos-vencidos/",
         PrestamosVencidosView.as_view(),

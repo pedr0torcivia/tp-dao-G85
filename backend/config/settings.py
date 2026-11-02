@@ -47,6 +47,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.common.auditoria.AuditoriaMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -73,7 +74,7 @@ if env_bool("DJANGO_USE_SQLITE", False):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": os.getenv("DJANGO_SQLITE_PATH", str(BASE_DIR / "db.sqlite3")),
         }
     }
 else:
@@ -108,10 +109,24 @@ CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
     "http://localhost:5173",
 )
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = env_list(
+    "DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_COOKIE_SECURE = env_bool("DJANGO_COOKIE_SECURE", False)
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.IsAdminUser",
+    ],
+    "DEFAULT_THROTTLE_RATES": {"login": "10/minute"},
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "apps.common.exceptions.api_exception_handler",
@@ -121,4 +136,13 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Biblioteca - API Grupo 85",
     "DESCRIPTION": "API del sistema de préstamos interbibliotecarios.",
     "VERSION": "0.1.0",
+    "ENUM_NAME_OVERRIDES": {
+        "CondicionFisicaEnum": "apps.catalogo.models.CondicionFisica.choices",
+        "EstadoEjemplarEnum": "apps.catalogo.models.EstadoEjemplar.choices",
+        "EstadoSolicitudEnum": "apps.circulacion.models.EstadoSolicitud.choices",
+        "EstadoReservaEnum": "apps.circulacion.models.EstadoReserva.choices",
+        "EstadoRemitoEnum": "apps.logistica.models.EstadoRemito.choices",
+        "EstadoSedeEnum": "apps.sedes.models.EstadoSede.choices",
+        "EstadoSocioEnum": "apps.socios.models.EstadoSocio.choices",
+    },
 }

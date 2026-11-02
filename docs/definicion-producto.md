@@ -14,12 +14,12 @@ El producto será una aplicación web que centralice estas operaciones y permita
 |---|---|---|
 | Personal de biblioteca | Administrar y atender a socios | Administrar registros, solicitudes, reservas, préstamos y devoluciones |
 | Personal encargado de logística | Controlar envíos | Preparar remitos, empaquetar, despachar, recibir y consultar su historial |
-| Responsable de la red | Conocer la operación | Consultar cuatro reportes con filtros y resultados verificables |
+| Responsable de la red | Conocer la operación | Consultar cinco reportes con filtros y resultados verificables |
 | Usuario o socio | Conocer disponibilidad | Consultar catálogo y ejemplares por sede |
 
-Estos son perfiles funcionales, no cuatro tipos de cuenta obligatorios. Se propone autenticación de personal con Django; el detalle de permisos y la consulta pública del catálogo se decidirán en el sprint 1. Un socio registrado no necesita automáticamente una cuenta de acceso.
+Estos son perfiles funcionales, no cuatro tipos de cuenta obligatorios. El personal ingresa con una cuenta activa de Django con permiso de personal (is_staff). La API exige esa sesión y las pantallas internas están protegidas. La sede seleccionada es un contexto de trabajo; el personal opera sobre toda la red. Django Admin permite administrar cuentas mediante un superusuario. Un socio registrado no necesita automáticamente una cuenta de acceso.
 
-## Alcance de la primera entrega
+## Alcance de la entrega
 
 | ID | Requisito | Criterio de aceptación mínimo |
 |---|---|---|
@@ -31,7 +31,7 @@ Estos son perfiles funcionales, no cuatro tipos de cuenta obligatorios. Se propo
 | RF06 | Consultar disponibilidad | Mostrar ejemplares disponibles y su sede, considerando asignaciones y tránsito |
 | RF07 | Gestionar reservas | Registrar y consultar reservas; asignar disponibilidad, cumplir, cancelar y controlar expiración según la regla acordada |
 | RF08 | Registrar devoluciones | Cerrar el préstamo y registrar condición física sin habilitar automáticamente material no apto |
-| RF09 | Generar cuatro reportes | Obtener los indicadores definidos abajo, filtrarlos y comprobarlos con datos conocidos |
+| RF09 | Generar cinco reportes | Obtener los indicadores definidos abajo, filtrarlos y comprobarlos con datos conocidos |
 | RF10 | Aplicar dos patrones | Implementar y demostrar State y Strategy con clases y comportamiento identificables |
 | RNF01 | Despliegue con Docker | Ejecutar frontend, backend y PostgreSQL con Docker Compose; construcción y arranque desde un clon limpio |
 
@@ -58,27 +58,22 @@ Las operaciones sobre un mismo ejemplar deben preservar estas reglas aun si dos 
 - Un remito puede estar vacío en preparación; para empaquetarlo o despacharlo debe contener al menos un ejemplar.
 - Cancelar un remito se permite antes de despacharlo. Las operaciones ya despachadas requieren un tratamiento acordado, conservando el historial.
 
-## Decisiones pendientes del sprint 1
+## Decisiones operativas vigentes
 
-| Decisión | Resultado necesario |
-|---|---|
-| Devolución y retorno | Dónde se devuelve y cómo regresa el ejemplar a su sede propietaria |
-| Reservas | Orden de atención, plazo de retiro y liberación de asignaciones |
-| Recepción | Si se exige recibir el remito completo; la revisión especial de incidencias es opcional en la consigna |
-| Sede dada de baja | Tratamiento de préstamos y envíos que ya estaban iniciados |
-| Duplicados de catálogo | Identificación por edición/ISBN y criterio para registros sin ISBN |
-| Habilitación de socios | Quién puede modificarla y qué reglas la determinan |
-| Acceso | Autenticación de personal, permisos y acceso a consulta de disponibilidad |
-| Fecha de entrega | Confirmar con la cátedra; 9/11/2026 es una fecha de planificación |
+Las reglas definitivas de devolución y retorno, reservas, recepción completa, duplicados y acceso están documentadas en [Reglas de negocio](reglas-negocio.md). Se conserva la sede propietaria durante el traslado. El retorno admite material devuelto en revisión y vuelve a revisión al recibirse. La asignación de reservas es manual y exige una fecha límite futura.
+
+La fecha 9/11/2026 sigue siendo de planificación y debe confirmarse con la cátedra.
 
 ## Reportes comprometidos
 
 | ID | Reporte | Indicadores y filtros |
 |---|---|---|
-| RP01 | Préstamos vencidos | Cantidad y días de atraso; detalle y agrupación por sede de entrega; fecha de corte explícita |
+| RP01 | Préstamos vencidos | Cantidad y días de atraso; detalle y agrupación por sede de entrega; entregas entre Desde y Hasta, corte al cierre de Hasta |
 | RP02 | Demanda interbibliotecaria | Ranking de libros y cantidad de solicitudes, por fecha de solicitud y sede solicitante; excluir rechazadas y canceladas |
 | RP03 | Movimiento entre sedes | Envíos despachados por origen/destino y tiempo promedio de tránsito de los recibidos; filtrar por fecha de despacho y usar despacho–recepción |
-| RP04 | Disponibilidad por sede | Cantidad de ejemplares por libro, sede propietaria y estado; proporción disponible sobre el total; corte actual explícito |
+| RP04 | Disponibilidad por sede | Cantidad de ejemplares por libro, sede propietaria y estado; proporción disponible sobre el total; altas entre Desde y Hasta con estado actual |
+
+| RP05 | Comprobación de operaciones ABMC | Altas, modificaciones, bajas y comandos por fecha real de operación, usuario y cambios antes/después |
 
 Cada reporte deberá manejar resultados vacíos, explicar su criterio de conteo y tener un conjunto de datos cuyo resultado esperado esté calculado previamente. En RP03, los remitos aún no recibidos no forman parte del promedio; en RP04, un ejemplar prestado, asignado o en tránsito no cuenta como disponible.
 
@@ -124,10 +119,12 @@ Notificaciones, recomendaciones, historial personal de lecturas, códigos de bar
 
 ## Definición de éxito
 
-La demostración recorre un préstamo local y otro interbibliotecario hasta la devolución, incluye una reserva y el historial de un remito, muestra rechazos de operaciones inválidas y presenta cuatro reportes comprobables. El equipo explica los dos patrones y levanta la aplicación desde un clon limpio mediante Docker Compose.
+La demostración recorre un préstamo local y otro interbibliotecario hasta la devolución, incluye una reserva y el historial de un remito, muestra rechazos de operaciones inválidas y presenta cinco reportes comprobables. El equipo explica los dos patrones y levanta la aplicación desde un clon limpio mediante Docker Compose.
 
 ## Referencias
 
-- Consigna: `C:/Users/Bangho/Downloads/tema1.pdf` (referencia local del usuario; todavía no está incorporada al repositorio).
+- Consigna: `docs/Enunciado.pdf`.
 - [Tablero de modelos](https://www.figma.com/board/aYOy4RyT0MaeW0a69ivvxJ/Modelos).
 - [Repositorio](https://github.com/pedr0torcivia/tp-dao-G85).
+
+Los cinco endpoints de reportes exigen Desde y Hasta. La impresión/PDF conserva título, período, sede, criterio y fecha de generación. RP04 no reconstruye el stock histórico; RP05 evidencia cuándo y cómo se modificó un registro.

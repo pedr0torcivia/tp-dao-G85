@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
+import { api } from "../api";
 import { useLibrary } from "../app/context";
 import { today } from "../domain/selectors";
 import {
-  buildReport,
+  type ReportResult,
   type ReportFilter,
   type ReportType,
 } from "../domain/reports";
@@ -39,6 +40,11 @@ const reports: [ReportType, string, string][] = [
     "disponibilidad",
     "Disponibilidad por sede",
     "Ejemplares por libro, sede propietaria y estado.",
+  ],
+  [
+    "operaciones",
+    "Comprobación de operaciones ABMC",
+    "Altas, modificaciones, bajas y operaciones, con usuario y cambios.",
   ],
 ];
 export function ReportCenter() {
@@ -76,6 +82,32 @@ export function ReportPage() {
   });
   const [filter, setFilter] = useState(draft),
     [error, setError] = useState("");
+  const [result, setResult] = useState<ReportResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setResult(null);
+    setError("");
+    if (def)
+      void api
+        .report(def[0], filter)
+        .then((data) => {
+          if (active) setResult(data);
+        })
+        .catch((e) => {
+          if (active)
+            setError(
+              e instanceof Error ? e.message : "No pudimos cargar el reporte.",
+            );
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    return () => {
+      active = false;
+    };
+  }, [type, filter, db]);
   if (!def)
     return (
       <>
@@ -83,10 +115,8 @@ export function ReportPage() {
         <Alert error>No encontramos ese reporte.</Alert>
       </>
     );
-  const result = buildReport(def[0], db!, filter);
-  const current = type === "disponibilidad";
-  const cut = type === "vencidos";
   function csv() {
+    if (!result) return;
     const quote = (x: string | number) => `"${String(x).replace(/"/g, '""')}"`;
     const content =
       "\uFEFF" +
@@ -98,7 +128,7 @@ export function ReportPage() {
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `entrelibros-${type}-${current ? today() : filter.hasta}.csv`;
+    a.download = `entrelibros-${type}-${filter.desde}-${filter.hasta}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -107,23 +137,30 @@ export function ReportPage() {
       <Back to="/reportes" />
       <Heading
         title={def[1]}
-        description={
-          current
-            ? `Corte actual: ${today()} · Por sede propietaria.`
-            : cut
-              ? `Fecha de corte: ${filter.hasta}`
-              : `Período: ${filter.desde}–${filter.hasta}`
-        }
+        description={`Período: ${filter.desde}–${filter.hasta} · ${filter.sede ? db!.sedes.find((s) => s.id === filter.sede)?.nombre : "Todas las sedes"}`}
         action={
-          <Button variant="outline" onClick={csv}>
-            Exportar CSV
-          </Button>
+          <div className="flex gap-3 report-actions">
+            <Button
+              variant="outline"
+              disabled={!result || loading}
+              onClick={() => window.print()}
+            >
+              Imprimir / Guardar PDF
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!result || loading}
+              onClick={csv}
+            >
+              Exportar CSV
+            </Button>
+          </div>
         }
       />
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (!cut && !current && draft.desde > draft.hasta) {
+          if (draft.desde > draft.hasta) {
             setError("La fecha inicial no puede ser posterior a la final.");
             return;
           }
@@ -132,7 +169,7 @@ export function ReportPage() {
         }}
         className={`${panelClass} mb-7 flex flex-wrap items-end gap-5`}
       >
-        {!current && !cut && (
+        {
           <Field label="Desde">
             <input
               type="date"
@@ -144,9 +181,9 @@ export function ReportPage() {
               }
             />
           </Field>
-        )}
-        {!current && (
-          <Field label={cut ? "Fecha de corte" : "Hasta"}>
+        }
+        {
+          <Field label="Hasta">
             <input
               required
               type="date"
@@ -157,7 +194,7 @@ export function ReportPage() {
               }
             />
           </Field>
-        )}
+        }
         <Field label="Sede">
           <select
             className={inputClass}
@@ -180,13 +217,21 @@ export function ReportPage() {
         <Button type="submit">Aplicar</Button>
       </form>
       {error && <Alert error>{error}</Alert>}
-      <h2 className="font-heading mb-3 text-2xl">{result.summary}</h2>
-      <p className="mb-6 text-sm text-[var(--muted-foreground)]">
-        {result.rule}
-      </p>
-      <Table headers={result.headers} rows={result.rows} />
+      {loading && <p>Cargando reporte…</p>}
+      {result && (
+        <>
+          <h2 className="font-heading mb-3 text-2xl">{result.summary}</h2>
+          <p className="mb-6 text-sm text-[var(--muted-foreground)]">
+            {result.rule}
+          </p>
+          <div className={`report-result report-${type}`}>
+            <Table headers={result.headers} rows={result.rows} />
+          </div>
+        </>
+      )}
       <p className="mt-5 text-xs text-[var(--muted-foreground)]">
-        Los indicadores se calculan sobre los datos cargados en esta sesión.
+        EntreLibros · Grupo 85 · Generado: {new Date().toLocaleString("es-AR")}.
+        Los indicadores corresponden a los filtros aplicados.
       </p>
     </>
   );

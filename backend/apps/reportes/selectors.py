@@ -1,18 +1,25 @@
 from collections import defaultdict
 from datetime import date
 
+from django.db.models import Q
+from django.utils import timezone
+
 from apps.circulacion.models import Prestamo
 
 
-def obtener_prestamos_vencidos(*, fecha_corte: date) -> list[dict]:
+def obtener_prestamos_vencidos(
+    *, fecha_corte: date, sede_id: int | None = None, desde: date | None = None
+) -> list[dict]:
     prestamos = (
         Prestamo.objects.filter(
-            fecha_vencimiento__lt=fecha_corte,
-            fecha_devolucion__isnull=True,
+            Q(fecha_devolucion__isnull=True) | Q(fecha_devolucion__date__gt=fecha_corte),
+            fecha_vencimiento__date__lt=fecha_corte,
+            fecha_entrega__date__lte=fecha_corte,
         )
         .select_related(
             "solicitud__socio",
             "solicitud__sede_destino",
+            "solicitud__libro",
         )
         .order_by(
             "solicitud__sede_destino__nombre",
@@ -20,6 +27,10 @@ def obtener_prestamos_vencidos(*, fecha_corte: date) -> list[dict]:
             "id",
         )
     )
+    if sede_id is not None:
+        prestamos = prestamos.filter(solicitud__sede_destino_id=sede_id)
+    if desde is not None:
+        prestamos = prestamos.filter(fecha_entrega__date__gte=desde)
 
     por_sede = defaultdict(list)
 
@@ -33,9 +44,10 @@ def obtener_prestamos_vencidos(*, fecha_corte: date) -> list[dict]:
                 "socio_id": solicitud.socio_id,
                 "numero_socio": solicitud.socio.numero_socio,
                 "socio": solicitud.socio.nombre,
+                "libro": solicitud.libro.titulo,
                 "fecha_entrega": prestamo.fecha_entrega,
                 "fecha_vencimiento": prestamo.fecha_vencimiento,
-                "dias_atraso": (fecha_corte - prestamo.fecha_vencimiento).days,
+                "dias_atraso": (fecha_corte - timezone.localdate(prestamo.fecha_vencimiento)).days,
             }
         )
 

@@ -5,6 +5,20 @@ from apps.sedes.models import Sede
 from .models import DetalleRemito, EventoRemito, Remito
 
 
+class RemitoAccionSerializer(serializers.Serializer):
+    responsable = serializers.CharField(required=False, allow_blank=True)
+    observacion = serializers.CharField(required=False, allow_blank=True)
+
+
+class RemitoAsignarSerializer(serializers.Serializer):
+    ejemplar_id = serializers.IntegerField(min_value=1)
+
+
+class RemitoRecibirSerializer(RemitoAccionSerializer):
+    responsable = serializers.CharField()
+    verificados = serializers.ListField(child=serializers.IntegerField(min_value=1))
+
+
 class RemitoSerializer(serializers.ModelSerializer):
     sede_origen_id = serializers.PrimaryKeyRelatedField(
         source="sede_origen", queryset=Sede.objects.all()

@@ -90,7 +90,7 @@ Cada transición persiste un evento con `estado_anterior`, `estado_nuevo`, `fech
 | 3 | Operaciones iniciadas cuando una sede se da de baja | Sólo crear/asignar/empaquetar/despachar exigen sedes activas; recibir un remito ya en tránsito se permite |
 | 4 | Recepción completa o parcial | Completa: se verifican todos los ejemplares; la parcial queda como mejora futura |
 | 5 | Condición física al recibir | Se copia la condición del ejemplar (`condicion_recepcion = condicion_fisica`); la revisión especial es opcional |
-| 8 | Qué usuarios pueden despachar y recibir | Pendiente de la decisión general de autenticación (I1) |
+| 8 | Qué usuarios pueden despachar y recibir | Personal activo autenticado (is_staff); decisión de cierre en acceso.md |
 
 ## 5. Roadmap por sub-partes (una PR por paso)
 

@@ -38,7 +38,8 @@ def crear_libro(
         libro.full_clean()
         libro.save()
     except IntegrityError as error:
-        raise ValidationError({"isbn": "Ya existe un libro con ese ISBN."}) from error
+        campo = "isbn" if libro.isbn else "titulo"
+        raise ValidationError({campo: "Ya existe esa edición en el catálogo."}) from error
 
     return libro
 
@@ -61,7 +62,11 @@ def crear_ejemplar(
         libro=libro,
         sede_propietaria=sede_propietaria,
         sede_actual=sede_propietaria,
-        estado=EstadoEjemplar.DISPONIBLE,
+        estado=(
+            EstadoEjemplar.DISPONIBLE
+            if condicion_fisica.strip() == CondicionFisica.APTO
+            else EstadoEjemplar.EN_REVISION
+        ),
         condicion_fisica=condicion_fisica.strip(),
     )
 
@@ -105,8 +110,12 @@ def actualizar_condicion_ejemplar(*, ejemplar: Ejemplar, condicion_fisica: str) 
         raise EjemplarDadoDeBajaError("El ejemplar está dado de baja.")
 
     ejemplar.condicion_fisica = condicion_fisica.strip()
+    if ejemplar.condicion_fisica != CondicionFisica.APTO:
+        if ejemplar.estado not in (EstadoEjemplar.DISPONIBLE, EstadoEjemplar.EN_REVISION):
+            raise EjemplarComprometidoError("No se modifica la condición de material comprometido.")
+        ejemplar.estado = EstadoEjemplar.EN_REVISION
     ejemplar.full_clean()
-    ejemplar.save(update_fields=["condicion_fisica"])
+    ejemplar.save(update_fields=["condicion_fisica", "estado"])
     return ejemplar
 
 
@@ -164,9 +173,7 @@ def aprobar_disponibilidad_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
         raise EjemplarInconsistenteError("La condición física debe ser apta para préstamo.")
 
     if ejemplar.sede_actual_id != ejemplar.sede_propietaria_id:
-        raise EjemplarInconsistenteError(
-            "El ejemplar debe estar en su sede propietaria."
-        )
+        raise EjemplarInconsistenteError("El ejemplar debe estar en su sede propietaria.")
 
     try:
         validar_sede_activa(sede=ejemplar.sede_propietaria)

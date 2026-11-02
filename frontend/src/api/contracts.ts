@@ -1,4 +1,5 @@
 import type { Database, Entity, NewEntity, Resource } from "../domain/models";
+import type { ReportFilter, ReportResult, ReportType } from "../domain/reports";
 
 export class ApiError extends Error {
   constructor(
@@ -42,7 +43,7 @@ export interface LibraryApi {
     action: Command,
     input?: CommandInput,
   ): Promise<void>;
-  saveBookAuthors(bookId: number, authorNames: string[]): Promise<void>;
+  report(type: ReportType, filter: ReportFilter): Promise<ReportResult>;
   reset(): Promise<void>;
 }
 
@@ -51,7 +52,6 @@ export const resourcePaths: Record<Resource, string> = {
   sedes: "sedes",
   socios: "socios",
   libros: "libros",
-  autores: "autores",
   ejemplares: "ejemplares",
   solicitudes: "solicitudes",
   prestamos: "prestamos",

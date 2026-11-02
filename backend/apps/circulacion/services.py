@@ -206,6 +206,9 @@ def entregar_solicitud(
 
     validar_socio_habilitado(socio=solicitud.socio)
     validar_sede_activa(sede=solicitud.sede_destino)
+    validar_sede_activa(sede=solicitud.sede_origen)
+    if ejemplar.condicion_fisica != CondicionFisica.APTO:
+        raise EjemplarNoAptoError("El ejemplar no está apto para préstamo.")
 
     if fecha_vencimiento <= fecha_entrega:
         raise FechaPrestamoInvalidaError("El vencimiento debe ser posterior a la entrega.")

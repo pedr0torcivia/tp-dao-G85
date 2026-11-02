@@ -217,14 +217,25 @@ describe("Recorridos de demostración basados en el modelo", () => {
 describe("Cuatro reportes", () => {
   const filter = { desde: "2026-10-01", hasta: "2026-10-09", sede: null };
   it("calcula tres días de atraso en el corte de ejemplo", () => {
-    const r = buildReport("vencidos", structuredClone(seed), filter);
+    const r = buildReport("vencidos", structuredClone(seed), {
+      ...filter,
+      desde: "2026-09-01",
+    });
     expect(r.rows).toHaveLength(1);
     expect(r.rows[0][3]).toBe(3);
   });
   it("conserva el vencido histórico aunque se devuelva después del corte", () => {
     const db = structuredClone(seed);
     db.prestamos[0].fecha_devolucion = "2026-10-10T12:00:00-03:00";
-    expect(buildReport("vencidos", db, filter).rows[0][3]).toBe(3);
+    expect(
+      buildReport("vencidos", db, { ...filter, desde: "2026-09-01" })
+        .rows[0][3],
+    ).toBe(3);
+  });
+  it("excluye vencidos entregados antes de Desde", () => {
+    expect(buildReport("vencidos", structuredClone(seed), filter).rows).toEqual(
+      [],
+    );
   });
   it("excluye canceladas de la demanda y usa destino como solicitante", () => {
     const db = structuredClone(seed);

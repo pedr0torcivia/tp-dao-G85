@@ -4,12 +4,13 @@ import {
   bookName,
   code,
   daysLate,
+  localDay,
   sedeName,
   socioName,
 } from "./selectors";
 
 export type ReportType =
-  "vencidos" | "demanda" | "movimientos" | "disponibilidad";
+  "vencidos" | "demanda" | "movimientos" | "disponibilidad" | "operaciones";
 export interface ReportFilter {
   desde: string;
   hasta: string;
@@ -30,11 +31,19 @@ export function buildReport(
     !!date &&
     Date.parse(date) >= Date.parse(`${filter.desde}T00:00:00-03:00`) &&
     Date.parse(date) <= Date.parse(`${filter.hasta}T23:59:59.999-03:00`);
+  if (type === "operaciones")
+    return {
+      headers: ["Fecha", "Entidad", "Registro", "Acción", "Usuario", "Cambios"],
+      rows: [],
+      summary: "La bitácora requiere la API real",
+      rule: "Usar el modo HTTP para consultar operaciones persistidas.",
+    };
   if (type === "vencidos") {
     const end = Date.parse(`${filter.hasta}T23:59:59.999-03:00`);
     const loans = db.prestamos
       .filter(
         (p) =>
+          localDay(new Date(p.fecha_entrega)) >= filter.desde &&
           Date.parse(p.fecha_entrega) <= end &&
           (!p.fecha_devolucion || Date.parse(p.fecha_devolucion) > end),
       )
@@ -48,7 +57,7 @@ export function buildReport(
       })
       .filter(
         ({ s, p }) =>
-          Date.parse(p.fecha_vencimiento) < end &&
+          localDay(new Date(p.fecha_vencimiento)) < filter.hasta &&
           (!filter.sede || s.sede_destino_id === filter.sede),
       );
     return {
@@ -164,7 +173,9 @@ export function buildReport(
     }
   >();
   for (const e of db.ejemplares.filter(
-    (e) => !filter.sede || e.sede_propietaria_id === filter.sede,
+    (e) =>
+      inRange(e.fecha_alta ?? "2026-10-01T12:00:00-03:00") &&
+      (!filter.sede || e.sede_propietaria_id === filter.sede),
   )) {
     const key = `${e.libro_id}:${e.sede_propietaria_id}`;
     const g = groups.get(key) ?? {
@@ -198,6 +209,6 @@ export function buildReport(
         .join(" · "),
     ]),
     summary: `${rows.reduce((t, g) => t + g.disponibles, 0)} de ${rows.reduce((t, g) => t + g.total, 0)} ejemplares disponibles`,
-    rule: "Corte actual por sede propietaria y estado. Prestados, asignados, en revisión o tránsito no cuentan como disponibles.",
+    rule: "Estado actual de las altas del período, por sede propietaria. El rango no reconstruye stock histórico. Prestados, asignados, en revisión o tránsito no son disponibles.",
   };
 }

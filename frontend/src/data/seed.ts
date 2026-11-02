@@ -5,7 +5,7 @@ export const seed: Database = {
     {
       id: 1,
       nombre: "Biblioteca Central",
-      direccion: "Av. San Martín 1234",
+      direccion: "Av. San MartÃ­n 1234",
       contacto: "central@example.com",
       horarios: "Lunes a viernes de 8 a 18",
       estado: "ACTIVA",
@@ -23,7 +23,7 @@ export const seed: Database = {
       nombre: "Sede Sur",
       direccion: "Belgrano 230",
       contacto: "sur@example.com",
-      horarios: "Lunes a sábado de 9 a 13",
+      horarios: "Lunes a sÃ¡bado de 9 a 13",
       estado: "ACTIVA",
     },
     {
@@ -36,10 +36,10 @@ export const seed: Database = {
     },
   ],
   socios: [
-    "Lucía Fernández",
-    "Martín López",
-    "Sofía Torres",
-    "Diego Pérez",
+    "LucÃ­a FernÃ¡ndez",
+    "MartÃ­n LÃ³pez",
+    "SofÃ­a Torres",
+    "Diego PÃ©rez",
     "Ana Ruiz",
   ].map((nombre, i) => ({
     id: i + 1,
@@ -49,24 +49,24 @@ export const seed: Database = {
     contacto: ["lucia", "martin", "sofia", "diego", "ana"][i] + "@example.com",
     estado: i === 3 ? "INHABILITADO" : "HABILITADO",
   })),
-  autores: [
-    "Antoine de Saint-Exupéry",
-    "Julio Cortázar",
-    "Jorge Luis Borges",
-    "Gabriel García Márquez",
-    "Adolfo Bioy Casares",
-    "Quino",
-  ].map((nombre, i) => ({ id: i + 1, nombre })),
   libros: [
     "El principito",
     "Rayuela",
     "Ficciones",
-    "Cien años de soledad",
-    "La invención de Morel",
+    "Cien aÃ±os de soledad",
+    "La invenciÃ³n de Morel",
     "Mafalda",
   ].map((titulo, i) => ({
     id: i + 1,
     titulo,
+    autor: [
+      "Antoine de Saint-Exupéry",
+      "Julio Cortázar",
+      "Jorge Luis Borges",
+      "Gabriel García Márquez",
+      "Adolfo Bioy Casares",
+      "Quino",
+    ][i],
     isbn: [
       "9780156012195",
       "9788437604572",
@@ -75,12 +75,8 @@ export const seed: Database = {
       "9788432210457",
       "9789505156040",
     ][i],
-    editorial: "Edición de demostración",
-    edicion: "1.ª edición",
-  })),
-  libro_autores: Array.from({ length: 6 }, (_, i) => ({
-    libro_id: i + 1,
-    autor_id: i + 1,
+    editorial: "EdiciÃ³n de demostraciÃ³n",
+    edicion: "1.Âª ediciÃ³n",
   })),
   ejemplares: [
     {

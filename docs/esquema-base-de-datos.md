@@ -1,12 +1,12 @@
 # Esquema de la base de datos
 
-Versión documentada del [DER limpio en FigJam](https://www.figma.com/board/aYOy4RyT0MaeW0a69ivvxJ/Modelos?node-id=84-1715), 16 de octubre de 2026. Los modelos Django y sus migraciones en `backend/apps/*/migrations/` son la implementación ejecutable de este esquema.
+Versión documentada del [DER limpio en FigJam](https://www.figma.com/board/aYOy4RyT0MaeW0a69ivvxJ/Modelos?node-id=100-1715), actualizado para impresión A4 con relaciones. Los modelos Django y sus migraciones en `backend/apps/*/migrations/` son la implementación ejecutable de este esquema.
 
-La base tiene diez tablas. `Libro` representa la obra o edición catalogada; `Ejemplar` representa cada copia física. El autor se guarda como texto en `Libro.autor`: no hay tablas `Autor` ni `LibroAutor`.
+El dominio tiene diez tablas. Django agrega las tablas de infraestructura para usuarios, permisos, sesiones y administración; no forman parte de las diez entidades de biblioteca. `Libro` representa la obra o edición catalogada; `Ejemplar` representa cada copia física. El autor se guarda como texto en `Libro.autor`: no hay tablas `Autor` ni `LibroAutor`.
 
 ## Tablas y campos
 
-`PK` = clave primaria; `FK` = clave foránea; `UK` = valor único; `?` = admite `NULL`. Los tipos y longitudes concretos se definirán al implementar las migraciones.
+`PK` = clave primaria; `FK` = clave foránea; `UK` = valor único; `?` = admite `NULL`. Los tipos y longitudes concretos están definidos en los modelos y migraciones de Django.
 
 | Tabla | Campos |
 |---|---|
@@ -54,9 +54,9 @@ La base tiene diez tablas. `Libro` representa la obra o edición catalogada; `Ej
 - La disponibilidad se obtiene del estado, ubicación y asignación del ejemplar; no se duplica en `Libro`.
 - `isbn` puede ser nulo, pero debe ser único cuando está informado. `solicitudId` en `Prestamo` y `reservaId` en `SolicitudPrestamo` son únicos para expresar las relaciones de como máximo uno.
 
-## Reglas por cerrar antes de migrar
+## Reglas operativas y restricciones vigentes
 
-El DER no decide por sí solo dónde se devuelve una copia y cómo regresa a su sede propietaria, si se admite recepción parcial de un remito, la prioridad y el vencimiento de reservas, ni el criterio de duplicados para libros sin ISBN. Estas reglas deben acordarse antes de fijar restricciones y flujos de negocio en Django.
+La política de devolución, retorno, recepción y reserva está en [Reglas de negocio](reglas-negocio.md). La estructura mantiene diez entidades y admite el retorno sin cambiar la sede propietaria ni crear otro préstamo. La migración `catalogo/0003` añade la unicidad de edición sin ISBN por título, autor, editorial y edición sin distinguir mayúsculas. El DER A4 con relaciones está en [FigJam](https://www.figma.com/board/aYOy4RyT0MaeW0a69ivvxJ/Modelos?node-id=100-1715).
 
 ## Crear la base SQLite
 
@@ -74,3 +74,10 @@ sqlite3 db.sqlite3 ".schema"
 ```
 
 En el despliegue con Docker se usa PostgreSQL; Django aplica las mismas migraciones con `python manage.py migrate`.
+
+
+## Metadatos de operación y reportes
+
+Ejemplar agrega `fecha_alta`, un metadato técnico para seleccionar las altas entre Desde y Hasta en RP04. Se define en `catalogo/0004`. La distribución de estados de ese reporte es actual, no histórica.
+
+`common/0001` agrega la bitácora técnica `Operacion`: fecha, entidad, registro_id, accion, descripcion, usuario, sede_ids, antes y despues. Conserva eventos de escritura de la API para RP05; los identificadores y las instantáneas preservan evidencia incluso cuando cambia el registro. No reemplaza el historial de estados del remito ni agrega otra entidad al dominio de préstamos.

@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, Libro
+from apps.common.testing import autenticar_personal
 from apps.sedes.models import Sede
 
 from ..models import EstadoRemito, EventoRemito, Remito
@@ -10,6 +11,7 @@ from ..models import EstadoRemito, EventoRemito, Remito
 
 class RemitoApiTest(APITestCase):
     def setUp(self):
+        autenticar_personal(self.client)
         self.central = Sede.objects.create(
             nombre="Central",
             direccion="Av. 1",
@@ -157,6 +159,7 @@ class RemitoApiTest(APITestCase):
 
 class ComandoInvalidoApiTest(APITestCase):
     def setUp(self):
+        autenticar_personal(self.client)
         self.central = Sede.objects.create(
             nombre="Central",
             direccion="Av. 1",

@@ -6,7 +6,6 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import type { NewEntity, Resource } from "../domain/models";
-import { authorNames } from "../domain/selectors";
 import { api } from "../api";
 import { ApiError } from "../api/contracts";
 import { useLibrary } from "../app/context";
@@ -37,11 +36,6 @@ export function EntityForm({ resource }: { resource: Resource }) {
           Object.entries(record).map(([k, v]) => [k, String(v ?? "")]),
         )
       : {};
-    if (resource === "libros" && record)
-      result.autores = authorNames(
-        db!.libros.find((b) => b.id === Number(id))!,
-        db!,
-      );
     if (!record) {
       result.sede_origen_id = String(sedeId);
       result.sede_destino_id = String(sedeId);
@@ -50,6 +44,8 @@ export function EntityForm({ resource }: { resource: Resource }) {
       result.condicion_fisica = "APTO";
     }
     for (const k of ["libro_id", "ejemplar_id"])
+      if (search.get(k)) result[k] = search.get(k)!;
+    for (const k of ["sede_origen_id", "sede_destino_id"])
       if (search.get(k)) result[k] = search.get(k)!;
     const e = db!.ejemplares.find((e) => e.id === Number(result.ejemplar_id));
     if (e && !record) result.sede_origen_id = String(e.sede_propietaria_id);
@@ -72,16 +68,14 @@ export function EntityForm({ resource }: { resource: Resource }) {
     setError(null);
     try {
       const data: Record<string, unknown> = Object.fromEntries(
-        fields
-          .filter((f) => f.key !== "autores")
-          .map((f) => [
-            f.key,
-            f.key.endsWith("_id")
-              ? values[f.key]
-                ? Number(values[f.key])
-                : null
-              : values[f.key]?.trim() || null,
-          ]),
+        fields.map((f) => [
+          f.key,
+          f.key.endsWith("_id")
+            ? values[f.key]
+              ? Number(values[f.key])
+              : null
+            : values[f.key]?.trim() || null,
+        ]),
       );
       if (resource === "solicitudes")
         data.tipo = tipoSolicitud(data.sede_origen_id, data.sede_destino_id);
@@ -93,8 +87,6 @@ export function EntityForm({ resource }: { resource: Resource }) {
         data as NewEntity<typeof resource>,
         id ? Number(id) : undefined,
       );
-      if (resource === "libros")
-        await api.saveBookAuthors(saved.id, (values.autores ?? "").split(","));
       await refresh();
       notify("Los datos se guardaron correctamente.");
       navigate(`/${pathOf(resource)}/${saved.id}`);

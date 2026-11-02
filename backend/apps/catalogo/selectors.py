@@ -1,4 +1,4 @@
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, F, Q, QuerySet
 
 from .models import Ejemplar, Libro
 
@@ -76,7 +76,12 @@ def disponibilidad_por_sede(
             total=Count("id"),
             disponibles=Count(
                 "id",
-                filter=Q(estado="DISPONIBLE"),
+                filter=Q(
+                    estado="DISPONIBLE",
+                    condicion_fisica="APTO",
+                    sede_actual_id=F("sede_propietaria_id"),
+                    sede_propietaria__estado="ACTIVA",
+                ),
             ),
         )
         .order_by("sede_propietaria__nombre")

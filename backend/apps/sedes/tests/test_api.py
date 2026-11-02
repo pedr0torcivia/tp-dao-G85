@@ -2,11 +2,13 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.common.testing import autenticar_personal
 from apps.sedes.models import EstadoSede, Sede
 
 
 class SedeApiTest(APITestCase):
     def setUp(self):
+        autenticar_personal(self.client)
         self.datos = {
             "nombre": "Biblioteca Central",
             "direccion": "Av. Siempre Viva 123",

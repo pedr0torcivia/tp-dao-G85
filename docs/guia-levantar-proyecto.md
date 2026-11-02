@@ -107,42 +107,23 @@ Detener los servicios sin borrar los datos:
 docker compose down
 ```
 
-## 5. Modo mock y modo integrado del frontend
+## 5. Frontend integrado y datos de demostración
 
-El frontend puede utilizar datos simulados o consumir la API real.
-
-### Datos simulados
-
-Es el modo predeterminado y permite trabajar en la interfaz aunque todavía
-falten endpoints del backend:
-
-```env
-VITE_DATA_SOURCE=mock
-```
-
-### API real
-
-Para probar la integración completa, editar el archivo `.env` de la raíz:
-
-```env
-VITE_DATA_SOURCE=http
-```
-
-Luego reconstruir el frontend, porque las variables de Vite se aplican durante
-la compilación:
+El modo predeterminado es `VITE_DATA_SOURCE=http`. El navegador consulta `/api`, Nginx redirige al backend y las operaciones se guardan en PostgreSQL.
 
 ```powershell
-docker compose build frontend
-docker compose up -d
+docker compose exec backend python manage.py preparar_exposicion
 ```
 
-En este modo el navegador utiliza `/api` y Nginx redirige las peticiones al
-contenedor del backend.
+Ingresar a la aplicación con **biblioteca / demo**. La cuenta se valida en el backend y habilita las operaciones de personal. Los detalles para crear otras cuentas y cambiar la clave están en [Acceso y cuentas](acceso.md).
 
-Si todavía no están implementados todos los endpoints que solicita el
-frontend, algunas pantallas pueden fallar en modo `http`. En ese caso se puede
-continuar desarrollando con `mock` y probar los endpoints terminados desde
-Swagger.
+Este comando carga una sola vez el conjunto conocido de ejemplos. Repetirlo conserva los cambios. Los resultados de referencia de los reportes y los recorridos están en `guion-demostracion.md`.
+
+Para explorar las pantallas sin backend, configurar `VITE_DATA_SOURCE=mock` en el `.env` correspondiente y reconstruir el frontend. Ese modo guarda sus cambios únicamente en el navegador. Para volver al sistema persistido, usar `http` y reconstruir.
+
+```powershell
+docker compose up -d --build --wait
+```
 
 ## 6. Actualizar el proyecto después de un cambio en `main`
 

@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useLibrary } from "../app/context";
 import { api, isDemo } from "../api";
 import {
@@ -356,26 +356,52 @@ const loginLetters = [
 ] as const;
 
 export function Access() {
-  const { theme, setTheme } = useLibrary();
+  const {
+    theme,
+    setTheme,
+    usuario,
+    authLoading,
+    authError,
+    iniciarSesion,
+    comprobarSesion,
+  } = useLibrary();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState("biblioteca"),
-    [password, setPassword] = useState("demo"),
+  const [user, setUser] = useState(isDemo ? "biblioteca" : ""),
+    [password, setPassword] = useState(isDemo ? "demo" : ""),
     [error, setError] = useState(""),
+    [submitting, setSubmitting] = useState(false),
     [motion, setMotion] = useState(true);
-  function submit(e: FormEvent) {
+  const from = location.state?.from;
+  const destination =
+    typeof from === "string" &&
+    from.startsWith("/") &&
+    !from.startsWith("//") &&
+    !from.startsWith("/acceso")
+      ? from
+      : "/inicio";
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!isDemo) {
+    setSubmitting(true);
+    setError("");
+    try {
+      await iniciarSesion(user.trim(), password);
+      navigate(destination, { replace: true });
+    } catch (e) {
       setError(
-        "El acceso real requiere implementar y conectar la autenticación del backend.",
+        e instanceof Error ? e.message : "No pudimos iniciar la sesión.",
       );
-      return;
+    } finally {
+      setSubmitting(false);
     }
-    if (user !== "biblioteca" || password !== "demo") {
-      setError("Para la demostración usá biblioteca / demo.");
-      return;
-    }
-    navigate("/inicio");
   }
+  if (authLoading)
+    return (
+      <p role="status" className="p-10">
+        Verificando sesión…
+      </p>
+    );
+  if (usuario) return <Navigate to={destination} replace />;
   return (
     <div className="relative min-h-svh overflow-hidden bg-[var(--access-background)]">
       <div
@@ -442,7 +468,16 @@ export function Access() {
                 ? "Acceso de demostración: biblioteca / demo."
                 : "Acceso para el personal de EntreLibros."}
             </p>
-            {error && <Alert error>{error}</Alert>}
+            {(error || authError) && <Alert error>{error || authError}</Alert>}
+            {authError && (
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => void comprobarSesion()}
+              >
+                Reintentar conexión
+              </Button>
+            )}
             <div className="space-y-6">
               <Field label="Usuario">
                 <input
@@ -464,8 +499,8 @@ export function Access() {
                 />
               </Field>
             </div>
-            <Button className="mt-8 w-full" type="submit">
-              Ingresar
+            <Button className="mt-8 w-full" type="submit" disabled={submitting}>
+              {submitting ? "Ingresando…" : "Ingresar"}
             </Button>
             <p className="mt-7 text-xs leading-relaxed text-[var(--muted-foreground)]">
               ¿Necesitás acceso?

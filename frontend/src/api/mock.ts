@@ -1,3 +1,4 @@
+import { buildReport } from "../domain/reports";
 import { seed } from "../data/seed";
 import type {
   Database,
@@ -14,7 +15,7 @@ import {
   type LibraryApi,
 } from "./contracts";
 
-const KEY = "entrelibros:demo:v1";
+const KEY = "entrelibros:demo:v2";
 const copy = <T>(x: T): T => structuredClone(x);
 const nextId = (rows: { id: number }[]) =>
   Math.max(0, ...rows.map((r) => r.id)) + 1;
@@ -78,8 +79,7 @@ export function saveEntity<K extends Resource>(
   const fields: Partial<Record<Resource, string[]>> = {
     sedes: ["nombre", "direccion", "contacto", "horarios"],
     socios: ["numero_socio", "documento", "nombre", "contacto"],
-    libros: ["titulo", "editorial", "edicion"],
-    autores: ["nombre"],
+    libros: ["titulo", "autor", "editorial", "edicion"],
     ejemplares: [
       "codigo_inventario",
       "libro_id",
@@ -465,8 +465,10 @@ export function applyCommand(
       const e = db.ejemplares.find((e) => e.id === num(input, "ejemplar_id"));
       required(
         e &&
-          e.sede_propietaria_id === r!.sede_origen_id &&
-          e.sede_actual_id === r!.sede_origen_id,
+          e.sede_actual_id === r!.sede_origen_id &&
+          (e.sede_propietaria_id === r!.sede_origen_id ||
+            (e.estado === "EN_REVISION" &&
+              e.sede_propietaria_id === r!.sede_destino_id)),
         "El ejemplar debe pertenecer al origen y estar allí.",
       );
       required(
@@ -484,6 +486,8 @@ export function applyCommand(
       );
       required(
         available(e!, db) ||
+          (e!.estado === "EN_REVISION" &&
+            e!.sede_propietaria_id === r!.sede_destino_id) ||
           (s &&
             s.tipo === "INTERBIBLIOTECARIO" &&
             s.sede_destino_id === r!.sede_destino_id),
@@ -541,7 +545,7 @@ export function applyCommand(
       required(
         Array.isArray(checked) &&
           details.every((d) => checked.includes(d.ejemplar_id)),
-        "Verificá todos los ejemplares. La recepción parcial está pendiente de definición.",
+        "Verificá todos los ejemplares. El remito se recibe completo.",
       );
       required(
         text(input, "responsable"),
@@ -563,7 +567,12 @@ export function applyCommand(
     if (action === "cancelar")
       for (const d of details) {
         const e = db.ejemplares.find((e) => e.id === d.ejemplar_id)!;
-        if (!d.solicitud_id) e.estado = "DISPONIBLE";
+        if (!d.solicitud_id)
+          e.estado =
+            e.sede_actual_id === e.sede_propietaria_id &&
+            e.condicion_fisica === "APTO"
+              ? "DISPONIBLE"
+              : "EN_REVISION";
       }
     db.evento_remitos.push({
       id: nextId(db.evento_remitos),
@@ -588,7 +597,10 @@ export function createMockApi(
     if (!raw) return copy(seed);
     try {
       const db = JSON.parse(raw) as Database;
-      if (!Array.isArray(db.libros) || !Array.isArray(db.libro_autores))
+      if (
+        !Array.isArray(db.libros) ||
+        db.libros.some((b) => typeof b.autor !== "string")
+      )
         throw new Error();
       return db;
     } catch {
@@ -621,28 +633,8 @@ export function createMockApi(
       applyCommand(db, resource, id, action, input);
       write(db);
     },
-    async saveBookAuthors(bookId, names) {
-      const db = read();
-      required(
-        db.libros.some((b) => b.id === bookId),
-        "Libro inexistente.",
-      );
-      const ids = [...new Set(names.map((n) => n.trim()).filter(Boolean))].map(
-        (nombre) => {
-          let a = db.autores.find(
-            (a) => a.nombre.toLowerCase() === nombre.toLowerCase(),
-          );
-          if (!a) {
-            a = { id: nextId(db.autores), nombre };
-            db.autores.push(a);
-          }
-          return a.id;
-        },
-      );
-      db.libro_autores = db.libro_autores
-        .filter((a) => a.libro_id !== bookId)
-        .concat(ids.map((autor_id) => ({ libro_id: bookId, autor_id })));
-      write(db);
+    async report(type, filter) {
+      return buildReport(type, read(), filter);
     },
     async reset() {
       storage.removeItem(KEY);

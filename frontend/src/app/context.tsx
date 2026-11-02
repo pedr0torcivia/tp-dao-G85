@@ -3,13 +3,21 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import type { Database } from "../domain/models";
 import { api } from "../api";
+import { consultarSesion, ingresar, salir, type Usuario } from "../api/auth";
 
 type Theme = "light" | "dark" | "system";
 interface Context {
+  usuario: Usuario | null;
+  authLoading: boolean;
+  authError: string;
+  comprobarSesion: () => Promise<void>;
+  iniciarSesion: (username: string, password: string) => Promise<void>;
+  cerrarSesion: () => Promise<void>;
   db: Database | null;
   loading: boolean;
   error: string;
@@ -24,6 +32,10 @@ interface Context {
 const Ctx = createContext<Context | null>(null);
 export const useLibrary = () => useContext(Ctx)!;
 export function LibraryProvider({ children }: { children: ReactNode }) {
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const generation = useRef(0);
   const [db, setDb] = useState<Database | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
@@ -34,19 +46,67 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [sedeId, setSedeId] = useState(1),
     [toast, setToast] = useState("");
   async function refresh() {
+    if (!usuario) return;
+    const version = generation.current;
     setLoading(true);
     setError("");
     try {
-      setDb(await api.snapshot());
+      const snapshot = await api.snapshot();
+      if (version !== generation.current) return;
+      setDb(snapshot);
+      setSedeId((actual) =>
+        snapshot.sedes.some((s) => s.id === actual && s.estado === "ACTIVA")
+          ? actual
+          : (snapshot.sedes.find((s) => s.estado === "ACTIVA")?.id ?? 0),
+      );
     } catch (e) {
+      if (version !== generation.current) return;
       setError(e instanceof Error ? e.message : "No pudimos cargar los datos.");
     } finally {
-      setLoading(false);
+      if (version === generation.current) setLoading(false);
     }
   }
+  function limpiarSesion() {
+    generation.current += 1;
+    setUsuario(null);
+    setDb(null);
+    setError("");
+    setToast("");
+    setSedeId(1);
+  }
+  async function comprobarSesion() {
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      setUsuario(await consultarSesion());
+    } catch (e) {
+      setAuthError(
+        e instanceof Error ? e.message : "No pudimos verificar la sesión.",
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+  async function iniciarSesion(username: string, password: string) {
+    const user = await ingresar(username, password);
+    generation.current += 1;
+    setAuthError("");
+    setUsuario(user);
+  }
+  async function cerrarSesion() {
+    await salir();
+    limpiarSesion();
+  }
   useEffect(() => {
-    void refresh();
+    void comprobarSesion();
+    const expired = () => limpiarSesion();
+    window.addEventListener("entrelibros:sesion-vencida", expired);
+    return () =>
+      window.removeEventListener("entrelibros:sesion-vencida", expired);
   }, []);
+  useEffect(() => {
+    if (usuario) void refresh();
+  }, [usuario]);
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
     const update = () => {
@@ -69,6 +129,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider
       value={{
+        usuario,
+        authLoading,
+        authError,
+        comprobarSesion,
+        iniciarSesion,
+        cerrarSesion,
         db,
         loading,
         error,

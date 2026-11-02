@@ -33,10 +33,32 @@ const nav = [
   { path: "reportes", label: "Reportes", icon: ChartNoAxesColumn },
 ];
 export function Layout() {
-  const { db, error, loading, refresh, theme, sedeId, setSedeId, toast } =
-    useLibrary();
+  const {
+    db,
+    error,
+    loading,
+    refresh,
+    theme,
+    sedeId,
+    setSedeId,
+    toast,
+    usuario,
+    cerrarSesion,
+    notify,
+  } = useLibrary();
   const [open, setOpen] = useState(false),
-    [resetOpen, setResetOpen] = useState(false);
+    [resetOpen, setResetOpen] = useState(false),
+    [saliendo, setSaliendo] = useState(false);
+  async function logout() {
+    setSaliendo(true);
+    try {
+      await cerrarSesion();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "No pudimos cerrar la sesión.");
+    } finally {
+      setSaliendo(false);
+    }
+  }
   const location = useLocation();
   const section =
     location.pathname === "/apariencia"
@@ -124,14 +146,20 @@ export function Layout() {
             <BookOpenCheck size={18} />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-medium">Personal de biblioteca</p>
+            <p className="text-xs font-medium">{usuario?.nombre}</p>
             <p className="mt-1 text-[11px] text-[var(--nav-muted)]">
               {isDemo ? "Sesión de demostración" : "Sesión de trabajo"}
             </p>
           </div>
-          <Link to="/acceso" aria-label="Ir al acceso" className="ml-auto">
+          <button
+            type="button"
+            onClick={() => void logout()}
+            disabled={saliendo}
+            aria-label="Cerrar sesión"
+            className="ml-auto"
+          >
             <LogOut size={16} />
-          </Link>
+          </button>
         </div>
       </aside>
       <div className="lg:ml-[232px]">

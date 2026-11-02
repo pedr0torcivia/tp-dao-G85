@@ -133,18 +133,26 @@ def demanda_interbibliotecaria(
 
 
 CRITERIO_DISPONIBILIDAD = (
-    "Corte actual por libro y sede propietaria. Un ejemplar cuenta como "
+    "Estado actual de los ejemplares dados de alta dentro del período, por libro y sede "
+    "propietaria. El rango filtra fecha de alta; no reconstruye el stock histórico. "
+    "Un ejemplar cuenta como "
     "disponible cuando su estado es DISPONIBLE, su condición física es apta, "
     "descansa en su sede propietaria y esa sede está activa."
 )
 
 
-def disponibilidad_catalogo(*, sede_id: int | None = None) -> dict:
+def disponibilidad_catalogo(
+    *, sede_id: int | None = None, desde: date | None = None, hasta: date | None = None
+) -> dict:
     """RP04 — Disponibilidad de catálogo por sede.
 
-    No usa rango de fechas: refleja el estado actual de los ejemplares.
+    El rango selecciona las altas; los estados y la disponibilidad son actuales.
     """
     ejemplares = Ejemplar.objects.select_related("libro", "sede_propietaria", "sede_actual")
+    if desde is not None:
+        ejemplares = ejemplares.filter(fecha_alta__date__gte=desde)
+    if hasta is not None:
+        ejemplares = ejemplares.filter(fecha_alta__date__lte=hasta)
     if sede_id is not None:
         ejemplares = ejemplares.filter(sede_propietaria_id=sede_id)
 
@@ -199,4 +207,45 @@ def disponibilidad_catalogo(*, sede_id: int | None = None) -> dict:
         "criterio": CRITERIO_DISPONIBILIDAD,
         "resumen": f"{disponibles_gral} de {total_gral} ejemplares disponibles",
         "filas": filas,
+    }
+
+
+def operaciones_abmc(*, desde: date, hasta: date, sede_id: int | None = None) -> dict:
+    from apps.common.models import Operacion
+
+    eventos = Operacion.objects.filter(fecha__date__gte=desde, fecha__date__lte=hasta)
+    filas, totales = [], {"ALTA": 0, "MODIFICACION": 0, "BAJA": 0, "OPERACION": 0}
+    for evento in eventos.order_by("fecha", "id"):
+        if sede_id is not None and sede_id not in evento.sede_ids:
+            continue
+        totales[evento.accion] = totales.get(evento.accion, 0) + 1
+        filas.append(
+            {
+                "fecha": evento.fecha,
+                "entidad": evento.entidad,
+                "registro_id": evento.registro_id,
+                "accion": evento.accion,
+                "usuario": evento.usuario,
+                "descripcion": evento.descripcion,
+            }
+        )
+    etiquetas = {
+        "ALTA": ("alta", "altas"),
+        "MODIFICACION": ("modificación", "modificaciones"),
+        "BAJA": ("baja", "bajas"),
+        "OPERACION": ("otra operación", "otras operaciones"),
+    }
+    detalle = ", ".join(
+        f"{n} {etiquetas[accion][0 if n == 1 else 1]}" for accion, n in totales.items()
+    )
+    return {
+        "reporte": "RP05",
+        "filas": filas,
+        "totales": totales,
+        "resumen": f"{len(filas)} operaciones: {detalle}",
+        "criterio": "Operaciones exitosas registradas entre Desde y Hasta, ambos inclusive, "
+        "con usuario y cambios antes/después. Las consultas y los intentos fallidos "
+        "no se cuentan como cambios. La baja es lógica y conserva el historial. "
+        "Con sede se incluyen solo registros vinculados a esa sede; "
+        "libros y socios globales se ven sin filtro de sede.",
     }

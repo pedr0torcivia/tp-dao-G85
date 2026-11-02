@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as ApiValidationError
@@ -7,7 +8,14 @@ from apps.sedes.exceptions import SedeInactivaError
 
 from .exceptions import LogisticaError
 from .models import DetalleRemito, EstadoRemito, EventoRemito, Remito
-from .serializers import DetalleRemitoSerializer, EventoRemitoSerializer, RemitoSerializer
+from .serializers import (
+    DetalleRemitoSerializer,
+    EventoRemitoSerializer,
+    RemitoAccionSerializer,
+    RemitoAsignarSerializer,
+    RemitoRecibirSerializer,
+    RemitoSerializer,
+)
 from .services import (
     agregar_ejemplar,
     cancelar_remito,
@@ -44,8 +52,16 @@ def _ejecutar_comando(remito: Remito, operacion, **argumentos) -> Remito:
         raise ApiValidationError({"detail": "La sede debe estar activa."}) from error
 
 
+@extend_schema_view(
+    asignar=extend_schema(request=RemitoAsignarSerializer, responses=RemitoSerializer),
+    empaquetar=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
+    despachar=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
+    registrar_salida=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
+    recibir=extend_schema(request=RemitoRecibirSerializer, responses=RemitoSerializer),
+    cancelar=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
+)
 class RemitoViewSet(viewsets.ModelViewSet):
-    queryset = Remito.objects.all()
+    queryset = Remito.objects.all().order_by("id")
     serializer_class = RemitoSerializer
     http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
@@ -79,6 +95,9 @@ class RemitoViewSet(viewsets.ModelViewSet):
 
         if remito.estado != EstadoRemito.EN_PREPARACION:
             raise ApiValidationError("Sólo se edita un remito en preparación.")
+
+        if remito.detalles.exists():
+            raise ApiValidationError("No se edita un remito con ejemplares asignados.")
 
         serializer.save()
 

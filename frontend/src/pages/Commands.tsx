@@ -78,8 +78,10 @@ export function CommandDialog({
             e.sede_actual_id === reserva?.sede_retiro_id
           );
         return (
-          (available(e, db!) || e.estado === "ASIGNADO") &&
-          e.sede_propietaria_id === remito?.sede_origen_id &&
+          ((e.sede_propietaria_id === remito?.sede_origen_id &&
+            (available(e, db!) || e.estado === "ASIGNADO")) ||
+            (e.estado === "EN_REVISION" &&
+              e.sede_propietaria_id === remito?.sede_destino_id)) &&
           e.sede_actual_id === remito?.sede_origen_id &&
           !db!.detalle_remitos.some(
             (d) =>
@@ -283,8 +285,8 @@ export function CommandDialog({
               );
             })}
             <p className="mt-4 text-xs text-[var(--muted-foreground)]">
-              La recepción parcial y el tratamiento de incidencias requieren
-              definir sus reglas.
+              Se recibe el remito completo. El material que retorna a su sede
+              queda en revisión antes de recuperar su disponibilidad.
             </p>
           </fieldset>
         )}

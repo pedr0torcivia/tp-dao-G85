@@ -37,12 +37,7 @@ export const available = (e: Ejemplar, db: Database) =>
   e.condicion_fisica === "APTO" &&
   e.sede_actual_id === e.sede_propietaria_id &&
   db.sedes.some((s) => s.id === e.sede_propietaria_id && s.estado === "ACTIVA");
-export const authorNames = (book: Libro, db: Database) =>
-  db.libro_autores
-    .filter((a) => a.libro_id === book.id)
-    .map((a) => db.autores.find((x) => x.id === a.autor_id)?.nombre)
-    .filter(Boolean)
-    .join(", ");
+export const authorNames = (book: Libro, _db: Database) => book.autor;
 export const sedeName = (id: number | null, db: Database) =>
   id === null
     ? "En tránsito"

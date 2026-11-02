@@ -15,6 +15,8 @@ import {
   statusLabels,
 } from "../domain/selectors";
 import { coverByBook } from "../data/seed";
+import { portadaDe } from "../data/portadas";
+import { isDemo } from "../api";
 import {
   Badge,
   Empty,
@@ -32,24 +34,35 @@ export function Cover({
   id,
   title,
   large = false,
+  compact = false,
 }: {
   id: number;
   title: string;
   large?: boolean;
+  compact?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const name = coverByBook[id];
-  return name && !failed ? (
+  const src =
+    portadaDe(title) ??
+    (isDemo && coverByBook[id]
+      ? `/assets/portadas/${coverByBook[id]}.jpg`
+      : undefined);
+  const size = large
+    ? "h-[280px] w-[190px]"
+    : compact
+      ? "h-[66px] w-[44px]"
+      : "h-[138px] w-[92px]";
+  return src && !failed ? (
     <img
-      src={`/assets/portadas/${name}.jpg`}
+      src={src}
       alt={`Portada de ${title}`}
       onError={() => setFailed(true)}
-      className={`${large ? "h-[280px] w-[190px]" : "h-[138px] w-[92px]"} shrink-0 rounded object-contain`}
+      className={`${size} shrink-0 rounded object-contain`}
     />
   ) : (
     <div
       aria-label={`Sin portada: ${title}`}
-      className={`${large ? "h-[280px] w-[190px]" : "h-[138px] w-[92px]"} flex shrink-0 items-center justify-center rounded bg-[var(--muted)] text-[var(--muted-foreground)]`}
+      className={`${size} flex shrink-0 items-center justify-center rounded bg-[var(--muted)] text-[var(--muted-foreground)]`}
     >
       <BookOpen size={28} />
     </div>
@@ -138,11 +151,19 @@ export function EntityList({ resource }: { resource: Resource }) {
         sedes: [e.sede_propietaria_id],
         state: e.estado,
         cells: [
-          <div>
-            {e.codigo_inventario}
-            <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-              {bookName(e.libro_id, db!)}
-            </p>
+          <div className="flex items-center gap-3">
+            <Cover
+              key={e.libro_id}
+              id={e.libro_id}
+              title={bookName(e.libro_id, db!)}
+              compact
+            />
+            <div>
+              {e.codigo_inventario}
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                {bookName(e.libro_id, db!)}
+              </p>
+            </div>
           </div>,
           sedeName(e.sede_propietaria_id, db!),
           sedeName(e.sede_actual_id, db!),

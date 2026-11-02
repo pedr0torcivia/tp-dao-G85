@@ -1,0 +1,69 @@
+name: Verificación de entrega
+on: [push, pull_request]
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: biblioteca
+          POSTGRES_USER: biblioteca
+          POSTGRES_PASSWORD: biblioteca
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U biblioteca -d biblioteca"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      E2E_BROWSER_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r backend/requirements/development.txt
+      - run: ruff check backend
+      - run: python manage.py makemigrations --check --dry-run && python manage.py test
+        working-directory: backend
+      - run: python manage.py spectacular --file /tmp/schema.yml --validate --fail-on-warn
+        working-directory: backend
+      - run: |
+          python manage.py migrate --noinput
+          python manage.py preparar_exposicion
+          python manage.py runserver 127.0.0.1:8000 --noreload > /tmp/biblioteca.log 2>&1 &
+        working-directory: backend
+      - run: npm ci && npm test && npm run build && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: recorridos-navegador
+          path: frontend/test-results
+
+  contenedores:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env && docker compose up -d --build --wait
+      - run: |
+          docker compose exec -T backend python manage.py preparar_exposicion
+          docker compose exec -T backend python manage.py test
+          curl --fail http://localhost:5173/api/health/
+          before=$(docker compose exec -T backend python manage.py shell -c 'from apps.catalogo.models import Ejemplar; print(Ejemplar.objects.count())')
+          docker compose restart
+          docker compose up -d --wait
+          after=$(docker compose exec -T backend python manage.py shell -c 'from apps.catalogo.models import Ejemplar; print(Ejemplar.objects.count())')
+          test "$before" = "$after"
+      - run: docker compose logs
+        if: failure()
+      - run: docker compose down
+        if: always()

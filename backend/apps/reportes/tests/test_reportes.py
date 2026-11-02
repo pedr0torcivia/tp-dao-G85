@@ -8,6 +8,7 @@ from rest_framework.test import APITestCase
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
 from apps.circulacion.models import SolicitudPrestamo
+from apps.common.testing import autenticar_personal
 from apps.reportes.services import demanda_interbibliotecaria, disponibilidad_catalogo
 from apps.sedes.models import EstadoSede, Sede
 from apps.socios.models import Socio
@@ -19,6 +20,7 @@ def _momento(dia: int, hora: int = 12) -> datetime:
 
 class BaseReportesTest(TestCase):
     def setUp(self):
+        autenticar_personal(self.client)
         self.central = Sede.objects.create(
             nombre="Central",
             direccion="Av. 1",
@@ -103,21 +105,28 @@ class DemandaTest(APITestCase, BaseReportesTest):
         self.crear_solicitud(self.quijote, self.central, self.norte, fecha=datetime(2026, 10, 8))
         # Rechazadas y canceladas: NO cuentan (1 y 1)
         self.crear_solicitud(
-            self.principito, self.central, self.norte,
-            estado="RECHAZADA", fecha=datetime(2026, 10, 2),
+            self.principito,
+            self.central,
+            self.norte,
+            estado="RECHAZADA",
+            fecha=datetime(2026, 10, 2),
         )
         self.crear_solicitud(
-            self.quijote, self.central, self.norte,
-            estado="CANCELADA", fecha=datetime(2026, 10, 6),
+            self.quijote,
+            self.central,
+            self.norte,
+            estado="CANCELADA",
+            fecha=datetime(2026, 10, 6),
         )
         # Fuera del rango: no cuenta
-        self.crear_solicitud(
-            self.quijote, self.central, self.norte, fecha=datetime(2026, 9, 20)
-        )
+        self.crear_solicitud(self.quijote, self.central, self.norte, fecha=datetime(2026, 9, 20))
         # Local: no entra al reporte de demanda interbibliotecaria
         self.crear_solicitud(
-            self.quijote, self.norte, self.norte,
-            tipo="LOCAL", fecha=datetime(2026, 10, 7),
+            self.quijote,
+            self.norte,
+            self.norte,
+            tipo="LOCAL",
+            fecha=datetime(2026, 10, 7),
         )
 
     def test_ranking_con_valores_precalculados(self):
@@ -157,9 +166,7 @@ class DemandaTest(APITestCase, BaseReportesTest):
         self.assertEqual(datos["resumen"], "0 solicitudes válidas")
 
     def test_rango_incluye_bordes_del_dia_y_resultado_vacio(self):
-        self.crear_solicitud(
-            self.principito, self.central, self.norte, fecha=datetime(2026, 10, 5)
-        )
+        self.crear_solicitud(self.principito, self.central, self.norte, fecha=datetime(2026, 10, 5))
 
         datos = demanda_interbibliotecaria(
             desde=datetime(2026, 10, 5).date(),
@@ -203,23 +210,27 @@ class DisponibilidadTest(APITestCase, BaseReportesTest):
         # El principito @ Central: 3 ejemplares, 1 disponible
         self.crear_ejemplar(self.principito, self.central)  # DISPONIBLE + APTO + en su sede
         self.crear_ejemplar(
-            self.principito, self.central,
+            self.principito,
+            self.central,
             estado=EstadoEjemplar.PRESTADO,
             sede_actual=self.norte,
         )
         self.crear_ejemplar(
-            self.principito, self.central,
+            self.principito,
+            self.central,
             condicion=CondicionFisica.NO_APTO,
             estado=EstadoEjemplar.EN_REVISION,
         )
         # Don Quijote @ Central: 2 ejemplares, 0 disponibles (en tránsito y en otra sede)
         self.crear_ejemplar(
-            self.quijote, self.central,
+            self.quijote,
+            self.central,
             estado=EstadoEjemplar.EN_TRANSITO,
             sede_actual=None,
         )
         self.crear_ejemplar(
-            self.quijote, self.central,
+            self.quijote,
+            self.central,
             sede_actual=self.norte,
         )
         # Don Quijote @ Norte: 1 ejemplar disponible en sede activa
@@ -277,7 +288,8 @@ class DisponibilidadTest(APITestCase, BaseReportesTest):
 
     def test_ejemplar_en_ubicacion_correcta_pero_no_apto_no_cuenta(self):
         self.crear_ejemplar(
-            self.principito, self.central,
+            self.principito,
+            self.central,
             condicion=CondicionFisica.NO_APTO,
             estado=EstadoEjemplar.DISPONIBLE,
         )
@@ -288,12 +300,15 @@ class DisponibilidadTest(APITestCase, BaseReportesTest):
     def test_endpoint_http(self):
         self.preparar_fixture()
 
-        response = self.client.get(reverse("reportes-disponibilidad"))
+        response = self.client.get(
+            reverse("reportes-disponibilidad"), {"desde": "2000-01-01", "hasta": "2100-12-31"}
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["filas"]), 3)
 
         response = self.client.get(
-            reverse("reportes-disponibilidad"), {"sede": self.norte.pk}
+            reverse("reportes-disponibilidad"),
+            {"sede": self.norte.pk, "desde": "2000-01-01", "hasta": "2100-12-31"},
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["resumen"], "1 de 1 ejemplares disponibles")

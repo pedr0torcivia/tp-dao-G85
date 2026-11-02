@@ -102,11 +102,17 @@ def agregar_ejemplar(*, remito: Remito, ejemplar_id: int) -> DetalleRemito:
     except Ejemplar.DoesNotExist as error:
         raise EjemplarInvalidoError("Ejemplar inexistente.") from error
 
-    if (
-        ejemplar.sede_propietaria_id != remito.sede_origen_id
-        or ejemplar.sede_actual_id != remito.sede_origen_id
+    es_retorno = (
+        ejemplar.sede_actual_id != ejemplar.sede_propietaria_id
+        and remito.sede_destino_id == ejemplar.sede_propietaria_id
+        and ejemplar.estado == EstadoEjemplar.EN_REVISION
+    )
+    if ejemplar.sede_actual_id != remito.sede_origen_id or (
+        ejemplar.sede_propietaria_id != remito.sede_origen_id and not es_retorno
     ):
-        raise EjemplarInvalidoError("El ejemplar debe pertenecer al origen y estar allí.")
+        raise EjemplarInvalidoError(
+            "El ejemplar debe estar en origen y pertenecer allí, o retornar a su sede propietaria."
+        )
 
     en_remito_vigente = DetalleRemito.objects.filter(
         ejemplar=ejemplar,
@@ -130,7 +136,7 @@ def agregar_ejemplar(*, remito: Remito, ejemplar_id: int) -> DetalleRemito:
         and solicitud.tipo == TipoSolicitud.INTERBIBLIOTECARIO
         and solicitud.sede_destino_id == remito.sede_destino_id
     )
-    if not (disponible or para_traslado):
+    if not (disponible or para_traslado or es_retorno):
         raise EjemplarInvalidoError("El ejemplar no está disponible para este trayecto.")
 
     detalle = DetalleRemito.objects.create(
@@ -184,7 +190,12 @@ def cancelar_remito(
     for detalle in remito.detalles.select_related("ejemplar"):
         if detalle.solicitud_id is None:
             ejemplar = detalle.ejemplar
-            ejemplar.estado = EstadoEjemplar.DISPONIBLE
+            ejemplar.estado = (
+                EstadoEjemplar.EN_REVISION
+                if ejemplar.sede_actual_id != ejemplar.sede_propietaria_id
+                or ejemplar.condicion_fisica != CondicionFisica.APTO
+                else EstadoEjemplar.DISPONIBLE
+            )
             ejemplar.save(update_fields=["estado"])
 
     _registrar_evento(
@@ -286,7 +297,7 @@ def recibir_remito(
     verificados_set = set(verificados)
     if any(detalle.ejemplar_id not in verificados_set for detalle in detalles):
         raise RecepcionInvalidaError(
-            "Verificá todos los ejemplares. La recepción parcial está pendiente de definición."
+            "Verificá todos los ejemplares. El remito se recibe completo."
         )
     if not responsable.strip():
         raise RecepcionInvalidaError("Indicá quién recibe el material.")

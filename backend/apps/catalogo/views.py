@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -34,6 +35,10 @@ def catalogo_error_response(error: ErrorCatalogo):
     )
 
 
+@extend_schema_view(
+    get=extend_schema(operation_id="libros_listar", responses=LibroSerializer(many=True)),
+    post=extend_schema(request=LibroSerializer, responses={201: LibroSerializer}),
+)
 class LibroListCreateView(APIView):
     def get(self, request):
         texto_busqueda = request.query_params.get("search")
@@ -56,6 +61,10 @@ class LibroListCreateView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=LibroSerializer),
+    patch=extend_schema(request=LibroSerializer, responses=LibroSerializer),
+)
 class LibroDetailView(APIView):
     def get(self, request, libro_id):
         libro = get_object_or_404(Libro, id=libro_id)
@@ -80,6 +89,10 @@ class LibroDetailView(APIView):
         return Response(LibroSerializer(libro).data)
 
 
+@extend_schema_view(
+    get=extend_schema(operation_id="ejemplares_listar", responses=EjemplarSerializer(many=True)),
+    post=extend_schema(request=EjemplarSerializer, responses={201: EjemplarSerializer}),
+)
 class EjemplarListCreateView(APIView):
     def get(self, request):
         libro_id = request.query_params.get("libro_id")
@@ -112,6 +125,10 @@ class EjemplarListCreateView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(responses=EjemplarSerializer),
+    patch=extend_schema(request=EjemplarUpdateSerializer, responses=EjemplarSerializer),
+)
 class EjemplarDetailView(APIView):
     def get(self, request, ejemplar_id):
         ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
@@ -137,6 +154,9 @@ class EjemplarDetailView(APIView):
         return Response(EjemplarSerializer(ejemplar).data)
 
 
+@extend_schema_view(
+    post=extend_schema(request=None, responses=EjemplarSerializer),
+)
 class EjemplarAsignarView(APIView):
     def post(self, request, ejemplar_id):
         ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
@@ -149,6 +169,9 @@ class EjemplarAsignarView(APIView):
         return Response(EjemplarSerializer(ejemplar).data)
 
 
+@extend_schema_view(
+    post=extend_schema(request=None, responses=EjemplarSerializer),
+)
 class EjemplarLiberarView(APIView):
     def post(self, request, ejemplar_id):
         ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
@@ -161,6 +184,9 @@ class EjemplarLiberarView(APIView):
         return Response(EjemplarSerializer(ejemplar).data)
 
 
+@extend_schema_view(
+    post=extend_schema(request=None, responses=EjemplarSerializer),
+)
 class EjemplarDarDeBajaView(APIView):
     def post(self, request, ejemplar_id):
         ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
@@ -173,6 +199,9 @@ class EjemplarDarDeBajaView(APIView):
         return Response(EjemplarSerializer(ejemplar).data)
 
 
+@extend_schema_view(
+    post=extend_schema(request=None, responses=EjemplarSerializer),
+)
 class EjemplarAprobarDisponibilidadView(APIView):
     def post(self, request, ejemplar_id):
         ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
@@ -185,6 +214,9 @@ class EjemplarAprobarDisponibilidadView(APIView):
         return Response(EjemplarSerializer(ejemplar).data)
 
 
+@extend_schema_view(
+    get=extend_schema(responses={200: {"type": "array", "items": {"type": "object"}}}),
+)
 class DisponibilidadView(APIView):
     def get(self, request):
         libro_id = request.query_params.get("libro_id")

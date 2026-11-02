@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.common.testing import autenticar_personal
 from apps.logistica.models import EstadoRemito, Remito
 from apps.sedes.models import Sede
 
@@ -16,6 +17,7 @@ def _momento(dia: int, hora: int = 12) -> datetime:
 
 class BaseReportesTest(TestCase):
     def setUp(self):
+        autenticar_personal(self.client)
         self.central = Sede.objects.create(
             nombre="Central",
             direccion="Av. 1",

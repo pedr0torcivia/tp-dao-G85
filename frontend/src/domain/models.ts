@@ -16,20 +16,13 @@ export interface Socio {
   contacto: string;
   estado: "HABILITADO" | "INHABILITADO";
 }
-export interface Autor {
-  id: number;
-  nombre: string;
-}
 export interface Libro {
   id: number;
   isbn: string | null;
   titulo: string;
+  autor: string;
   editorial: string;
   edicion: string;
-}
-export interface LibroAutor {
-  libro_id: number;
-  autor_id: number;
 }
 export type EstadoEjemplar =
   | "DISPONIBLE"
@@ -41,6 +34,7 @@ export type EstadoEjemplar =
   | "BAJA";
 export interface Ejemplar {
   id: number;
+  fecha_alta?: string;
   codigo_inventario: string;
   libro_id: number;
   sede_propietaria_id: number;
@@ -125,9 +119,7 @@ export interface EventoRemito {
 export interface Database {
   sedes: Sede[];
   socios: Socio[];
-  autores: Autor[];
   libros: Libro[];
-  libro_autores: LibroAutor[];
   ejemplares: Ejemplar[];
   solicitudes: SolicitudPrestamo[];
   prestamos: Prestamo[];
@@ -136,6 +128,6 @@ export interface Database {
   detalle_remitos: DetalleRemito[];
   evento_remitos: EventoRemito[];
 }
-export type Resource = Exclude<keyof Database, "libro_autores">;
+export type Resource = keyof Database;
 export type Entity<K extends Resource> = Database[K][number];
 export type NewEntity<K extends Resource> = Omit<Entity<K>, "id">;

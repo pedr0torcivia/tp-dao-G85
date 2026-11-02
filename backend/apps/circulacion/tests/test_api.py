@@ -6,12 +6,14 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.circulacion.models import EstadoReserva, EstadoSolicitud
+from apps.common.testing import autenticar_personal
 
 from .factories import crear_ejemplar, crear_libro, crear_sede, crear_socio
 
 
 class CirculacionApiTest(APITestCase):
     def setUp(self):
+        autenticar_personal(self.client)
         self.sede = crear_sede()
         self.socio = crear_socio()
         self.libro = crear_libro()

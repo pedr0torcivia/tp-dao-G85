@@ -3,10 +3,14 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
+from apps.common.testing import autenticar_personal
 from apps.sedes.models import EstadoSede, Sede
 
 
 class LibroApiTest(APITestCase):
+    def setUp(self):
+        autenticar_personal(self.client)
+
     def crear_libro(self, **cambios):
         datos = {
             "isbn": "9780000000001",
@@ -131,6 +135,7 @@ class LibroApiTest(APITestCase):
 
 class EjemplarApiTest(APITestCase):
     def setUp(self):
+        autenticar_personal(self.client)
         self.sede_central = Sede.objects.create(
             nombre="Biblioteca Central",
             direccion="Av. Siempre Viva 123",

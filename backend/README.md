@@ -51,6 +51,8 @@ SQLite es solo una facilidad para pruebas rápidas. El desarrollo integrado y el
 
 ## Rutas iniciales
 
+Las rutas de negocio requieren una cuenta activa de personal y sesión de Django. `preparar_exposicion` crea **biblioteca / demo** si no existe. El frontend inicia y cierra la sesión, enviando CSRF en las escrituras. Consultar [Acceso y cuentas](../docs/acceso.md).
+
 - `GET /api/`: información básica de la API.
 - `GET /api/health/`: comprobación de disponibilidad.
 - `GET /api/schema/`: contrato OpenAPI.
@@ -82,6 +84,24 @@ de ejemplares admite `?libro_id=`, `?sede_id=` y `?estado=`. El reporte de
 disponibilidad devuelve cantidades totales, disponibles, no disponibles y
 proporción disponible por sede; también acepta `libro_id` y `sede_id`.
 
-Los ejemplares se crean como `DISPONIBLE`, con su sede actual igual a la sede
-propietaria. Las operaciones de asignar y liberar usan transacciones y bloquean
+Los ejemplares aptos se crean como `DISPONIBLE`; los no aptos quedan en
+`EN_REVISION`. La ubicación inicial es su sede propietaria. Las operaciones de asignar y liberar usan transacciones y bloquean
 la fila para impedir asignaciones simultáneas del mismo ejemplar.
+
+
+## Demostración y verificación de entrega
+
+```powershell
+python manage.py migrate
+python manage.py preparar_exposicion
+python manage.py test
+python manage.py makemigrations --check --dry-run
+python manage.py spectacular --file ../tmp/schema.yml --validate --fail-on-warn
+ruff check .
+```
+
+`preparar_exposicion` no borra registros ni restablece cambios. El conjunto de referencia y los resultados esperados están en `docs/guion-demostracion.md`. Las pruebas de concurrencia requieren PostgreSQL.
+
+Para aislar una comprobación rápida con SQLite, configurar `DJANGO_USE_SQLITE=true` y, opcionalmente, `DJANGO_SQLITE_PATH` con la ruta de una base temporal. SQLite no verifica los bloqueos de PostgreSQL.
+
+El frontend recibe y guarda Libro con `autor` como texto. Los reportes se consultan en la API; no se envían tablas de autores adicionales. El retorno entre sedes usa el remito existente y no añade entidades al DER.

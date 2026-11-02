@@ -1,0 +1,37 @@
+// Portadas por obra; independientes de los IDs de base de datos.
+const portadas: Record<string, string> = {
+  "star wars vol. 1: skywalker strikes": "skywalker-strikes",
+  "heir to the empire: star wars legends": "heir-to-the-empire",
+  "civil war": "civil-war",
+  "infinity gauntlet": "infinity-gauntlet",
+  "batman: year one": "batman-year-one",
+  watchmen: "watchmen",
+  "all star superman vol. 1": "all-star-superman",
+  thrawn: "thrawn",
+  "batman: the dark knight returns": "dark-knight-returns",
+  "batman: the killing joke": "killing-joke",
+  "batman: the long halloween": "long-halloween",
+  "batman: hush": "batman-hush",
+  "kingdom come": "kingdom-come",
+  "superman: red son": "red-son",
+  "superman for all seasons": "superman-seasons",
+  "v for vendetta": "v-for-vendetta",
+  "the sandman vol. 1: preludes & nocturnes": "sandman",
+  "the complete maus": "maus",
+  marvels: "marvels",
+  "daredevil: born again": "daredevil-born-again",
+  "spider-man: kraven’s last hunt": "kravens-last-hunt",
+  "spider-man: blue": "spider-man-blue",
+  "x-men: the dark phoenix saga": "dark-phoenix",
+  "x-men: days of future past": "days-future-past",
+  wolverine: "wolverine",
+  "hawkeye vol. 1: my life as a weapon": "hawkeye",
+  "deadpool kills the marvel universe": "deadpool",
+  "iron man: extremis": "iron-man-extremis",
+  "thor: god of thunder vol. 1: the god butcher": "thor-god-butcher",
+  "captain america: winter soldier": "winter-soldier",
+};
+export function portadaDe(titulo: string): string | undefined {
+  const clave = portadas[titulo.trim().toLocaleLowerCase("es")];
+  return clave ? `/assets/portadas/exposicion/${clave}.jpg` : undefined;
+}
