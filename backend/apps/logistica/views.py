@@ -11,6 +11,7 @@ from .models import DetalleRemito, EstadoRemito, EventoRemito, Remito
 from .serializers import (
     DetalleRemitoSerializer,
     EventoRemitoSerializer,
+    PrepararRetornoSerializer,
     RemitoAccionSerializer,
     RemitoAsignarSerializer,
     RemitoRecibirSerializer,
@@ -22,8 +23,10 @@ from .services import (
     crear_remito,
     despachar_remito,
     empaquetar_remito,
+    preparar_retorno,
+    quitar_ejemplar,
+    reabrir_remito,
     recibir_remito,
-    registrar_salida_remito,
 )
 
 ERRORES_CON_CAMPO = {
@@ -56,7 +59,9 @@ def _ejecutar_comando(remito: Remito, operacion, **argumentos) -> Remito:
     asignar=extend_schema(request=RemitoAsignarSerializer, responses=RemitoSerializer),
     empaquetar=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
     despachar=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
-    registrar_salida=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
+    reabrir=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
+    quitar=extend_schema(request=RemitoAsignarSerializer, responses=RemitoSerializer),
+    preparar_retorno=extend_schema(request=PrepararRetornoSerializer, responses=RemitoSerializer),
     recibir=extend_schema(request=RemitoRecibirSerializer, responses=RemitoSerializer),
     cancelar=extend_schema(request=RemitoAccionSerializer, responses=RemitoSerializer),
 )
@@ -79,7 +84,7 @@ class RemitoViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         try:
             remito = crear_remito(
-                numero=serializer.validated_data["numero"],
+                numero=serializer.validated_data.get("numero", ""),
                 sede_origen_id=serializer.validated_data["sede_origen"].id,
                 sede_destino_id=serializer.validated_data["sede_destino"].id,
             )
@@ -127,18 +132,36 @@ class RemitoViewSet(viewsets.ModelViewSet):
 
         return Response(self.get_serializer(remito).data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["post"], url_path="registrar-salida")
-    def registrar_salida(self, request, pk=None):
-        remito = self.get_object()
-
+    @action(detail=True, methods=["post"])
+    def reabrir(self, request, pk=None):
         remito = _ejecutar_comando(
-            remito,
-            registrar_salida_remito,
+            self.get_object(),
+            reabrir_remito,
             responsable=request.data.get("responsable", ""),
             observacion=request.data.get("observacion", ""),
         )
+        return Response(RemitoSerializer(remito).data, status=status.HTTP_200_OK)
 
-        return Response(self.get_serializer(remito).data, status=status.HTTP_200_OK)
+    @action(detail=True, methods=["post"])
+    def quitar(self, request, pk=None):
+        try:
+            ejemplar_id = int(request.data.get("ejemplar_id"))
+        except (TypeError, ValueError) as error:
+            raise ApiValidationError({"ejemplar_id": ["Elegí un ejemplar válido."]}) from error
+        remito = _ejecutar_comando(self.get_object(), quitar_ejemplar, ejemplar_id=ejemplar_id)
+        return Response(RemitoSerializer(remito).data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="preparar-retorno")
+    def preparar_retorno(self, request):
+        serializer = PrepararRetornoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            remito = preparar_retorno(**serializer.validated_data)
+        except LogisticaError as error:
+            _mapear_error_dominio(error)
+        except SedeInactivaError as error:
+            raise ApiValidationError({"detail": "La sede debe estar activa."}) from error
+        return Response(RemitoSerializer(remito).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def despachar(self, request, pk=None):
@@ -155,25 +178,22 @@ class RemitoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def recibir(self, request, pk=None):
-        remito = self.get_object()
-        verificados = request.data.get("verificados")
-
-        if not isinstance(verificados, list):
-            verificados = []
+        serializer = RemitoRecibirSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
         try:
-            verificados_int = [int(valor) for valor in verificados]
+            resultados = {int(k): v for k, v in datos["resultados"].items()}
         except (TypeError, ValueError) as error:
             raise ApiValidationError("Los ejemplares verificados no son válidos.") from error
-
         remito = _ejecutar_comando(
-            remito,
+            self.get_object(),
             recibir_remito,
-            verificados=verificados_int,
-            responsable=request.data.get("responsable", ""),
-            observacion=request.data.get("observacion", ""),
+            verificados=datos["verificados"],
+            resultados=resultados,
+            responsable=datos["responsable"],
+            observacion=datos.get("observacion", ""),
         )
-
-        return Response(self.get_serializer(remito).data, status=status.HTTP_200_OK)
+        return Response(RemitoSerializer(remito).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):

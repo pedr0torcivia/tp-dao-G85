@@ -1,179 +1,137 @@
 import { useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { BookOpen, Plus, Undo2 } from "lucide-react";
 import { useLibrary } from "../app/context";
 import type { Resource } from "../domain/models";
 import {
   available,
-  authorNames,
   bookName,
   code,
   dateLabel,
-  daysLate,
-  isOverdue,
+  loanState,
+  pesos,
   sedeName,
   socioName,
   statusLabels,
 } from "../domain/selectors";
-import { coverByBook } from "../data/seed";
 import { portadaDe } from "../data/portadas";
-import { isDemo } from "../api";
 import {
   Badge,
   Empty,
   Heading,
-  inputClass,
   outlineClass,
   primaryClass,
   SearchBox,
   Table,
 } from "../components/ui";
 import { config, pathOf } from "./resources";
-import { ArrowUpRight, BookOpen, Plus } from "lucide-react";
 
 export function Cover({
-  id,
   title,
   large = false,
   compact = false,
 }: {
-  id: number;
+  id?: number;
   title: string;
   large?: boolean;
   compact?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const src =
-    portadaDe(title) ??
-    (isDemo && coverByBook[id]
-      ? `/assets/portadas/${coverByBook[id]}.jpg`
-      : undefined);
+  const src = portadaDe(title);
   const size = large
-    ? "h-[280px] w-[190px]"
+    ? "h-[260px] w-[176px]"
     : compact
-      ? "h-[66px] w-[44px]"
-      : "h-[138px] w-[92px]";
+      ? "h-[52px] w-[36px]"
+      : "h-[178px] w-[120px]";
   return src && !failed ? (
     <img
       src={src}
       alt={`Portada de ${title}`}
       onError={() => setFailed(true)}
-      className={`${size} shrink-0 rounded object-contain`}
+      className={`${size} shrink-0 rounded object-cover shadow-md`}
     />
   ) : (
     <div
       aria-label={`Sin portada: ${title}`}
       className={`${size} flex shrink-0 items-center justify-center rounded bg-[var(--muted)] text-[var(--muted-foreground)]`}
     >
-      <BookOpen size={28} />
+      <BookOpen size={compact ? 16 : 28} />
     </div>
   );
 }
+
+const PAGE = 25;
+
+interface Row {
+  id: number;
+  search: string;
+  sedes: number[];
+  state: string;
+  cells: ReactNode[];
+}
+
 export function EntityList({ resource }: { resource: Resource }) {
-  const { db } = useLibrary();
+  const { db, sedeId } = useLibrary();
   const conf = config[resource]!;
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [query, setQuery] = useState(""),
-    [sede, setSede] = useState(""),
-    [state, setState] = useState(""),
-    [page, setPage] = useState(1);
-  const detail = (id: number) => (
-    <Link
-      className="record-link"
-      aria-label={`Ver detalle ${id}`}
-      to={`/${pathOf(resource)}/${id}`}
-    >
-      Abrir <ArrowUpRight size={14} />
-    </Link>
+  const [query, setQuery] = useState("");
+  const [sede, setSede] = useState("");
+  const [state, setState] = useState("");
+  const [page, setPage] = useState(1);
+  const main = (title: ReactNode, sub?: ReactNode) => (
+    <div>
+      <div className="cell-main">{title}</div>
+      {sub && <div className="cell-sub">{sub}</div>}
+    </div>
   );
-  const records: {
-    id: number;
-    search: string;
-    sedes: number[];
-    state: string;
-    cells: ReactNode[];
-  }[] = [];
+
+  const records: Row[] = [];
   let headers: string[] = [];
   if (resource === "socios") {
-    headers = ["Socio", "Documento", "Contacto", "Habilitación", ""];
+    headers = ["Socio", "Documento", "Contacto", "Estado"];
     for (const s of db!.socios)
       records.push({
         id: s.id,
         search: `${s.nombre} ${s.documento} ${s.numero_socio} ${s.contacto}`,
         sedes: [],
         state: s.estado,
-        cells: [
-          <div>
-            {s.nombre}
-            <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-              Socio N.º {s.numero_socio}
-            </p>
-          </div>,
-          s.documento,
-          s.contacto,
-          <Badge value={s.estado} />,
-          detail(s.id),
-        ],
+        cells: [main(s.nombre, `Socio N.º ${s.numero_socio}`), s.documento, s.contacto, <Badge value={s.estado} />],
       });
   }
   if (resource === "sedes") {
-    headers = ["Sede", "Dirección", "Contacto", "Estado", ""];
+    headers = ["Sede", "Dirección", "Horarios", "Estado"];
     for (const s of db!.sedes)
       records.push({
         id: s.id,
         search: `${s.nombre} ${s.direccion} ${s.contacto}`,
         sedes: [s.id],
         state: s.estado,
-        cells: [
-          s.nombre,
-          s.direccion,
-          s.contacto,
-          <Badge value={s.estado} />,
-          detail(s.id),
-        ],
+        cells: [main(s.nombre, s.contacto), s.direccion, s.horarios, <Badge value={s.estado} />],
       });
   }
   if (resource === "ejemplares") {
-    headers = [
-      "Ejemplar",
-      "Sede propietaria",
-      "Ubicación actual",
-      "Estado",
-      "",
-    ];
-    for (const e of db!.ejemplares.filter(
-      (e) =>
-        !searchParams.get("libro_id") ||
-        e.libro_id === Number(searchParams.get("libro_id")),
-    ))
+    headers = ["Ejemplar", "Pertenece a", "Está en", "Estado"];
+    const libro = Number(searchParams.get("libro_id")) || null;
+    for (const e of db!.ejemplares.filter((e) => !libro || e.libro_id === libro))
       records.push({
         id: e.id,
         search: `${e.codigo_inventario} ${bookName(e.libro_id, db!)} ${sedeName(e.sede_propietaria_id, db!)}`,
-        sedes: [e.sede_propietaria_id],
+        sedes: [e.sede_propietaria_id, ...(e.sede_actual_id ? [e.sede_actual_id] : [])],
         state: e.estado,
         cells: [
           <div className="flex items-center gap-3">
-            <Cover
-              key={e.libro_id}
-              id={e.libro_id}
-              title={bookName(e.libro_id, db!)}
-              compact
-            />
-            <div>
-              {e.codigo_inventario}
-              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                {bookName(e.libro_id, db!)}
-              </p>
-            </div>
+            <Cover title={bookName(e.libro_id, db!)} compact />
+            {main(bookName(e.libro_id, db!), <span className="mono">{e.codigo_inventario}</span>)}
           </div>,
           sedeName(e.sede_propietaria_id, db!),
-          sedeName(e.sede_actual_id, db!),
+          e.sede_actual_id === null ? "Viajando" : sedeName(e.sede_actual_id, db!),
           <Badge value={e.estado} />,
-          detail(e.id),
         ],
       });
   }
   if (resource === "solicitudes") {
-    headers = ["Solicitud", "Socio y libro", "Circuito", "Estado", ""];
+    headers = ["Solicitud", "Libro y socio", "Trayecto", "Estado"];
     for (const s of db!.solicitudes)
       records.push({
         id: s.id,
@@ -181,47 +139,47 @@ export function EntityList({ resource }: { resource: Resource }) {
         sedes: [s.sede_origen_id, s.sede_destino_id],
         state: s.estado,
         cells: [
-          code("SOL", s.id),
-          `${socioName(s.socio_id, db!)} · ${bookName(s.libro_id, db!)}`,
-          statusLabels[s.tipo],
+          main(<span className="mono">{code("SOL", s.id)}</span>, dateLabel(s.fecha_solicitud)),
+          main(bookName(s.libro_id, db!), socioName(s.socio_id, db!)),
+          s.tipo === "LOCAL" ? (
+            <span className="muted">Local · {sedeName(s.sede_destino_id, db!)}</span>
+          ) : (
+            <span>
+              {sedeName(s.sede_origen_id, db!)} → <b>{sedeName(s.sede_destino_id, db!)}</b>
+            </span>
+          ),
           <Badge value={s.estado} />,
-          detail(s.id),
         ],
       });
   }
   if (resource === "prestamos") {
-    headers = ["Préstamo", "Socio y libro", "Vencimiento", "Situación", ""];
+    headers = ["Préstamo", "Libro y socio", "Vence", "Situación"];
     for (const p of db!.prestamos) {
       const s = db!.solicitudes.find((s) => s.id === p.solicitud_id)!;
-      const estado = p.fecha_devolucion
-        ? "DEVUELTO"
-        : isOverdue(p)
-          ? "VENCIDO"
-          : "ACTIVO";
+      const estado = loanState(p);
       records.push({
         id: p.id,
         search: `${code("PRE", p.id)} ${socioName(s.socio_id, db!)} ${bookName(s.libro_id, db!)} ${db!.ejemplares.find((e) => e.id === s.ejemplar_id)?.codigo_inventario}`,
         sedes: [s.sede_destino_id],
         state: estado,
         cells: [
-          code("PRE", p.id),
-          `${socioName(s.socio_id, db!)} · ${bookName(s.libro_id, db!)}`,
+          <span className="mono">{code("PRE", p.id)}</span>,
+          main(bookName(s.libro_id, db!), socioName(s.socio_id, db!)),
           dateLabel(p.fecha_vencimiento),
           <div>
             <Badge value={estado} />
             {estado === "VENCIDO" && (
-              <p className="mt-1 text-xs text-[var(--destructive)]">
-                {daysLate(p)} días de atraso
-              </p>
+              <div className="cell-sub text-[var(--bad)]">
+                {p.dias_atraso} días · {pesos(p.multa)}
+              </div>
             )}
           </div>,
-          detail(p.id),
         ],
       });
     }
   }
   if (resource === "reservas") {
-    headers = ["Reserva", "Socio y libro", "Sede de retiro", "Estado", ""];
+    headers = ["Reserva", "Libro y socio", "Retira en", "Estado"];
     for (const r of db!.reservas)
       records.push({
         id: r.id,
@@ -229,38 +187,36 @@ export function EntityList({ resource }: { resource: Resource }) {
         sedes: [r.sede_retiro_id],
         state: r.estado,
         cells: [
-          code("RES", r.id),
-          `${socioName(r.socio_id, db!)} · ${bookName(r.libro_id, db!)}`,
+          main(<span className="mono">{code("RES", r.id)}</span>, dateLabel(r.fecha_reserva)),
+          main(bookName(r.libro_id, db!), socioName(r.socio_id, db!)),
           sedeName(r.sede_retiro_id, db!),
           <Badge value={r.estado} />,
-          detail(r.id),
         ],
       });
   }
   if (resource === "remitos") {
-    headers = ["Remito", "Origen → destino", "Ejemplares", "Estado", ""];
-    for (const r of db!.remitos)
+    headers = ["Remito", "Trayecto", "Ejemplares", "Estado"];
+    for (const r of db!.remitos) {
+      const ds = db!.detalle_remitos.filter((d) => d.remito_id === r.id);
       records.push({
         id: r.id,
-        search: `${r.numero} ${sedeName(r.sede_origen_id, db!)} ${sedeName(r.sede_destino_id, db!)} ${db!.detalle_remitos
-          .filter((d) => d.remito_id === r.id)
-          .map(
-            (d) =>
-              db!.ejemplares.find((e) => e.id === d.ejemplar_id)
-                ?.codigo_inventario,
-          )
+        search: `${r.numero} ${sedeName(r.sede_origen_id, db!)} ${sedeName(r.sede_destino_id, db!)} ${ds
+          .map((d) => db!.ejemplares.find((e) => e.id === d.ejemplar_id)?.codigo_inventario)
           .join(" ")}`,
         sedes: [r.sede_origen_id, r.sede_destino_id],
         state: r.estado,
         cells: [
-          r.numero,
-          `${sedeName(r.sede_origen_id, db!)} → ${sedeName(r.sede_destino_id, db!)}`,
-          db!.detalle_remitos.filter((d) => d.remito_id === r.id).length,
+          main(<span className="mono">{r.numero}</span>, dateLabel(r.fecha_creacion)),
+          <span>
+            {sedeName(r.sede_origen_id, db!)} → <b>{sedeName(r.sede_destino_id, db!)}</b>
+          </span>,
+          ds.length,
           <Badge value={r.estado} />,
-          detail(r.id),
         ],
       });
+    }
   }
+
   const states = [...new Set(records.map((r) => r.state))];
   const filtered = records.filter(
     (r) =>
@@ -268,68 +224,44 @@ export function EntityList({ resource }: { resource: Resource }) {
       (!sede || r.sedes.includes(Number(sede))) &&
       (!state || r.state === state),
   );
+
   const books = db!.libros.filter((b) => {
     const es = db!.ejemplares.filter(
-      (e) =>
-        e.libro_id === b.id &&
-        (!sede || e.sede_propietaria_id === Number(sede)),
+      (e) => e.libro_id === b.id && (!sede || e.sede_propietaria_id === Number(sede)),
     );
     const hasAvailable = es.some((e) => available(e, db!));
     return (
-      `${b.titulo} ${b.isbn} ${authorNames(b, db!)}`
-        .toLocaleLowerCase()
-        .includes(query.toLocaleLowerCase()) &&
+      `${b.titulo} ${b.isbn ?? ""} ${b.autor}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
       (!sede || es.length > 0) &&
       (!state || (state === "DISPONIBLE" ? hasAvailable : !hasAvailable))
     );
   });
   const count = resource === "libros" ? books.length : filtered.length;
+
+  const createAction =
+    resource === "prestamos" ? (
+      <Link to="/prestamos/devolucion" className={primaryClass}>
+        <Undo2 size={16} /> Registrar devolución
+      </Link>
+    ) : (
+      <Link
+        className={primaryClass}
+        to={`/${pathOf(resource)}/nuevo${resource === "ejemplares" && searchParams.get("libro_id") ? `?libro_id=${searchParams.get("libro_id")}` : ""}`}
+      >
+        <Plus size={16} /> {conf.create}
+      </Link>
+    );
+
   return (
-    <div className={`collection-page collection-${resource}`}>
-      <Heading
-        title={conf.title}
-        description={conf.description}
-        action={
-          resource === "prestamos" ? (
-            <Link to="/prestamos/devolucion" className={primaryClass}>
-              Registrar devolución
-            </Link>
-          ) : (
-            <Link
-              className={primaryClass}
-              to={`/${pathOf(resource)}/nuevo${resource === "ejemplares" && searchParams.get("libro_id") ? `?libro_id=${searchParams.get("libro_id")}` : ""}`}
-            >
-              <Plus size={16} />
-              {conf.create}
-            </Link>
-          )
-        }
-      />
-      {resource === "libros" ? (
-        <div className="collection-summary">
-          <span>
-            <strong>{db!.libros.length}</strong> títulos en el catálogo
-          </span>
-          <span>
-            <strong>{db!.ejemplares.length}</strong> ejemplares en la red
-          </span>
-          <span>
-            <strong>
-              {db!.sedes.filter((s) => s.estado === "ACTIVA").length}
-            </strong>{" "}
-            bibliotecas conectadas
-          </span>
-        </div>
-      ) : (
-        <div
-          className="state-index"
-          role="group"
-          aria-label={`Estado de ${conf.title.toLowerCase()}`}
-        >
+    <>
+      <Heading title={conf.title} description={conf.description} action={createAction} />
+      {resource !== "libros" && (
+        <div className="chips" role="group" aria-label="Filtrar por estado">
           {["", ...states].map((value) => (
             <button
               type="button"
               key={value}
+              className="chip"
               aria-pressed={state === value}
               onClick={() => {
                 setState(value);
@@ -337,16 +269,12 @@ export function EntityList({ resource }: { resource: Resource }) {
               }}
             >
               {value ? (statusLabels[value] ?? value) : "Todos"}
-              <span>
-                {value
-                  ? records.filter((r) => r.state === value).length
-                  : records.length}
-              </span>
+              <span>{value ? records.filter((r) => r.state === value).length : records.length}</span>
             </button>
           ))}
         </div>
       )}
-      <div className="collection-tools mb-6 flex flex-col gap-3 md:flex-row">
+      <div className="toolbar">
         <SearchBox
           value={query}
           onChange={(v) => {
@@ -358,7 +286,7 @@ export function EntityList({ resource }: { resource: Resource }) {
         {resource !== "socios" && (
           <select
             aria-label="Filtrar por sede"
-            className={`${inputClass} md:w-[220px]`}
+            className="input"
             value={sede}
             onChange={(e) => {
               setSede(e.target.value);
@@ -366,88 +294,68 @@ export function EntityList({ resource }: { resource: Resource }) {
             }}
           >
             <option value="">Todas las sedes</option>
-            {db!.sedes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nombre}
-              </option>
-            ))}
+            <option value={sedeId}>Mi sede ({sedeName(sedeId, db!)})</option>
+            {db!.sedes
+              .filter((s) => s.id !== sedeId)
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nombre}
+                </option>
+              ))}
           </select>
         )}
-        <select
-          aria-label="Filtrar por estado"
-          className={`${inputClass} md:w-[220px]`}
-          value={state}
-          onChange={(e) => {
-            setState(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">Todos los estados</option>
-          {(resource === "libros"
-            ? ["DISPONIBLE", "SIN_DISPONIBILIDAD"]
-            : states
-          ).map((s) => (
-            <option key={s} value={s}>
-              {statusLabels[s] ?? "Sin disponibilidad"}
-            </option>
-          ))}
-        </select>
+        {resource === "libros" && (
+          <select
+            aria-label="Filtrar por disponibilidad"
+            className="input"
+            value={state}
+            onChange={(e) => setState(e.target.value)}
+          >
+            <option value="">Toda la colección</option>
+            <option value="DISPONIBLE">Con copias disponibles</option>
+            <option value="SIN">Sin copias disponibles</option>
+          </select>
+        )}
       </div>
-      <div className="collection-caption">
-        <p>
-          {resource === "libros"
-            ? "EXPLORAR EL FONDO"
-            : "REGISTRO DE MOSTRADOR"}
-        </p>
-        <span>
-          {count} {resource === "libros" ? "títulos" : "registros"}
-          {query || sede || state ? " encontrados" : " en total"}
-        </span>
-      </div>
+      <p className="mb-3 text-sm text-[var(--muted-foreground)]">
+        {count} {resource === "libros" ? "títulos" : "registros"}
+        {query || sede || state ? " encontrados" : ""}
+      </p>
       {resource === "libros" ? (
         books.length ? (
-          <div className="book-shelves">
+          <div className="shelf">
             {books.map((b) => {
               const es = db!.ejemplares.filter(
                 (e) =>
                   e.libro_id === b.id &&
+                  e.estado !== "BAJA" &&
                   (!sede || e.sede_propietaria_id === Number(sede)),
               );
               const av = es.filter((e) => available(e, db!));
               return (
-                <article key={b.id} className="book-entry">
-                  <Link
-                    className="book-display"
-                    to={`/catalogo/${b.id}`}
-                    aria-label={`Consultar ${b.titulo}`}
-                  >
-                    <span className="book-shelf-number">
-                      {String(db!.libros.indexOf(b) + 1).padStart(2, "0")}
-                    </span>
-                    <Cover id={b.id} title={b.titulo} />
-                    <ArrowUpRight size={17} className="book-open-icon" />
-                  </Link>
-                  <div className="book-description">
-                    <p className="book-author">{authorNames(b, db!)}</p>
-                    <h2 className="font-heading">
-                      <Link to={`/catalogo/${b.id}`}>{b.titulo}</Link>
-                    </h2>
-                    <p className="book-edition">
-                      {b.editorial}
-                      {b.edicion ? ` · ${b.edicion}` : ""}
-                    </p>
-                    <div className="book-availability">
-                      <Badge
-                        value={av.length ? "DISPONIBLE" : "Sin disponibilidad"}
-                      />
-                      <span>
-                        {av.length
-                          ? `${av.length} de ${es.length} copias`
-                          : "Admite reserva"}
-                      </span>
+                <Link key={b.id} to={`/catalogo/${b.id}`} className="book-card">
+                  <div className="cover-box">
+                    <Cover title={b.titulo} />
+                  </div>
+                  <div className="book-info">
+                    <h2>{b.titulo}</h2>
+                    <p className="author">{b.autor}</p>
+                    <div className="avail">
+                      <div className="flex items-center justify-between text-xs">
+                        <Badge
+                          value={av.length ? "DISPONIBLE" : "PENDIENTE"}
+                          label={av.length ? "Disponible" : "Sin copias libres"}
+                        />
+                        <span className="muted">
+                          {av.length}/{es.length}
+                        </span>
+                      </div>
+                      <div className="avail-bar">
+                        <span style={{ width: es.length ? `${(av.length / es.length) * 100}%` : 0 }} />
+                      </div>
                     </div>
                   </div>
-                </article>
+                </Link>
               );
             })}
           </div>
@@ -457,30 +365,23 @@ export function EntityList({ resource }: { resource: Resource }) {
       ) : (
         <Table
           headers={headers}
-          rows={filtered.slice((page - 1) * 20, page * 20).map((r) => r.cells)}
+          rows={filtered.slice((page - 1) * PAGE, page * PAGE).map((r) => r.cells)}
+          onRowClick={(i) => navigate(`/${pathOf(resource)}/${filtered[(page - 1) * PAGE + i].id}`)}
         />
       )}
-      {resource !== "libros" && count > 20 && (
-        <div className="mt-5 flex items-center justify-end gap-4">
-          <button
-            className={outlineClass}
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
+      {resource !== "libros" && count > PAGE && (
+        <div className="mt-4 flex items-center justify-end gap-3">
+          <button className={`${outlineClass} btn-sm`} disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
             Anterior
           </button>
           <span className="text-sm">
-            Página {page} de {Math.ceil(count / 20)}
+            Página {page} de {Math.ceil(count / PAGE)}
           </span>
-          <button
-            className={outlineClass}
-            disabled={page * 20 >= count}
-            onClick={() => setPage((p) => p + 1)}
-          >
+          <button className={`${outlineClass} btn-sm`} disabled={page * PAGE >= count} onClick={() => setPage((p) => p + 1)}>
             Siguiente
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }

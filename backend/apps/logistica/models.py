@@ -7,12 +7,32 @@ from apps.catalogo.models import CondicionFisica
 
 
 class EstadoRemito(models.TextChoices):
+    """Valores persistidos del ciclo de vida. El comportamiento vive en `states.py`."""
+
     EN_PREPARACION = "EN_PREPARACION", "En preparación"
     EMPAQUETADO = "EMPAQUETADO", "Empaquetado"
-    DESPACHADO = "DESPACHADO", "Despachado"
     EN_TRANSITO = "EN_TRANSITO", "En tránsito"
     RECIBIDO = "RECIBIDO", "Recibido"
+    RECIBIDO_CON_INCIDENCIAS = "RECIBIDO_CON_INCIDENCIAS", "Recibido con incidencias"
     CANCELADO = "CANCELADO", "Cancelado"
+
+
+ESTADOS_VIGENTES = (
+    EstadoRemito.EN_PREPARACION,
+    EstadoRemito.EMPAQUETADO,
+    EstadoRemito.EN_TRANSITO,
+)
+ESTADOS_FINALES = (
+    EstadoRemito.RECIBIDO,
+    EstadoRemito.RECIBIDO_CON_INCIDENCIAS,
+    EstadoRemito.CANCELADO,
+)
+
+
+class ResultadoRecepcion(models.TextChoices):
+    CONFORME = "CONFORME", "Llegó en condiciones"
+    DANADO = "DANADO", "Llegó dañado"
+    EXTRAVIADO = "EXTRAVIADO", "Extraviado en el trayecto"
 
 
 class Remito(models.Model):
@@ -24,7 +44,7 @@ class Remito(models.Model):
         "sedes.Sede", on_delete=models.PROTECT, related_name="remitos_recibidos"
     )
     estado = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=EstadoRemito.choices,
         default=EstadoRemito.EN_PREPARACION,
     )
@@ -52,6 +72,26 @@ class Remito(models.Model):
     def __str__(self) -> str:
         return self.numero
 
+    # --- Contexto del patrón State -------------------------------------
+    @property
+    def comportamiento(self):
+        """Objeto State que corresponde al valor persistido de `estado`."""
+        from .states import estado_actual
+
+        return estado_actual(self)
+
+    def transicionar(self, destino: str, *, responsable: str, observacion: str = "") -> None:
+        """Único punto que cambia el estado: registra el evento y persiste."""
+        EventoRemito.objects.create(
+            remito=self,
+            estado_anterior=self.estado,
+            estado_nuevo=destino,
+            responsable=responsable.strip() or "Personal de biblioteca",
+            observacion=observacion.strip(),
+        )
+        self.estado = destino
+        self.save()
+
 
 class DetalleRemito(models.Model):
     remito = models.ForeignKey(Remito, on_delete=models.PROTECT, related_name="detalles")
@@ -72,6 +112,12 @@ class DetalleRemito(models.Model):
     condicion_recepcion = models.CharField(
         max_length=80,
         choices=CondicionFisica.choices,
+        null=True,
+        blank=True,
+    )
+    resultado_recepcion = models.CharField(
+        max_length=20,
+        choices=ResultadoRecepcion.choices,
         null=True,
         blank=True,
     )
@@ -99,8 +145,8 @@ class DetalleRemito(models.Model):
 class EventoRemito(models.Model):
     remito = models.ForeignKey(Remito, on_delete=models.PROTECT, related_name="eventos")
     fecha_hora = models.DateTimeField(default=timezone.now)
-    estado_anterior = models.CharField(max_length=20, null=True, blank=True)
-    estado_nuevo = models.CharField(max_length=20, choices=EstadoRemito.choices)
+    estado_anterior = models.CharField(max_length=30, null=True, blank=True)
+    estado_nuevo = models.CharField(max_length=30, choices=EstadoRemito.choices)
     responsable = models.CharField(max_length=150)
     observacion = models.TextField(blank=True)
 

@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.sedes.models import Sede
 
-from .models import DetalleRemito, EventoRemito, Remito
+from .models import DetalleRemito, EventoRemito, Remito, ResultadoRecepcion
 
 
 class RemitoAccionSerializer(serializers.Serializer):
@@ -14,17 +14,37 @@ class RemitoAsignarSerializer(serializers.Serializer):
     ejemplar_id = serializers.IntegerField(min_value=1)
 
 
+class PrepararRetornoSerializer(serializers.Serializer):
+    ejemplar_id = serializers.IntegerField(min_value=1)
+
+
 class RemitoRecibirSerializer(RemitoAccionSerializer):
     responsable = serializers.CharField()
-    verificados = serializers.ListField(child=serializers.IntegerField(min_value=1))
+    verificados = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, default=list
+    )
+    resultados = serializers.DictField(
+        child=serializers.ChoiceField(choices=ResultadoRecepcion.choices),
+        required=False,
+        default=dict,
+        help_text="Mapa ejemplar_id → CONFORME | DANADO | EXTRAVIADO.",
+    )
 
 
 class RemitoSerializer(serializers.ModelSerializer):
+    numero = serializers.CharField(required=False, allow_blank=True, max_length=40)
     sede_origen_id = serializers.PrimaryKeyRelatedField(
         source="sede_origen", queryset=Sede.objects.all()
     )
     sede_destino_id = serializers.PrimaryKeyRelatedField(
         source="sede_destino", queryset=Sede.objects.all()
+    )
+    estado_clase = serializers.SerializerMethodField(
+        help_text="Clase State que gobierna el remito en su estado actual."
+    )
+    estado_descripcion = serializers.SerializerMethodField()
+    acciones = serializers.SerializerMethodField(
+        help_text="Operaciones que admite el estado actual (patrón State)."
     )
 
     class Meta:
@@ -35,25 +55,33 @@ class RemitoSerializer(serializers.ModelSerializer):
             "sede_origen_id",
             "sede_destino_id",
             "estado",
+            "estado_clase",
+            "estado_descripcion",
+            "acciones",
             "fecha_creacion",
             "fecha_despacho",
             "fecha_recepcion",
         ]
         read_only_fields = ["id", "estado", "fecha_creacion", "fecha_despacho", "fecha_recepcion"]
 
+    def get_estado_clase(self, remito: Remito) -> str:
+        return type(remito.comportamiento).__name__
+
+    def get_estado_descripcion(self, remito: Remito) -> str:
+        return remito.comportamiento.descripcion
+
+    def get_acciones(self, remito: Remito) -> list[str]:
+        return remito.comportamiento.operaciones_admitidas()
+
     def validate_numero(self, value: str) -> str:
         numero = value.strip()
-
         if not numero:
-            raise serializers.ValidationError("El número de remito es obligatorio.")
-
+            return ""
         otros = Remito.objects.all()
         if self.instance is not None:
             otros = otros.exclude(pk=self.instance.pk)
-
         if otros.filter(numero__iexact=numero).exists():
             raise serializers.ValidationError("Ya existe un remito con ese número.")
-
         return numero
 
 
@@ -67,6 +95,7 @@ class DetalleRemitoSerializer(serializers.ModelSerializer):
             "solicitud_id",
             "condicion_salida",
             "condicion_recepcion",
+            "resultado_recepcion",
         ]
         read_only_fields = fields
 

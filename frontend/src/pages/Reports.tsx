@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowUpRight } from "lucide-react";
 import { api } from "../api";
 import { useLibrary } from "../app/context";
 import { today } from "../domain/selectors";
@@ -13,58 +12,45 @@ import {
   Alert,
   Back,
   Button,
+  Empty,
   Field,
   Heading,
   inputClass,
+  Kpi,
   panelClass,
   Table,
 } from "../components/ui";
 
 const reports: [ReportType, string, string][] = [
-  [
-    "vencidos",
-    "Préstamos vencidos",
-    "Cantidad, días de atraso y sede de entrega.",
-  ],
-  [
-    "demanda",
-    "Demanda interbibliotecaria",
-    "Libros solicitados entre sedes y ranking de demanda.",
-  ],
-  [
-    "movimientos",
-    "Movimientos entre sedes",
-    "Envíos despachados y tiempo de tránsito de los recibidos.",
-  ],
-  [
-    "disponibilidad",
-    "Disponibilidad por sede",
-    "Ejemplares por libro, sede propietaria y estado.",
-  ],
-  [
-    "operaciones",
-    "Comprobación de operaciones ABMC",
-    "Altas, modificaciones, bajas y operaciones, con usuario y cambios.",
-  ],
+  ["activos", "Préstamos activos y material en tránsito", "Qué está en manos de socios y qué está viajando entre sedes."],
+  ["vencidos", "Préstamos vencidos y multas", "Atrasos por sede, días de demora y multas acumuladas."],
+  ["demanda", "Libros más pedidos entre sedes", "Ranking de solicitudes interbibliotecarias por libro y sede."],
+  ["disponibilidad", "Disponibilidad por sede", "Copias por libro y sede propietaria, y cuántas están disponibles."],
+  ["logistica", "Envíos exitosos e incidencias", "Tasa de éxito de los remitos y ejemplares dañados o extraviados."],
+  ["movimientos", "Movimiento entre sedes", "Envíos por trayecto y tiempo promedio de tránsito."],
+  ["operaciones", "Bitácora de operaciones", "Altas, modificaciones y bajas con usuario y cambios."],
 ];
+const firstOfPreviousMonth = () => {
+  const [y, m] = today().split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 2, 1));
+  return date.toISOString().slice(0, 10);
+};
 export function ReportCenter() {
   return (
     <>
       <Heading
+        kicker="Análisis"
         title="Reportes"
-        description="Consultá indicadores de circulación, logística y disponibilidad."
+        description="Indicadores de circulación, logística y disponibilidad. Todos se filtran por período y sede, y se pueden imprimir o exportar a CSV."
       />
-      <div className="report-index">
+      <div className="report-list">
         {reports.map(([id, name, description], i) => (
-          <Link key={id} to={`/reportes/${id}`} className="report-entry group">
-            <span className="report-number font-heading">0{i + 1}</span>
+          <Link key={id} to={`/reportes/${id}`} className="card report-card">
+            <span className="num">{i + 1}</span>
             <div>
-              <h2 className="font-heading text-2xl">{name}</h2>
-              <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-                {description}
-              </p>
+              <h2>{name}</h2>
+              <p>{description}</p>
             </div>
-            <ArrowUpRight size={21} />
           </Link>
         ))}
       </div>
@@ -76,7 +62,7 @@ export function ReportPage() {
   const { db } = useLibrary();
   const def = reports.find((r) => r[0] === type);
   const [draft, setDraft] = useState<ReportFilter>({
-    desde: "2026-10-01",
+    desde: firstOfPreviousMonth(),
     hasta: today(),
     sede: null,
   });
@@ -139,7 +125,7 @@ export function ReportPage() {
         title={def[1]}
         description={`Período: ${filter.desde}–${filter.hasta} · ${filter.sede ? db!.sedes.find((s) => s.id === filter.sede)?.nombre : "Todas las sedes"}`}
         action={
-          <div className="flex gap-3 report-actions">
+          <div className="no-print flex gap-2">
             <Button
               variant="outline"
               disabled={!result || loading}
@@ -167,7 +153,7 @@ export function ReportPage() {
           setError("");
           setFilter(draft);
         }}
-        className={`${panelClass} mb-7 flex flex-wrap items-end gap-5`}
+        className={`${panelClass} no-print mb-6 flex flex-wrap items-end gap-4`}
       >
         {
           <Field label="Desde">
@@ -217,16 +203,25 @@ export function ReportPage() {
         <Button type="submit">Aplicar</Button>
       </form>
       {error && <Alert error>{error}</Alert>}
-      {loading && <p>Cargando reporte…</p>}
+      {loading && <p className="muted">Cargando reporte…</p>}
       {result && (
         <>
-          <h2 className="font-heading mb-3 text-2xl">{result.summary}</h2>
-          <p className="mb-6 text-sm text-[var(--muted-foreground)]">
-            {result.rule}
+          {result.kpis && (
+            <div className="kpi-grid mb-5">
+              {result.kpis.map((k) => (
+                <Kpi key={k.label} value={k.value} label={k.label} tone={k.tone ?? "info"} />
+              ))}
+            </div>
+          )}
+          <h2 className="section-title !mt-2 !mb-1">{result.summary}</h2>
+          <p className="mb-5 max-w-[90ch] text-sm text-[var(--muted-foreground)]">
+            <b>Criterio:</b> {result.rule}
           </p>
-          <div className={`report-result report-${type}`}>
-            <Table headers={result.headers} rows={result.rows} />
-          </div>
+          <Table
+            headers={result.headers}
+            rows={result.rows}
+            empty={<Empty title="Sin datos para este período" detail="Ampliá el rango de fechas o quitá el filtro de sede." />}
+          />
         </>
       )}
       <p className="mt-5 text-xs text-[var(--muted-foreground)]">

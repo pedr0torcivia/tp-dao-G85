@@ -71,7 +71,7 @@ class CircuitoCompletoTest(APITestCase):
         )
         ruta = f"remitos/{remito['id']}"
         self.post(f"{ruta}/asignar", {"ejemplar_id": self.ejemplar.id})
-        for accion in ["empaquetar", "despachar", "registrar-salida"]:
+        for accion in ["empaquetar", "despachar"]:
             self.post(f"{ruta}/{accion}")
         self.post(
             f"{ruta}/recibir",
@@ -80,7 +80,7 @@ class CircuitoCompletoTest(APITestCase):
                 "responsable": "Personal de prueba",
             },
         )
-        self.assertEqual(EventoRemito.objects.filter(remito_id=remito["id"]).count(), 5)
+        self.assertEqual(EventoRemito.objects.filter(remito_id=remito["id"]).count(), 4)
 
     def circuito(self, condicion):
         solicitud = self.post(

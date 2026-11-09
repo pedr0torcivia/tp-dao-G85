@@ -127,7 +127,7 @@ class RemitoApiTest(APITestCase):
         self.ejemplar.refresh_from_db()
         self.assertEqual(self.ejemplar.estado, "ASIGNADO")
 
-        rutas = ["remito-empaquetar", "remito-despachar", "remito-registrar-salida"]
+        rutas = ["remito-empaquetar", "remito-despachar"]
         for ruta in rutas:
             respuesta = self.client.post(reverse(ruta, args=[remito_id]), format="json")
             self.assertEqual(respuesta.status_code, status.HTTP_200_OK, ruta)
@@ -153,7 +153,7 @@ class RemitoApiTest(APITestCase):
         historial = self.client.get(reverse("evento-remito-list"), {"remito_id": remito_id})
         self.assertEqual(
             [evento["estado_nuevo"] for evento in historial.data["results"]],
-            ["EN_PREPARACION", "EMPAQUETADO", "DESPACHADO", "EN_TRANSITO", "RECIBIDO"],
+            ["EN_PREPARACION", "EMPAQUETADO", "EN_TRANSITO", "RECIBIDO"],
         )
 
 

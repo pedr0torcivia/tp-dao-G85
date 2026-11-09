@@ -34,7 +34,7 @@ Las reglas operativas vigentes se describen en `docs/reglas-negocio.md`.
 
 ## Estado
 
-La aplicación integra React con la API y PostgreSQL, con autenticación de personal y sesiones protegidas. Incluye sedes, socios, catálogo, préstamos locales e interbibliotecarios, reservas, devolución y retorno de ejemplares, remitos con historial y cinco reportes consultados en el backend. El modo de demostración sin servidor se habilita únicamente con `VITE_DATA_SOURCE=mock`.
+La aplicación integra React con la API y PostgreSQL, con autenticación de personal y sesiones protegidas. Incluye sedes, socios, catálogo, préstamos locales e interbibliotecarios, reservas, devolución y retorno de ejemplares, remitos con trazabilidad e incidencias de recepción, multas por atraso y siete reportes consultados en el backend. La interfaz incluye una mesa de trabajo por sede con el próximo paso de cada tarea y una guía (*Cómo funciona*) que explica los circuitos y los patrones State y Strategy (ver `docs/patrones.md`).
 
 Los cinco reportes exigen Desde y Hasta, permiten CSV e impresión/PDF e incluyen una bitácora que comprueba altas, modificaciones, bajas y operaciones. RP04 filtra altas del período y muestra su estado actual; RP05 muestra la fecha y los cambios de cada escritura de la API.
 
@@ -83,7 +83,7 @@ npm ci
 npm run dev
 ```
 
-Abrir la dirección que muestre Vite en la terminal (por defecto, `http://127.0.0.1:5173/`). Este modo usa la API local en el puerto 8000. Para explorar sin backend, configurar explícitamente `VITE_DATA_SOURCE=mock` en `frontend/.env`.
+Abrir la dirección que muestre Vite en la terminal (por defecto, `http://127.0.0.1:5173/`). Este modo usa la API local en el puerto 8000.
 
 ## Formato de commits
 

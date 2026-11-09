@@ -163,7 +163,7 @@ class CirculacionApiTest(APITestCase):
         self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
         self.assertEqual(respuesta.data["tipo"], "INTERBIBLIOTECARIO")
 
-    def test_interbibliotecaria_no_admite_preparacion_local(self):
+    def test_interbibliotecaria_prepara_mediante_remito(self):
         destino = crear_sede(nombre="Destino")
         respuesta = self.client.post(
             reverse("solicitud-list"),
@@ -187,4 +187,9 @@ class CirculacionApiTest(APITestCase):
             {},
             format="json",
         )
-        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        # La estrategia interbibliotecaria no deja el libro en mostrador: arma un remito.
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data["estado"], "ASIGNADA")
+        self.assertIsNotNone(respuesta.data["remito_id"])
+        self.assertEqual(respuesta.data["estrategia"], "TramitacionInterbibliotecaria")
+        self.assertEqual(respuesta.data["acciones"], ["cancelar"])

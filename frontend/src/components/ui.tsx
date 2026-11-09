@@ -9,89 +9,85 @@ import {
   type ReactNode,
 } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, BookOpen, Search, X } from "lucide-react";
-import { statusLabels } from "../domain/selectors";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Info,
+  Puzzle,
+  Search,
+  SearchX,
+  X,
+} from "lucide-react";
+import { statusLabels, toneOf, type Tone } from "../domain/selectors";
 
-export const buttonClass =
-  "library-button inline-flex min-h-10 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50";
-export const primaryClass = `${buttonClass} border-transparent bg-[var(--action)] text-[var(--primary-foreground)]`;
-export const outlineClass = `${buttonClass} border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]`;
-export const inputClass =
-  "library-input w-full min-h-11 rounded-md border border-[var(--input)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]";
-export const panelClass =
-  "library-panel rounded-md border border-[var(--border)] bg-[var(--card)] p-6";
+export const primaryClass = "btn btn-primary";
+export const accentClass = "btn btn-accent";
+export const outlineClass = "btn btn-outline";
+export const ghostClass = "btn btn-ghost";
+export const dangerClass = "btn btn-danger";
+export const inputClass = "input";
+export const panelClass = "card card-pad";
+
+type Variant = "primary" | "accent" | "outline" | "ghost" | "danger";
+const variants: Record<Variant, string> = {
+  primary: primaryClass,
+  accent: accentClass,
+  outline: outlineClass,
+  ghost: ghostClass,
+  danger: dangerClass,
+};
 
 export function Button({
   variant = "primary",
+  size,
   className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "outline";
+  variant?: Variant;
+  size?: "sm";
 }) {
   return (
     <button
+      type="button"
       {...props}
-      className={`${variant === "primary" ? primaryClass : outlineClass} ${className}`}
+      className={`${variants[variant]} ${size === "sm" ? "btn-sm" : ""} ${className}`}
     />
   );
 }
-export function Badge({ value }: { value: string }) {
-  const theme = [
-    "HABILITADO",
-    "ACTIVA",
-    "DISPONIBLE",
-    "CUMPLIDA",
-    "RECIBIDO",
-    "DEVUELTO",
-  ].includes(value)
-    ? "bg-[var(--success-bg)] text-[var(--success)]"
-    : ["Sin disponibilidad", "PENDIENTE", "EN_PREPARACION"].includes(value)
-      ? "bg-[var(--warning-bg)] text-[var(--warning)]"
-      : [
-            "INHABILITADO",
-            "BAJA",
-            "CANCELADA",
-            "CANCELADO",
-            "RECHAZADA",
-            "VENCIDO",
-            "NO_APTO",
-          ].includes(value)
-        ? "bg-[var(--warning-bg)] text-[var(--destructive)]"
-        : "bg-[var(--info-bg)] text-[var(--info)]";
+
+/** Píldora de estado: el color sale del significado, no del componente. */
+export function Badge({ value, label }: { value: string; label?: string }) {
   return (
-    <span
-      className={`library-status inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium ${theme}`}
-    >
-      <span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />
-      {statusLabels[value] ?? value}
+    <span className="pill" data-tone={toneOf(value)}>
+      {label ?? statusLabels[value] ?? value}
     </span>
   );
 }
+
 export function Heading({
   title,
   description,
   action,
+  kicker,
 }: {
-  title: string;
-  description?: string;
+  title: ReactNode;
+  description?: ReactNode;
   action?: ReactNode;
+  kicker?: ReactNode;
 }) {
   return (
-    <div className="page-heading mb-8 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="font-heading text-[38px] leading-tight font-medium tracking-[-1px] text-[var(--foreground)]">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--muted-foreground)]">
-            {description}
-          </p>
-        )}
+    <div className="page-head">
+      <div className="min-w-0">
+        {kicker && <p className="kicker">{kicker}</p>}
+        <h1>{title}</h1>
+        {description && <p className="desc">{description}</p>}
       </div>
-      {action}
+      {action && <div className="flex flex-wrap gap-2">{action}</div>}
     </div>
   );
 }
+
 export function Back({
   to,
   children = "Volver",
@@ -102,46 +98,52 @@ export function Back({
   return (
     <Link
       to={to}
-      className="mb-6 inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]"
+      className="no-print mb-4 inline-flex items-center gap-2 text-sm font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
     >
       <ArrowLeft size={16} />
       {children}
     </Link>
   );
 }
+
 export function Empty({
   title = "No encontramos resultados",
   detail = "Probá con otra búsqueda o modificá los filtros.",
+  action,
 }: {
   title?: string;
   detail?: string;
+  action?: ReactNode;
 }) {
   return (
-    <div
-      className={`${panelClass} flex min-h-52 flex-col items-center justify-center text-center`}
-    >
-      <BookOpen size={32} className="mb-4 text-[var(--muted-foreground)]" />
-      <h2 className="font-heading text-xl">{title}</h2>
-      <p className="mt-2 text-sm text-[var(--muted-foreground)]">{detail}</p>
+    <div className="empty">
+      <SearchX size={26} />
+      <strong>{title}</strong>
+      <span>{detail}</span>
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }
+
 export function Alert({
   children,
   error = false,
+  tone,
 }: {
   children: ReactNode;
   error?: boolean;
+  tone?: Tone;
 }) {
+  const t = tone ?? (error ? "bad" : "info");
+  const Icon = t === "bad" || t === "warn" ? AlertTriangle : t === "ok" ? Check : Info;
   return (
-    <div
-      role={error ? "alert" : "status"}
-      className={`my-4 rounded-lg border border-[var(--border)] p-4 text-sm ${error ? "bg-[var(--warning-bg)] text-[var(--destructive)]" : "bg-[var(--info-bg)] text-[var(--info)]"}`}
-    >
-      {children}
+    <div role={error ? "alert" : "status"} className="alert" data-tone={t}>
+      <Icon size={17} />
+      <div>{children}</div>
     </div>
   );
 }
+
 export function SearchBox({
   value,
   onChange,
@@ -152,14 +154,15 @@ export function SearchBox({
   placeholder: string;
 }) {
   return (
-    <div className="relative min-w-0 flex-1">
+    <div className="search relative min-w-0">
       <Search
         size={17}
-        className="absolute top-3.5 left-3 text-[var(--muted-foreground)]"
+        className="pointer-events-none absolute top-3 left-3 text-[var(--muted-foreground)]"
       />
       <input
+        type="search"
         aria-label={placeholder}
-        className={`${inputClass} pl-10`}
+        className="input pl-10"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -167,25 +170,26 @@ export function SearchBox({
     </div>
   );
 }
+
 export function Table({
   headers,
   rows,
+  onRowClick,
+  empty,
 }: {
   headers: string[];
   rows: ReactNode[][];
+  onRowClick?: (index: number) => void;
+  empty?: ReactNode;
 }) {
-  if (!rows.length) return <Empty />;
+  if (!rows.length) return <>{empty ?? <Empty />}</>;
   return (
-    <div className="library-register overflow-x-auto border-y border-[var(--border)] bg-[var(--card)]">
-      <table className="w-full text-left text-sm">
-        <thead className="text-[var(--muted-foreground)]">
+    <div className="table-wrap">
+      <table>
+        <thead>
           <tr>
             {headers.map((h, i) => (
-              <th
-                key={i}
-                scope="col"
-                className="px-5 py-4 text-[11px] font-medium tracking-wider uppercase"
-              >
+              <th key={i} scope="col">
                 {h}
               </th>
             ))}
@@ -193,11 +197,20 @@ export function Table({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-t border-[var(--border)]">
+            <tr
+              key={i}
+              className={onRowClick ? "clickable" : undefined}
+              onClick={
+                onRowClick
+                  ? (e) => {
+                      if ((e.target as HTMLElement).closest("a,button")) return;
+                      onRowClick(i);
+                    }
+                  : undefined
+              }
+            >
               {r.map((c, j) => (
-                <td key={j} className="px-5 py-5 align-middle">
-                  {c}
-                </td>
+                <td key={j}>{c}</td>
               ))}
             </tr>
           ))}
@@ -206,19 +219,24 @@ export function Table({
     </div>
   );
 }
+
 export function Field({
   label,
   error,
+  hint,
   children,
+  className = "",
 }: {
   label: string;
   error?: string[];
+  hint?: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
   const id = useId();
   return (
-    <div className="block text-sm font-medium">
-      <label htmlFor={id} className="mb-2 block">
+    <div className={className}>
+      <label htmlFor={id} className="field-label">
         {label}
       </label>
       {isValidElement(children)
@@ -235,11 +253,12 @@ export function Field({
             },
           )
         : children}
+      {hint && !error && <span className="field-hint">{hint}</span>}
       {error && (
         <span
           role="alert"
           id={`${id}-error`}
-          className="mt-2 block text-xs text-[var(--destructive)]"
+          className="mt-1.5 block text-xs font-medium text-[var(--bad)]"
         >
           {error.join(" ")}
         </span>
@@ -247,18 +266,19 @@ export function Field({
     </div>
   );
 }
-export function ConfirmDialog({
+
+export function Dialog({
   title,
-  description,
-  onConfirm,
-  onCancel,
+  onClose,
   busy = false,
+  children,
+  wide = false,
 }: {
-  title: string;
-  description: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  title: ReactNode;
+  onClose: () => void;
   busy?: boolean;
+  children: ReactNode;
+  wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -269,32 +289,165 @@ export function ConfirmDialog({
   return (
     <dialog
       ref={ref}
-      aria-labelledby="confirm-title"
+      aria-labelledby="dialog-title"
       onCancel={(e) => {
         e.preventDefault();
-        if (!busy) onCancel();
+        if (!busy) onClose();
       }}
-      className="fixed inset-0 m-auto w-[min(92vw,480px)] rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-xl backdrop:bg-black/40"
+      className="dialog"
+      style={wide ? { width: "min(94vw, 760px)" } : undefined}
     >
-      <div className="flex items-start justify-between gap-3">
-        <h2 id="confirm-title" className="font-heading text-xl">
-          {title}
-        </h2>
-        <button disabled={busy} onClick={onCancel} aria-label="Cerrar">
-          <X size={20} />
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <h2 id="dialog-title">{title}</h2>
+        <button
+          type="button"
+          className="icon-btn"
+          disabled={busy}
+          onClick={onClose}
+          aria-label="Cerrar"
+        >
+          <X size={19} />
         </button>
       </div>
-      <p className="my-5 text-sm leading-relaxed text-[var(--muted-foreground)]">
+      {children}
+    </dialog>
+  );
+}
+
+export function ConfirmDialog({
+  title,
+  description,
+  onConfirm,
+  onCancel,
+  busy = false,
+  confirmLabel = "Confirmar",
+  danger = false,
+}: {
+  title: string;
+  description: ReactNode;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy?: boolean;
+  confirmLabel?: string;
+  danger?: boolean;
+}) {
+  return (
+    <Dialog title={title} onClose={onCancel} busy={busy}>
+      <p className="my-4 text-sm leading-relaxed text-[var(--muted-foreground)]">
         {description}
       </p>
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-2">
         <Button variant="outline" disabled={busy} onClick={onCancel}>
-          Cancelar
+          Volver
         </Button>
-        <Button disabled={busy} onClick={onConfirm}>
-          {busy ? "Guardando…" : "Confirmar"}
+        <Button
+          variant={danger ? "danger" : "primary"}
+          disabled={busy}
+          onClick={onConfirm}
+        >
+          {busy ? "Guardando…" : confirmLabel}
         </Button>
       </div>
-    </dialog>
+    </Dialog>
+  );
+}
+
+export interface Step {
+  key: string;
+  label: string;
+  hint?: string;
+}
+/** Línea de vida: pasos hechos, el actual resaltado y los que faltan. */
+export function Stepper({
+  steps,
+  current,
+  failed = false,
+}: {
+  steps: Step[];
+  current: string;
+  failed?: boolean;
+}) {
+  const index = steps.findIndex((s) => s.key === current);
+  return (
+    <ol className="stepper" aria-label="Avance">
+      {steps.map((s, i) => {
+        const state =
+          index === -1
+            ? "upcoming"
+            : i < index
+              ? "done"
+              : i === index
+                ? failed
+                  ? "failed"
+                  : "current"
+                : "upcoming";
+        return (
+          <li
+            key={s.key}
+            className={`step ${state}`}
+            aria-current={state === "current" ? "step" : undefined}
+          >
+            <span className="dot">
+              {state === "done" ? <Check size={15} strokeWidth={3} /> : i + 1}
+            </span>
+            <b>{s.label}</b>
+            {s.hint && <small>{s.hint}</small>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Explica, en la propia pantalla, qué patrón de diseño está actuando. */
+export function PatternNote({
+  pattern,
+  children,
+}: {
+  pattern: string;
+  children: ReactNode;
+}) {
+  return (
+    <aside className="pattern-note">
+      <span className="tag">
+        <Puzzle size={12} /> Patrón {pattern}
+      </span>
+      <div>{children}</div>
+    </aside>
+  );
+}
+
+export function Kpi({
+  icon,
+  value,
+  label,
+  tone = "info",
+  to,
+}: {
+  icon?: ReactNode;
+  value: ReactNode;
+  label: string;
+  tone?: Tone;
+  to?: string;
+}) {
+  const body = (
+    <>
+      {icon && <span className="kpi-icon">{icon}</span>}
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </>
+  );
+  const style = {
+    "--tone": `var(--${tone})`,
+    "--tone-bg": `var(--${tone}-bg)`,
+  } as React.CSSProperties;
+  return to ? (
+    <Link to={to} className="kpi" style={style}>
+      {body}
+    </Link>
+  ) : (
+    <div className="kpi" style={style}>
+      {body}
+    </div>
   );
 }

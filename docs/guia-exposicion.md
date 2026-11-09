@@ -98,7 +98,7 @@ Frase útil: “Las validaciones viven en el backend. Aunque otra pantalla o cli
 
 Usá la solicitud pendiente de **Carla Suárez por Skywalker Strikes**, origen Norte y retiro Central. Asigná **EXPO-003**, que pertenece a Norte. Desde la solicitud, prepará un remito con número nuevo, por ejemplo **DEF-ENV-001**, y agregá esa copia.
 
-Seguí **Empaquetar → Despachar → Registrar salida → Registrar recepción**. En la recepción verificá todas las copias e indicá responsable. La solicitud queda lista para entrega en Central. Recién al registrar la entrega al lector nace el préstamo.
+Seguí **Empaquetar → Despachar → Recibir envío**. En la recepción marcá el resultado de cada copia (llegó bien, dañada o no llegó) e indicá responsable. La solicitud queda lista para entrega en Central. Recién al registrar la entrega al lector nace el préstamo.
 
 Mostrá el **historial del remito**: preparación, empaquetado, despacho, tránsito y recepción, con fecha y responsable. Es una prueba de la operación, además de la bitácora general. El remito no admite empaquetado vacío ni cancelación después de despachar.
 
@@ -114,7 +114,7 @@ También se puede cancelar una reserva antes de cumplirla. Cancelar o expirar li
 
 ## Los dos patrones que deben poder explicar
 
-**State:** cada estado de Remito es una clase con operaciones permitidas. El servicio delega al estado actual. No es solamente un campo de texto o un enum. Ejemplo: un remito despachado no puede cancelarse. Código: apps/logistica/states.py.
+**State:** cada estado de Remito es una clase que admite sólo sus operaciones y ejecuta sus efectos; el servicio delega en `remito.comportamiento`. La ficha del remito muestra la clase activa y las operaciones admitidas/rechazadas. Ejemplo: un remito en tránsito no puede cancelarse. Código: apps/logistica/states.py. Ver docs/patrones.md.
 
 **Strategy:** las estrategias local e interbibliotecaria comparten un contrato. La fábrica elige según el tipo de solicitud. La estrategia local prepara la entrega; la interbibliotecaria exige el traslado por remito. Código: apps/circulacion/strategies/.
 

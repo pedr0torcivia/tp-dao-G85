@@ -1,247 +1,38 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { SunMoon } from "lucide-react";
 import { useLibrary } from "../app/context";
-import { api, isDemo } from "../api";
 import {
   bookName,
   code,
-  daysLate,
+  dateLabel,
   isOverdue,
-  sedeName,
+  pesos,
   socioName,
-  today,
 } from "../domain/selectors";
 import {
   Alert,
   Badge,
   Button,
-  ConfirmDialog,
+  Empty,
   Field,
   Heading,
   inputClass,
-  outlineClass,
   panelClass,
   primaryClass,
+  SearchBox,
   Table,
 } from "../components/ui";
 import { CommandDialog } from "./Commands";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  BookOpenCheck,
-  CornerDownLeft,
-  Plus,
-  SunMoon,
-  Truck,
-} from "lucide-react";
 import { Logo } from "../components/Logo";
 
-export function Home() {
-  const { db, sedeId } = useLibrary();
-  const loans = db!.prestamos.filter(
-    (p) =>
-      !p.fecha_devolucion &&
-      db!.solicitudes.find((s) => s.id === p.solicitud_id)?.sede_destino_id ===
-        sedeId,
-  );
-  const requests = db!.solicitudes.filter(
-    (s) =>
-      s.sede_destino_id === sedeId &&
-      ["PENDIENTE", "ASIGNADA", "LISTA_PARA_ENTREGA"].includes(s.estado),
-  );
-  const metrics = [
-    ["Solicitudes pendientes", requests.length, "/solicitudes"],
-    ["Préstamos activos", loans.length, "/prestamos"],
-    [
-      "Vencidos",
-      loans.filter((p) => isOverdue(p)).length,
-      "/reportes/vencidos",
-    ],
-    [
-      "Remitos en tránsito",
-      db!.remitos.filter(
-        (r) =>
-          r.estado === "EN_TRANSITO" &&
-          (r.sede_origen_id === sedeId || r.sede_destino_id === sedeId),
-      ).length,
-      "/remitos",
-    ],
-  ];
-  const dueLoans = [...loans]
-    .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento))
-    .slice(0, 4);
-  const inbound = db!.remitos.filter(
-    (r) => r.sede_destino_id === sedeId && r.estado === "EN_TRANSITO",
-  );
-  const date = new Intl.DateTimeFormat("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date());
-  return (
-    <div className="desk-page">
-      <p className="section-kicker">MOSTRADOR · {date}</p>
-      <Heading
-        title="Cada libro, en buenas manos."
-        description={`La jornada de ${sedeName(sedeId, db!)}: entregas, devoluciones y libros que viajan entre sedes.`}
-        action={
-          <Link className={primaryClass} to="/solicitudes/nuevo">
-            <Plus size={16} />
-            Nueva solicitud
-          </Link>
-        }
-      />
-      <div className="desk-numbers">
-        {metrics.map(([label, value, path]) => (
-          <Link key={label} to={String(path)}>
-            <span className="font-heading">
-              {String(value).padStart(2, "0")}
-            </span>
-            <div>
-              <p>{label}</p>
-              <small>
-                Consultar <ArrowUpRight size={12} />
-              </small>
-            </div>
-          </Link>
-        ))}
-      </div>
-      <div className="desk-columns">
-        <section>
-          <div className="section-heading">
-            <div>
-              <p className="section-kicker">CIRCULACIÓN</p>
-              <h2 className="font-heading">En el mostrador</h2>
-            </div>
-            <Link to="/solicitudes" className="record-link">
-              Ver todas <ArrowRight size={16} />
-            </Link>
-          </div>
-          <div className="desk-queue">
-            {requests.length ? (
-              requests.map((s) => (
-                <Link
-                  key={s.id}
-                  to={`/solicitudes/${s.id}`}
-                  className="queue-entry"
-                >
-                  <span className="queue-mark">
-                    <BookOpenCheck size={20} />
-                  </span>
-                  <div>
-                    <small>
-                      {code("SOL", s.id)} · {socioName(s.socio_id, db!)}
-                    </small>
-                    <h3>{bookName(s.libro_id, db!)}</h3>
-                    <Badge value={s.estado} />
-                  </div>
-                  <ArrowUpRight size={16} />
-                </Link>
-              ))
-            ) : (
-              <p className="quiet-message">
-                El mostrador está al día. No hay solicitudes pendientes en esta
-                sede.
-              </p>
-            )}
-          </div>
-          <div className="desk-action-row">
-            <CornerDownLeft size={19} />
-            <div>
-              <h3>Recibir un libro</h3>
-              <p>Buscá el préstamo y registrá su devolución.</p>
-            </div>
-            <Link className={outlineClass} to="/prestamos/devolucion">
-              Registrar devolución
-            </Link>
-          </div>
-        </section>
-        <aside className="desk-notebook">
-          <p className="section-kicker">AGENDA DE LA SEDE</p>
-          <h2 className="font-heading">Próximas devoluciones</h2>
-          {dueLoans.length ? (
-            dueLoans.map((p) => {
-              const s = db!.solicitudes.find((s) => s.id === p.solicitud_id)!;
-              return (
-                <Link
-                  key={p.id}
-                  className="due-entry"
-                  to={`/prestamos/${p.id}`}
-                >
-                  <span
-                    className={isOverdue(p) ? "due-date overdue" : "due-date"}
-                  >
-                    {new Intl.DateTimeFormat("es-AR", {
-                      day: "2-digit",
-                      month: "short",
-                    }).format(new Date(p.fecha_vencimiento))}
-                  </span>
-                  <div>
-                    <h3>{bookName(s.libro_id, db!)}</h3>
-                    <p>{socioName(s.socio_id, db!)}</p>
-                    {isOverdue(p) && (
-                      <small className="text-[var(--destructive)]">
-                        {daysLate(p)} días de atraso
-                      </small>
-                    )}
-                  </div>
-                </Link>
-              );
-            })
-          ) : (
-            <p className="quiet-message">
-              No hay préstamos activos en esta sede.
-            </p>
-          )}
-          <div className="inbound-note">
-            <Truck size={20} />
-            <div>
-              <h3>
-                {inbound.length}{" "}
-                {inbound.length === 1 ? "envío en camino" : "envíos en camino"}
-              </h3>
-              <p>Ejemplares que llegan desde otras bibliotecas.</p>
-              <Link className="record-link" to="/remitos">
-                Consultar remitos <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </div>
-  );
-}
 export function Appearance() {
-  const { theme, setTheme, refresh, notify } = useLibrary();
-  const [confirm, setConfirm] = useState(false),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  async function reset() {
-    setBusy(true);
-    try {
-      await api.reset();
-      await refresh();
-      notify("Se restablecieron los datos de ejemplo.");
-      setConfirm(false);
-    } catch (e) {
-      setError((e as Error).message);
-      setConfirm(false);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { theme, setTheme } = useLibrary();
   return (
     <>
-      <Heading
-        title="Apariencia"
-        description="Elegí el tema con el que querés trabajar."
-      />
-      <div className={`${panelClass} max-w-[860px]`}>
-        <div
-          role="group"
-          aria-label="Tema de la aplicación"
-          className="flex flex-wrap gap-3"
-        >
+      <Heading title="Apariencia" description="Elegí el tema con el que querés trabajar." />
+      <div className="card card-pad max-w-[640px]">
+        <div role="group" aria-label="Tema de la aplicación" className="flex flex-wrap gap-2">
           {(["light", "dark", "system"] as const).map((t, i) => (
             <Button
               key={t}
@@ -253,81 +44,67 @@ export function Appearance() {
             </Button>
           ))}
         </div>
-        <p className="mt-6 text-sm text-[var(--muted-foreground)]">
+        <p className="mt-4 text-sm text-[var(--muted-foreground)]">
           La elección se conserva para tus próximas visitas.
         </p>
       </div>
-      {isDemo && (
-        <div className={`${panelClass} mt-8 max-w-[860px]`}>
-          <h2 className="font-heading text-xl">Datos de demostración</h2>
-          <p className="my-4 text-sm text-[var(--muted-foreground)]">
-            Podés volver al conjunto inicial para probar nuevamente los
-            recorridos.
-          </p>
-          <Button variant="outline" onClick={() => setConfirm(true)}>
-            Restablecer ejemplos
-          </Button>
-        </div>
-      )}
-      {error && <Alert error>{error}</Alert>}
-      {confirm && (
-        <ConfirmDialog
-          title="Restablecer ejemplos"
-          description="Se eliminarán los cambios de demostración guardados en este navegador."
-          onConfirm={() => void reset()}
-          onCancel={() => setConfirm(false)}
-          busy={busy}
-        />
-      )}
     </>
   );
 }
 export function Returns() {
-  const { db } = useLibrary();
-  const [query, setQuery] = useState(""),
-    [selected, setSelected] = useState<number | null>(null);
+  const { db, sedeId } = useLibrary();
+  const [query, setQuery] = useState("");
+  const [todas, setTodas] = useState(false);
+  const [selected, setSelected] = useState<number | null>(null);
   const loans = db!.prestamos
     .filter((p) => !p.fecha_devolucion)
-    .filter((p) => {
-      const s = db!.solicitudes.find((s) => s.id === p.solicitud_id)!;
-      return `${code("PRE", p.id)} ${socioName(s.socio_id, db!)} ${db!.ejemplares.find((e) => e.id === s.ejemplar_id)?.codigo_inventario}`
+    .map((p) => ({ p, s: db!.solicitudes.find((s) => s.id === p.solicitud_id)! }))
+    .filter(({ s }) => todas || s.sede_destino_id === sedeId)
+    .filter(({ p, s }) =>
+      `${code("PRE", p.id)} ${socioName(s.socio_id, db!)} ${bookName(s.libro_id, db!)} ${db!.ejemplares.find((e) => e.id === s.ejemplar_id)?.codigo_inventario ?? ""}`
         .toLowerCase()
-        .includes(query.toLowerCase());
-    });
+        .includes(query.toLowerCase()),
+    )
+    .sort((a, b) => a.p.fecha_vencimiento.localeCompare(b.p.fecha_vencimiento));
   return (
     <>
       <Heading
+        kicker="Circulación"
         title="Registrar devolución"
-        description="Buscá el préstamo o ejemplar y revisá la condición del material."
+        description="Buscá por socio, libro o código del ejemplar. Al devolver, el material queda en revisión hasta que lo habilites (o vuelva a su sede)."
       />
-      <Field label="Buscar préstamo, socio o ejemplar">
-        <input
-          className={`${inputClass} mb-6 max-w-xl`}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </Field>
+      <div className="toolbar">
+        <SearchBox value={query} onChange={setQuery} placeholder="Socio, libro o código de ejemplar" />
+        <label className="flex items-center gap-2 text-sm" style={{ flex: "0 0 auto" }}>
+          <input type="checkbox" checked={todas} onChange={(e) => setTodas(e.target.checked)} />
+          Incluir préstamos de otras sedes
+        </label>
+      </div>
       <Table
-        headers={["Préstamo", "Socio y libro", "Vencimiento", ""]}
-        rows={loans.map((p) => {
-          const s = db!.solicitudes.find((s) => s.id === p.solicitud_id)!;
-          return [
-            code("PRE", p.id),
-            `${socioName(s.socio_id, db!)} · ${bookName(s.libro_id, db!)}`,
-            p.fecha_vencimiento.slice(0, 10),
-            <Button onClick={() => setSelected(p.id)}>
-              Registrar devolución
-            </Button>,
-          ];
-        })}
+        headers={["Libro y socio", "Ejemplar", "Vence", "Situación", ""]}
+        rows={loans.map(({ p, s }) => [
+          <div>
+            <div className="cell-main">{bookName(s.libro_id, db!)}</div>
+            <div className="cell-sub">{socioName(s.socio_id, db!)} · {code("PRE", p.id)}</div>
+          </div>,
+          <span className="mono">{db!.ejemplares.find((e) => e.id === s.ejemplar_id)?.codigo_inventario}</span>,
+          dateLabel(p.fecha_vencimiento),
+          isOverdue(p) ? (
+            <div>
+              <Badge value="VENCIDO" />
+              <div className="cell-sub text-[var(--bad)]">{p.dias_atraso} días · {pesos(p.multa)}</div>
+            </div>
+          ) : (
+            <Badge value="ACTIVO" label="Al día" />
+          ),
+          <Button size="sm" onClick={() => setSelected(p.id)}>
+            Devolver
+          </Button>,
+        ])}
+        empty={<Empty title="No hay préstamos abiertos" detail={todas ? "Toda la red está al día." : "Ninguno se entregó en tu sede. Probá incluir otras sedes."} />}
       />
       {selected !== null && (
-        <CommandDialog
-          resource="prestamos"
-          id={selected}
-          action="devolver"
-          onClose={() => setSelected(null)}
-        />
+        <CommandDialog resource="prestamos" id={selected} action="devolver" onClose={() => setSelected(null)} />
       )}
     </>
   );
@@ -367,8 +144,8 @@ export function Access() {
   } = useLibrary();
   const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState(isDemo ? "biblioteca" : ""),
-    [password, setPassword] = useState(isDemo ? "demo" : ""),
+  const [user, setUser] = useState(""),
+    [password, setPassword] = useState(""),
     [error, setError] = useState(""),
     [submitting, setSubmitting] = useState(false),
     [motion, setMotion] = useState(true);
@@ -464,9 +241,7 @@ export function Access() {
               Ingresá a tu biblioteca
             </h2>
             <p className="mt-3 mb-8 text-sm text-[var(--muted-foreground)]">
-              {isDemo
-                ? "Acceso de demostración: biblioteca / demo."
-                : "Acceso para el personal de EntreLibros."}
+              Acceso para el personal de EntreLibros.
             </p>
             {(error || authError) && <Alert error>{error || authError}</Alert>}
             {authError && (
@@ -539,8 +314,8 @@ export function NotFound({ forbidden = false }: { forbidden?: boolean }) {
             : "La dirección no existe o el registro ya no está disponible."
         }
       />
-      <Link className={primaryClass} to="/catalogo">
-        Volver al catálogo
+      <Link className={primaryClass} to="/inicio">
+        Ir a la mesa de trabajo
       </Link>
     </div>
   );

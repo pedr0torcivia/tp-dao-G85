@@ -1,5 +1,5 @@
-// Fuente: FigJam Modelos (clases + DER). Snake case coincide con Django.
-// Las portadas son recursos de presentación; no se agregan al modelo Libro.
+// Espejo de los serializers de Django (snake_case). Los campos marcados como
+// "calculado" los resuelve el backend: el frontend no reimplementa reglas.
 export interface Sede {
   id: number;
   nombre: string;
@@ -61,6 +61,16 @@ export interface SolicitudPrestamo {
   fecha_solicitud: string;
   tipo: "LOCAL" | "INTERBIBLIOTECARIO";
   estado: EstadoSolicitud;
+  /** calculado · clase Strategy que tramita la solicitud */
+  estrategia: string;
+  /** calculado · qué hace "preparar entrega" con esta estrategia */
+  estrategia_descripcion: string;
+  /** calculado · estados que recorre la solicitud en su circuito */
+  recorrido: EstadoSolicitud[];
+  /** calculado · operaciones disponibles ahora */
+  acciones: string[];
+  /** calculado · último remito que transportó el ejemplar */
+  remito_id: number | null;
 }
 export interface Prestamo {
   id: number;
@@ -69,6 +79,10 @@ export interface Prestamo {
   fecha_vencimiento: string;
   fecha_devolucion: string | null;
   condicion_devolucion: string | null;
+  /** calculado · días de atraso (al día de hoy o a la devolución) */
+  dias_atraso: number;
+  /** calculado · multa acumulada en pesos */
+  multa: number;
 }
 export type EstadoReserva =
   "PENDIENTE" | "LISTA_PARA_RETIRO" | "CUMPLIDA" | "CANCELADA" | "EXPIRADA";
@@ -85,16 +99,30 @@ export interface Reserva {
 export type EstadoRemito =
   | "EN_PREPARACION"
   | "EMPAQUETADO"
-  | "DESPACHADO"
   | "EN_TRANSITO"
   | "RECIBIDO"
+  | "RECIBIDO_CON_INCIDENCIAS"
   | "CANCELADO";
+export type OperacionRemito =
+  | "agregar"
+  | "quitar"
+  | "empaquetar"
+  | "reabrir"
+  | "despachar"
+  | "recibir"
+  | "cancelar";
+export type ResultadoRecepcion = "CONFORME" | "DANADO" | "EXTRAVIADO";
 export interface Remito {
   id: number;
   numero: string;
   sede_origen_id: number;
   sede_destino_id: number;
   estado: EstadoRemito;
+  /** calculado · clase State activa (patrón State) */
+  estado_clase: string;
+  estado_descripcion: string;
+  /** calculado · operaciones que admite el estado actual */
+  acciones: OperacionRemito[];
   fecha_creacion: string;
   fecha_despacho: string | null;
   fecha_recepcion: string | null;
@@ -106,6 +134,7 @@ export interface DetalleRemito {
   solicitud_id: number | null;
   condicion_salida: string;
   condicion_recepcion: string | null;
+  resultado_recepcion: ResultadoRecepcion | null;
 }
 export interface EventoRemito {
   id: number;

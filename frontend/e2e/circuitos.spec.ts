@@ -21,6 +21,9 @@ async function post(request: APIRequestContext, path: string, data: object) {
   expect(res.ok(), await res.text()).toBeTruthy();
   return res.json();
 }
+async function get(request: APIRequestContext, path: string) {
+  return (await request.get(`${api}/${path}/`)).json();
+}
 test.beforeEach(async ({ page }) => {
   const username = process.env.E2E_USERNAME || "biblioteca";
   const password = process.env.E2E_PASSWORD || "demo";
@@ -61,95 +64,68 @@ async function datos(request: APIRequestContext) {
   });
   return { origen, destino, socio, libro, ejemplar };
 }
+/** Abre la operación desde su botón, completa el diálogo y lo confirma. */
 async function comando(page: Page, label: string, fill?: () => Promise<void>) {
-  await page.getByRole("button", { name: label, exact: true }).click();
+  await page.getByRole("button", { name: label, exact: true }).first().click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   if (fill) await fill();
-  await dialog.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await dialog.locator('button[type="submit"]').click();
   await expect(dialog).not.toBeVisible();
 }
-async function entrega(page: Page) {
-  await comando(page, "Registrar entrega", async () => {
-    await page
-      .getByLabel("Fecha de entrega", { exact: true })
-      .fill("2026-11-01T12:00");
-    await page
-      .getByLabel("Fecha de vencimiento", { exact: true })
-      .fill("2026-11-15T12:00");
-  });
-}
-async function devolver(
-  page: Page,
-  request: APIRequestContext,
-  solicitudId: number,
-) {
-  const response = await request.get(`${api}/prestamos/`);
-  let data = await response.json();
-  const rows = Array.isArray(data) ? data : data.results;
-  let prestamo = rows.find(
-    (p: { solicitud_id: number }) => p.solicitud_id === solicitudId,
-  );
+const elegirEjemplar = (page: Page, id: number) => async () => {
+  await page
+    .getByRole("dialog")
+    .getByLabel("Ejemplar", { exact: true })
+    .selectOption(String(id));
+};
+async function prestamoDe(request: APIRequestContext, solicitudId: number) {
+  let data = await get(request, "prestamos");
+  let rows = Array.isArray(data) ? data : data.results;
+  let prestamo = rows.find((p: { solicitud_id: number }) => p.solicitud_id === solicitudId);
   while (!prestamo && data.next) {
     data = await (await request.get(data.next)).json();
-    prestamo = data.results.find(
-      (p: { solicitud_id: number }) => p.solicitud_id === solicitudId,
-    );
+    rows = data.results;
+    prestamo = rows.find((p: { solicitud_id: number }) => p.solicitud_id === solicitudId);
   }
   expect(prestamo).toBeTruthy();
-  await page.goto(`/prestamos/${prestamo.id}`);
-  await comando(page, "Registrar devolución", async () => {
-    await page
-      .getByLabel("Fecha de devolución", { exact: true })
-      .fill("2026-11-02T12:00");
-  });
+  return prestamo;
 }
-async function remito(page: Page, ejemplarId: number) {
-  await page
-    .getByLabel("Número de remito", { exact: true })
-    .fill(`ENV-${Date.now()}`);
-  await page
-    .getByRole("button", { name: "Guardar preparación", exact: true })
-    .click();
+async function devolver(page: Page, request: APIRequestContext, solicitudId: number) {
+  const prestamo = await prestamoDe(request, solicitudId);
+  await page.goto(`/prestamos/${prestamo.id}`);
+  await comando(page, "Registrar devolución");
+}
+/** Recorre el remito abierto en pantalla: empaquetar → despachar → recibir. */
+async function recorrerRemito(page: Page) {
   await expect(page).toHaveURL(/\/remitos\/\d+$/);
-  await comando(page, "Agregar ejemplar", async () => {
+  await comando(page, "Empaquetar");
+  await comando(page, "Despachar");
+  await comando(page, "Recibir envío", async () => {
     await page
-      .getByLabel("Ejemplar disponible", { exact: true })
-      .selectOption(String(ejemplarId));
+      .getByRole("dialog")
+      .getByRole("button", { name: "Marcar todo como recibido" })
+      .click();
   });
-  for (const label of ["Empaquetar", "Despachar", "Registrar salida"])
-    await comando(page, label);
-  await comando(page, "Registrar recepción", async () => {
-    await page.getByRole("dialog").getByRole("checkbox").check();
-  });
-  await expect(
-    page.getByRole("heading", { name: "Historial del remito" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Trazabilidad" })).toBeVisible();
+  await expect(page.getByText("En tránsito → Recibido")).toBeVisible();
 }
 
 test("alta de libro guarda autor y sobrevive a recargar", async ({ page }) => {
   const titulo = `Catálogo ${Date.now()}`;
   await page.goto("/catalogo/nuevo");
   await page.getByLabel("Título", { exact: true }).fill(titulo);
-  await page
-    .getByLabel("Autor o autores", { exact: true })
-    .fill("Autora de integración");
+  await page.getByLabel("Autor o autores", { exact: true }).fill("Autora de integración");
   await page.getByLabel("Editorial", { exact: true }).fill("Editorial");
   await page.getByLabel("Edición", { exact: true }).fill("1");
-  await page
-    .getByRole("button", { name: "Guardar libro", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Guardar libro", exact: true }).click();
   await expect(page).toHaveURL(/\/catalogo\/\d+$/);
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: titulo, exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Autora de integración", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: titulo, exact: true })).toBeVisible();
+  await expect(page.getByText("Autora de integración", { exact: true }).first()).toBeVisible();
 });
 
-test("préstamo local desde asignación hasta devolución", async ({
+test("préstamo local: asignar y preparar en un paso, entregar, devolver y habilitar", async ({
   page,
   request,
 }) => {
@@ -162,23 +138,17 @@ test("préstamo local desde asignación hasta devolución", async ({
     tipo: "LOCAL",
   });
   await page.goto(`/solicitudes/${s.id}`);
-  await comando(page, "Asignar ejemplar", async () => {
-    await page
-      .getByLabel("Ejemplar disponible")
-      .selectOption(String(d.ejemplar.id));
-  });
-  await comando(page, "Preparar entrega local");
-  await entrega(page);
+  await expect(page.getByText("TramitacionLocal")).toBeVisible();
+  await comando(page, "Asignar ejemplar", elegirEjemplar(page, d.ejemplar.id));
+  expect((await get(request, `solicitudes/${s.id}`)).estado).toBe("LISTA_PARA_ENTREGA");
+  await comando(page, "Entregar al socio");
   await devolver(page, request, s.id);
   await page.goto(`/ejemplares/${d.ejemplar.id}`);
   await comando(page, "Aprobar disponibilidad");
-  expect(
-    (await (await request.get(`${api}/ejemplares/${d.ejemplar.id}/`)).json())
-      .estado,
-  ).toBe("DISPONIBLE");
+  expect((await get(request, `ejemplares/${d.ejemplar.id}`)).estado).toBe("DISPONIBLE");
 });
 
-test("interbibliotecario con remito de ida, entrega, devolución y retorno", async ({
+test("interbibliotecario: la estrategia arma el remito, viaja, se entrega y retorna", async ({
   page,
   request,
 }) => {
@@ -191,36 +161,51 @@ test("interbibliotecario con remito de ida, entrega, devolución y retorno", asy
     tipo: "INTERBIBLIOTECARIO",
   });
   await page.goto(`/solicitudes/${s.id}`);
-  await comando(page, "Asignar ejemplar", async () => {
-    await page
-      .getByLabel("Ejemplar disponible")
-      .selectOption(String(d.ejemplar.id));
-  });
-  await page
-    .getByRole("link", { name: "Preparar remito", exact: true })
-    .click();
-  await remito(page, d.ejemplar.id);
+  await expect(page.getByText("TramitacionInterbibliotecaria")).toBeVisible();
+  await comando(page, "Asignar ejemplar", elegirEjemplar(page, d.ejemplar.id));
+  await page.getByRole("link", { name: /Ir al remito/ }).click();
+  await expect(page.getByText("EnPreparacion")).toBeVisible();
+  await recorrerRemito(page);
+
   await page.goto(`/solicitudes/${s.id}`);
-  await entrega(page);
+  await comando(page, "Entregar al socio");
   await devolver(page, request, s.id);
-  await page.goto(`/ejemplares/${d.ejemplar.id}`);
-  await page
-    .getByRole("link", { name: "Preparar retorno a sede propietaria" })
-    .click();
-  await remito(page, d.ejemplar.id);
+  await page.getByRole("button", { name: "Preparar retorno" }).click();
+  await recorrerRemito(page);
   await page.goto(`/ejemplares/${d.ejemplar.id}`);
   await comando(page, "Aprobar disponibilidad");
-  const e = await (
-    await request.get(`${api}/ejemplares/${d.ejemplar.id}/`)
-  ).json();
+  const e = await get(request, `ejemplares/${d.ejemplar.id}`);
   expect(e.sede_actual_id).toBe(d.origen.id);
   expect(e.estado).toBe("DISPONIBLE");
 });
 
-test("reserva asignada y cumplida desde su ficha", async ({
+test("una recepción con daño deja el remito con incidencias y la solicitud en cola", async ({
   page,
   request,
 }) => {
+  const d = await datos(request);
+  const s = await post(request, "solicitudes", {
+    socio_id: d.socio.id,
+    libro_id: d.libro.id,
+    sede_origen_id: d.origen.id,
+    sede_destino_id: d.destino.id,
+    tipo: "INTERBIBLIOTECARIO",
+  });
+  await page.goto(`/solicitudes/${s.id}`);
+  await comando(page, "Asignar ejemplar", elegirEjemplar(page, d.ejemplar.id));
+  await page.getByRole("link", { name: /Ir al remito/ }).click();
+  await comando(page, "Empaquetar");
+  await comando(page, "Despachar");
+  await comando(page, "Recibir envío", async () => {
+    await page.getByRole("dialog").getByRole("button", { name: "Dañado" }).click();
+  });
+  await expect(page.getByText("Recibido con incidencias").first()).toBeVisible();
+  const solicitud = await get(request, `solicitudes/${s.id}`);
+  expect(solicitud.estado).toBe("PENDIENTE");
+  expect(solicitud.ejemplar_id).toBeNull();
+});
+
+test("reserva: apartar copia y entregarla desde su ficha", async ({ page, request }) => {
   const d = await datos(request);
   const r = await post(request, "reservas", {
     socio_id: d.socio.id,
@@ -228,35 +213,23 @@ test("reserva asignada y cumplida desde su ficha", async ({
     sede_retiro_id: d.origen.id,
   });
   await page.goto(`/reservas/${r.id}`);
-  await comando(page, "Asignar y preparar ejemplar", async () => {
-    await page
-      .getByLabel("Ejemplar disponible")
-      .selectOption(String(d.ejemplar.id));
-    const limite = new Date(Date.now() + 3 * 86400000)
-      .toISOString()
-      .slice(0, 16);
-    await page.getByLabel("Fecha límite de retiro").fill(limite);
-  });
-  await page
-    .getByRole("link", { name: "Registrar entrega", exact: true })
-    .click();
-  await entrega(page);
-  expect(
-    (await (await request.get(`${api}/reservas/${r.id}/`)).json()).estado,
-  ).toBe("CUMPLIDA");
+  await comando(page, "Apartar copia", elegirEjemplar(page, d.ejemplar.id));
+  await comando(page, "Entregar al socio");
+  expect((await get(request, `reservas/${r.id}`)).estado).toBe("CUMPLIDA");
 });
 
-test("los cinco reportes consultan la API y exportan CSV", async ({ page }) => {
+test("los siete reportes consultan la API y exportan CSV", async ({ page }) => {
   for (const [tipo, endpoint] of [
+    ["activos", "reportes/activos"],
     ["vencidos", "prestamos-vencidos"],
     ["demanda", "demanda-interbibliotecaria"],
-    ["movimientos", "movimientos"],
     ["disponibilidad", "disponibilidad"],
+    ["logistica", "reportes/logistica"],
+    ["movimientos", "movimientos"],
     ["operaciones", "operaciones"],
   ]) {
     const response = page.waitForResponse(
-      (r) =>
-        r.url().includes(endpoint) && r.request().resourceType() === "fetch",
+      (r) => r.url().includes(endpoint) && r.request().resourceType() === "fetch",
     );
     await page.goto(`/reportes/${tipo}`);
     expect((await response).ok()).toBeTruthy();
@@ -264,9 +237,7 @@ test("los cinco reportes consultan la API y exportan CSV", async ({ page }) => {
     await expect(boton).toBeEnabled();
     const descarga = page.waitForEvent("download");
     await boton.click();
-    expect((await descarga).suggestedFilename()).toContain(
-      `entrelibros-${tipo}`,
-    );
+    expect((await descarga).suggestedFilename()).toContain(`entrelibros-${tipo}`);
   }
 });
 
@@ -277,53 +248,28 @@ test("ABMC de ejemplar queda evidenciado en bitácora y disponibilidad", async (
   const d = await datos(request);
   const inventario = `ABMC-${Date.now()}`;
   await page.goto("/ejemplares/nuevo");
-  await page
-    .getByLabel("Código de inventario", { exact: true })
-    .fill(inventario);
-  await page
-    .getByLabel("Libro", { exact: true })
-    .selectOption(String(d.libro.id));
-  await page
-    .getByLabel("Sede propietaria", { exact: true })
-    .selectOption(String(d.origen.id));
-  await page
-    .getByRole("button", { name: "Guardar ejemplar", exact: true })
-    .click();
+  await page.getByLabel("Código de inventario", { exact: true }).fill(inventario);
+  await page.getByLabel("Libro", { exact: true }).selectOption(String(d.libro.id));
+  await page.getByLabel("Sede propietaria", { exact: true }).selectOption(String(d.origen.id));
+  await page.getByRole("button", { name: "Guardar ejemplar", exact: true }).click();
   await expect(page).toHaveURL(/\/ejemplares\/\d+$/);
   const id = Number(page.url().split("/").pop());
-  await page.getByRole("link", { name: "Editar ejemplar", exact: true }).click();
-  await page
-    .getByLabel("Condición física", { exact: true })
-    .selectOption("NO_APTO");
-  await page
-    .getByRole("button", { name: "Guardar ejemplar", exact: true })
-    .click();
+  await page.getByRole("link", { name: "Editar", exact: true }).click();
+  await page.getByLabel("Condición física", { exact: true }).selectOption("NO_APTO");
+  await page.getByRole("button", { name: "Guardar ejemplar", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/ejemplares/${id}$`));
   await comando(page, "Dar de baja");
-  const response = page.waitForResponse((r) =>
-    r.url().includes("/api/reportes/operaciones/"),
-  );
+  const response = page.waitForResponse((r) => r.url().includes("/api/reportes/operaciones/"));
   await page.goto("/reportes/operaciones");
   const reporte = await (await response).json();
   const eventos = reporte.filas.filter(
     (f: { entidad: string; registro_id: number }) =>
       f.entidad === "ejemplares" && f.registro_id === id,
   );
-  expect(eventos.map((f: { accion: string }) => f.accion)).toEqual([
-    "ALTA",
-    "MODIFICACION",
-    "BAJA",
-  ]);
-  await expect(page.getByText(inventario, { exact: false })).toBeVisible();
-  const filas = page
-    .locator("tbody tr")
-    .filter({ has: page.getByRole("cell", { name: String(id), exact: true }) })
-    .filter({ hasText: "ejemplares" });
-  await expect(filas).toHaveCount(3);
+  expect(eventos.map((f: { accion: string }) => f.accion)).toEqual(["ALTA", "MODIFICACION", "BAJA"]);
+  await expect(page.getByText(inventario, { exact: false }).first()).toBeVisible();
   const data = await (
-    await request.get(
-      `${api}/reportes/disponibilidad/?desde=2000-01-01&hasta=2100-01-01`,
-    )
+    await request.get(`${api}/reportes/disponibilidad/?desde=2000-01-01&hasta=2100-01-01`)
   ).json();
   const fila = data.filas.find(
     (f: { libro_id: number; sede_propietaria_id: number }) =>

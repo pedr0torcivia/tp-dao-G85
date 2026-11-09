@@ -119,7 +119,7 @@ Ingresar a la aplicación con **biblioteca / demo**. La cuenta se valida en el b
 
 Este comando carga una sola vez el conjunto conocido de ejemplos. Repetirlo conserva los cambios. Los resultados de referencia de los reportes y los recorridos están en `guion-demostracion.md`.
 
-Para explorar las pantallas sin backend, configurar `VITE_DATA_SOURCE=mock` en el `.env` correspondiente y reconstruir el frontend. Ese modo guarda sus cambios únicamente en el navegador. Para volver al sistema persistido, usar `http` y reconstruir.
+El frontend siempre trabaja contra la API: las reglas de negocio viven sólo en el backend. (El antiguo modo `mock`, que duplicaba la lógica en el navegador, se eliminó.)
 
 ```powershell
 docker compose up -d --build --wait

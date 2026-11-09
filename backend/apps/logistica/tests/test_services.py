@@ -23,15 +23,17 @@ from ..exceptions import (
     SocioInhabilitadoError,
     TransicionInvalidaError,
 )
-from ..models import DetalleRemito, EstadoRemito, EventoRemito, Remito
+from ..models import DetalleRemito, EstadoRemito, EventoRemito, Remito, ResultadoRecepcion
 from ..services import (
     agregar_ejemplar,
     cancelar_remito,
     crear_remito,
     despachar_remito,
     empaquetar_remito,
+    preparar_retorno,
+    quitar_ejemplar,
+    reabrir_remito,
     recibir_remito,
-    registrar_salida_remito,
 )
 
 
@@ -323,7 +325,7 @@ class CancelarRemitoTest(BaseLogisticaTest):
 
     def test_no_se_cancela_despues_de_despachar(self):
         remito = self.preparado()
-        Remito.objects.filter(pk=remito.pk).update(estado=EstadoRemito.DESPACHADO)
+        Remito.objects.filter(pk=remito.pk).update(estado=EstadoRemito.EN_TRANSITO)
         remito.refresh_from_db()
 
         with self.assertRaises(TransicionInvalidaError):
@@ -359,7 +361,7 @@ class DespacharTest(BaseLogisticaTest):
 
         remito = despachar_remito(remito=remito, responsable="Logística")
 
-        self.assertEqual(remito.estado, EstadoRemito.DESPACHADO)
+        self.assertEqual(remito.estado, EstadoRemito.EN_TRANSITO)
         self.assertIsNotNone(remito.fecha_despacho)
         detalle.ejemplar.refresh_from_db()
         self.assertEqual(detalle.ejemplar.estado, EstadoEjemplar.EN_TRANSITO)
@@ -392,23 +394,29 @@ class DespacharTest(BaseLogisticaTest):
             despachar_remito(remito=remito)
 
 
-class RegistrarSalidaTest(BaseLogisticaTest):
-    def test_solo_despues_de_despachar(self):
-        remito = crear_remito(
-            numero="REM-0050",
-            sede_origen_id=self.central.id,
-            sede_destino_id=self.norte.id,
-        )
-        agregar_ejemplar(remito=remito, ejemplar_id=self.crear_ejemplar().id)
+class ReabrirYQuitarTest(BaseLogisticaTest):
+    def test_reabrir_permite_quitar_y_volver_a_empaquetar(self):
+        remito = crear_remito(sede_origen_id=self.central.id, sede_destino_id=self.norte.id)
+        uno, dos = self.crear_ejemplar("E-1"), self.crear_ejemplar("E-2")
+        agregar_ejemplar(remito=remito, ejemplar_id=uno.id)
+        agregar_ejemplar(remito=remito, ejemplar_id=dos.id)
         empaquetar_remito(remito=remito)
 
         with self.assertRaises(TransicionInvalidaError):
-            registrar_salida_remito(remito=remito)
+            quitar_ejemplar(remito=remito, ejemplar_id=dos.id)
 
-        despachar_remito(remito=remito)
-        remito = registrar_salida_remito(remito=remito, responsable="Transporte")
+        reabrir_remito(remito=remito)
+        quitar_ejemplar(remito=remito, ejemplar_id=dos.id)
+        remito = empaquetar_remito(remito=remito)
 
-        self.assertEqual(remito.estado, EstadoRemito.EN_TRANSITO)
+        self.assertEqual(remito.estado, EstadoRemito.EMPAQUETADO)
+        self.assertEqual(remito.detalles.count(), 1)
+        dos.refresh_from_db()
+        self.assertEqual(dos.estado, EstadoEjemplar.DISPONIBLE)
+
+    def test_numera_automaticamente(self):
+        remito = crear_remito(sede_origen_id=self.central.id, sede_destino_id=self.norte.id)
+        self.assertTrue(remito.numero.startswith("REM-"))
 
 
 class RecibirTest(BaseLogisticaTest):
@@ -421,8 +429,46 @@ class RecibirTest(BaseLogisticaTest):
         agregar_ejemplar(remito=remito, ejemplar_id=self.crear_ejemplar().id)
         empaquetar_remito(remito=remito)
         despachar_remito(remito=remito)
-        registrar_salida_remito(remito=remito)
         return remito
+
+    def test_registra_incidencias_y_devuelve_la_solicitud_a_la_cola(self):
+        remito = self.en_transito()
+        detalle = remito.detalles.first()
+        detalle.solicitud = self.crear_solicitud_asignada(detalle.ejemplar)
+        detalle.save()
+
+        remito = recibir_remito(
+            remito=remito,
+            resultados={detalle.ejemplar_id: ResultadoRecepcion.DANADO},
+            responsable="Personal Norte",
+        )
+
+        self.assertEqual(remito.estado, EstadoRemito.RECIBIDO_CON_INCIDENCIAS)
+        detalle.refresh_from_db()
+        self.assertEqual(detalle.resultado_recepcion, ResultadoRecepcion.DANADO)
+        self.assertEqual(detalle.condicion_recepcion, CondicionFisica.NO_APTO)
+        ejemplar = detalle.ejemplar
+        ejemplar.refresh_from_db()
+        self.assertEqual(ejemplar.estado, EstadoEjemplar.EN_REVISION)
+        self.assertEqual(ejemplar.sede_actual_id, self.norte.id)
+        solicitud = detalle.solicitud
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, EstadoSolicitud.PENDIENTE)
+        self.assertIsNone(solicitud.ejemplar_id)
+
+    def test_extraviado_da_de_baja_el_ejemplar(self):
+        remito = self.en_transito()
+        detalle = remito.detalles.first()
+
+        recibir_remito(
+            remito=remito,
+            resultados={detalle.ejemplar_id: ResultadoRecepcion.EXTRAVIADO},
+            responsable="Personal Norte",
+        )
+
+        detalle.ejemplar.refresh_from_db()
+        self.assertEqual(detalle.ejemplar.estado, EstadoEjemplar.BAJA)
+        self.assertIsNone(detalle.ejemplar.sede_actual)
 
     def test_recibe_con_solicitud_y_deja_listo_para_entrega(self):
         remito = self.en_transito()
@@ -495,6 +541,22 @@ class RecibirTest(BaseLogisticaTest):
             )
 
 
+class PrepararRetornoTest(BaseLogisticaTest):
+    def test_arma_el_remito_de_vuelta_a_la_sede_propietaria(self):
+        ejemplar = self.crear_ejemplar(estado=EstadoEjemplar.EN_REVISION, sede_actual=self.norte)
+
+        remito = preparar_retorno(ejemplar_id=ejemplar.id)
+
+        self.assertEqual(
+            (remito.sede_origen_id, remito.sede_destino_id), (self.norte.id, self.central.id)
+        )
+        self.assertTrue(remito.detalles.filter(ejemplar=ejemplar).exists())
+        otro = self.crear_ejemplar(
+            "E-RET", estado=EstadoEjemplar.EN_REVISION, sede_actual=self.norte
+        )
+        self.assertEqual(preparar_retorno(ejemplar_id=otro.id).pk, remito.pk)
+
+
 class CicloCompletoTest(BaseLogisticaTest):
     """Porta el recorrido de workflows.test.ts del frontend."""
 
@@ -518,8 +580,6 @@ class CicloCompletoTest(BaseLogisticaTest):
         with self.assertRaises(TransicionInvalidaError):
             cancelar_remito(remito=remito)
 
-        registrar_salida_remito(remito=remito)
-
         with self.assertRaises(RecepcionInvalidaError):
             recibir_remito(remito=remito, verificados=[], responsable="Personal Norte")
 
@@ -539,7 +599,6 @@ class CicloCompletoTest(BaseLogisticaTest):
             [
                 EstadoRemito.EN_PREPARACION,
                 EstadoRemito.EMPAQUETADO,
-                EstadoRemito.DESPACHADO,
                 EstadoRemito.EN_TRANSITO,
                 EstadoRemito.RECIBIDO,
             ],

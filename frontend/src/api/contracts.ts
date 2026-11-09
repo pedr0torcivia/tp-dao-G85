@@ -22,13 +22,17 @@ export type Command =
   | "rechazar"
   | "devolver"
   | "empaquetar"
+  | "reabrir"
+  | "quitar"
   | "despachar"
-  | "registrar-salida"
   | "recibir"
   | "asignar-reserva"
   | "expirar"
   | "aprobar-disponibilidad";
-export type CommandInput = Record<string, string | number | number[] | null>;
+export type CommandInput = Record<
+  string,
+  string | number | number[] | null | Record<string, string>
+>;
 
 export interface LibraryApi {
   snapshot(): Promise<Database>;
@@ -44,10 +48,10 @@ export interface LibraryApi {
     input?: CommandInput,
   ): Promise<void>;
   report(type: ReportType, filter: ReportFilter): Promise<ReportResult>;
-  reset(): Promise<void>;
+  /** Arma (o completa) el remito que devuelve un ejemplar a su sede propietaria. */
+  prepararRetorno(ejemplarId: number): Promise<{ id: number }>;
 }
 
-// Las rutas conservan el mismo nombre en los modos mock y HTTP.
 export const resourcePaths: Record<Resource, string> = {
   sedes: "sedes",
   socios: "socios",

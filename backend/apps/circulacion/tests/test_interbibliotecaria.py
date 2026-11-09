@@ -43,7 +43,15 @@ class CirculacionInterbibliotecariaTest(TestCase):
             ejemplar=self.ejemplar,
         )
 
-    def test_no_se_prepara_como_solicitud_local(self):
+    def test_preparar_incorpora_el_ejemplar_a_un_remito_hacia_el_destino(self):
+        from apps.logistica.models import DetalleRemito
+
+        preparar_entrega(solicitud=self.solicitud)
+
+        detalle = DetalleRemito.objects.get(solicitud=self.solicitud)
+        self.assertEqual(detalle.ejemplar_id, self.ejemplar.pk)
+        self.assertEqual(detalle.remito.sede_origen_id, self.origen.pk)
+        self.assertEqual(detalle.remito.sede_destino_id, self.destino.pk)
         with self.assertRaises(EstadoSolicitudInvalidoError):
             preparar_entrega(solicitud=self.solicitud)
 

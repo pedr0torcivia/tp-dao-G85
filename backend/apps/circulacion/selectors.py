@@ -1,12 +1,19 @@
-from django.db.models import QuerySet
+from django.db.models import Exists, OuterRef, QuerySet, Subquery
 from django.utils import timezone
 
 from .models import EstadoReserva, Prestamo, Reserva, SolicitudPrestamo
 
 
 def listar_solicitudes() -> QuerySet[SolicitudPrestamo]:
+    from apps.logistica.models import ESTADOS_VIGENTES, DetalleRemito
+
+    detalles = DetalleRemito.objects.filter(solicitud=OuterRef("pk"))
     return (
-        SolicitudPrestamo.objects.select_related(
+        SolicitudPrestamo.objects.annotate(
+            en_remito_vigente=Exists(detalles.filter(remito__estado__in=ESTADOS_VIGENTES)),
+            ultimo_remito_id=Subquery(detalles.order_by("-id").values("remito_id")[:1]),
+        )
+        .select_related(
             "socio",
             "libro",
             "ejemplar",

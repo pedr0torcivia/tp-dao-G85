@@ -1,16 +1,24 @@
 import { useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
-import type { Resource } from "../domain/models";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Pencil, Undo2 } from "lucide-react";
+import type {
+  Database,
+  EstadoRemito,
+  OperacionRemito,
+  Resource,
+} from "../domain/models";
 import type { Command } from "../api/contracts";
+import { api } from "../api";
 import { useLibrary } from "../app/context";
 import {
   available,
-  authorNames,
   bookName,
   code,
   dateLabel,
-  daysLate,
-  isOverdue,
+  dateTimeLabel,
+  inOpenRemito,
+  loanState,
+  pesos,
   sedeName,
   socioName,
   statusLabels,
@@ -22,58 +30,96 @@ import {
   Button,
   Heading,
   outlineClass,
-  panelClass,
+  PatternNote,
   primaryClass,
+  Stepper,
   Table,
 } from "../components/ui";
 import { config, pathOf } from "./resources";
 import { Cover } from "./Lists";
 import { actionLabels, CommandDialog } from "./Commands";
 
-const labels: Record<string, string> = {
-  numero_socio: "Número de socio",
-  documento: "Documento",
-  nombre: "Nombre",
-  contacto: "Contacto",
-  direccion: "Dirección",
-  horarios: "Horarios",
-  estado: "Estado",
-  titulo: "Título",
-  isbn: "ISBN",
-  editorial: "Editorial",
-  edicion: "Edición",
-  codigo_inventario: "Código de inventario",
-  condicion_fisica: "Condición física",
-  libro_id: "Libro",
-  socio_id: "Socio",
-  sede_propietaria_id: "Sede propietaria",
-  sede_actual_id: "Ubicación actual",
-  sede_origen_id: "Sede de origen",
-  sede_destino_id: "Sede de retiro / destino",
-  sede_retiro_id: "Sede de retiro",
-  ejemplar_id: "Ejemplar",
-  ejemplar_asignado_id: "Ejemplar asignado",
-  reserva_id: "Reserva",
-  solicitud_id: "Solicitud",
-  numero: "Número",
-  tipo: "Circuito",
-  fecha_solicitud: "Fecha de solicitud",
-  fecha_entrega: "Fecha de entrega",
-  fecha_vencimiento: "Fecha de vencimiento",
-  fecha_devolucion: "Fecha de devolución",
-  condicion_devolucion: "Condición de devolución",
-  fecha_reserva: "Fecha de reserva",
-  fecha_limite_retiro: "Fecha límite de retiro",
-  fecha_creacion: "Fecha de creación",
-  fecha_alta: "Fecha de alta",
-  fecha_despacho: "Fecha de despacho",
-  fecha_recepcion: "Fecha de recepción",
+const remitoOps: Record<OperacionRemito, Command> = {
+  agregar: "asignar",
+  quitar: "quitar",
+  empaquetar: "empaquetar",
+  reabrir: "reabrir",
+  despachar: "despachar",
+  recibir: "recibir",
+  cancelar: "cancelar",
 };
+const remitoOpLabels: Record<OperacionRemito, string> = {
+  agregar: "Agregar ejemplar",
+  quitar: "Quitar ejemplar",
+  empaquetar: "Empaquetar",
+  reabrir: "Reabrir",
+  despachar: "Despachar",
+  recibir: "Recibir envío",
+  cancelar: "Cancelar envío",
+};
+const nextHint: Partial<Record<EstadoRemito, string>> = {
+  EN_PREPARACION:
+    "Agregá los ejemplares que viajan y empaquetá cuando el paquete esté completo.",
+  EMPAQUETADO:
+    "El paquete está cerrado. Despachalo cuando lo retire el transporte (o reabrilo para corregirlo).",
+  EN_TRANSITO:
+    "El material está viajando. La sede destino debe recibirlo y verificar cada ejemplar.",
+  RECIBIDO: "El envío llegó completo y en condiciones. No requiere más acciones.",
+  RECIBIDO_CON_INCIDENCIAS:
+    "El envío llegó con daños o faltantes. Las solicitudes afectadas volvieron a la cola.",
+  CANCELADO: "El envío se anuló antes de salir.",
+};
+const solicitudHint: Record<string, string> = {
+  PENDIENTE:
+    "Hay que asignarle una copia disponible de la sede de origen.",
+  ASIGNADA: "La copia está reservada. Falta prepararla para la entrega.",
+  EN_TRASLADO:
+    "La copia viaja en un remito. La entrega se habilita cuando la sede de retiro la recibe.",
+  LISTA_PARA_ENTREGA: "El socio puede retirar el libro: registrá la entrega.",
+  CUMPLIDA: "Se entregó al socio y se generó el préstamo.",
+  RECHAZADA: "La solicitud se rechazó.",
+  CANCELADA: "La solicitud se canceló.",
+};
+
+function Facts({ items }: { items: [string, ReactNode][] }) {
+  return (
+    <dl className="facts">
+      {items.map(([k, v]) => (
+        <div key={k}>
+          <dt>{k}</dt>
+          <dd>{v ?? "—"}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+const linkTo = (to: string, label: ReactNode) => <Link to={to}>{label}</Link>;
+
+function NextStep({
+  title,
+  text,
+  children,
+}: {
+  title: string;
+  text: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <section className="card card-pad next-step">
+      <h3>{title}</h3>
+      <p>{text}</p>
+      {children && <div className="action-stack">{children}</div>}
+    </section>
+  );
+}
+
 export function EntityDetail({ resource }: { resource: Resource }) {
   const { id } = useParams();
-  const { db } = useLibrary();
+  const { db, refresh, notify } = useLibrary();
+  const navigate = useNavigate();
   const n = Number(id);
-  const [action, setAction] = useState<Command | null>(null);
+  const [action, setAction] = useState<{ resource: Resource; id: number; command: Command } | null>(null);
+  const [busy, setBusy] = useState(false);
   const record = db![resource].find((r) => r.id === n);
   if (!record)
     return (
@@ -82,458 +128,682 @@ export function EntityDetail({ resource }: { resource: Resource }) {
         <Alert error>No encontramos ese registro.</Alert>
       </>
     );
-  const data = record as unknown as Record<string, string | number | null>;
-  const name =
-    resource === "libros"
-      ? String(data.titulo)
-      : resource === "socios" || resource === "sedes"
-        ? String(data.nombre)
-        : resource === "remitos"
-          ? String(data.numero)
-          : resource === "ejemplares"
-            ? String(data.codigo_inventario)
-            : code(
-                resource === "solicitudes"
-                  ? "SOL"
-                  : resource === "prestamos"
-                    ? "PRE"
-                    : "RES",
-                n,
-              );
-  const actions: Command[] = [];
-  if (resource === "socios")
-    actions.push(data.estado === "HABILITADO" ? "inhabilitar" : "habilitar");
-  if (resource === "sedes")
-    actions.push(data.estado === "ACTIVA" ? "dar-de-baja" : "reactivar");
-  if (resource === "ejemplares") {
-    if (["DISPONIBLE", "EN_REVISION"].includes(String(data.estado)))
-      actions.push("dar-de-baja");
-    if (
-      data.estado === "EN_REVISION" &&
-      data.sede_actual_id === data.sede_propietaria_id
-    )
-      actions.push("aprobar-disponibilidad");
+  const run = (command: Command, target: Resource = resource, targetId = n) =>
+    setAction({ resource: target, id: targetId, command });
+
+  async function retorno(ejemplarId: number) {
+    setBusy(true);
+    try {
+      const remito = await api.prepararRetorno(ejemplarId);
+      await refresh();
+      notify("Ejemplar agregado al remito de retorno.");
+      navigate(`/remitos/${remito.id}`);
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "No pudimos preparar el retorno.");
+    } finally {
+      setBusy(false);
+    }
   }
+
+  let body: ReactNode = null;
+  let title: ReactNode = "";
+  let kicker: ReactNode = config[resource]?.singular;
+  let headerActions: ReactNode = null;
+  const editable = ["socios", "sedes", "libros", "ejemplares"].includes(resource);
+  if (editable)
+    headerActions = (
+      <Link className={outlineClass} to={`/${pathOf(resource)}/${n}/editar`}>
+        <Pencil size={15} /> Editar
+      </Link>
+    );
+
   if (resource === "solicitudes") {
-    if (data.estado === "PENDIENTE") actions.push("asignar", "rechazar");
-    if (data.estado === "ASIGNADA" && data.tipo === "LOCAL")
-      actions.push("preparar-entrega");
-    if (data.estado === "LISTA_PARA_ENTREGA") actions.push("entregar");
-    if (["PENDIENTE", "ASIGNADA"].includes(String(data.estado)))
-      actions.push("cancelar");
+    const s = db!.solicitudes.find((x) => x.id === n)!;
+    const prestamo = db!.prestamos.find((p) => p.solicitud_id === n);
+    const remito = s.remito_id ? db!.remitos.find((r) => r.id === s.remito_id) : undefined;
+    const cerrada = ["RECHAZADA", "CANCELADA"].includes(s.estado);
+    title = `Solicitud ${code("SOL", n)}`;
+    kicker = (
+      <>
+        Solicitud {statusLabels[s.tipo].toLowerCase()} <Badge value={s.estado} />
+      </>
+    );
+    body = (
+      <>
+        <section className="card card-pad mb-4">
+          {cerrada ? (
+            <Alert tone="neutral">{solicitudHint[s.estado]}</Alert>
+          ) : (
+            <Stepper
+              current={s.estado}
+              steps={s.recorrido.map((e) => ({ key: e, label: statusLabels[e] }))}
+            />
+          )}
+        </section>
+        <div className="detail-grid">
+          <div className="grid gap-4">
+            <section className="card card-pad">
+              <Facts
+                items={[
+                  ["Socio", linkTo(`/socios/${s.socio_id}`, socioName(s.socio_id, db!))],
+                  ["Libro", linkTo(`/catalogo/${s.libro_id}`, bookName(s.libro_id, db!))],
+                  ["Sale de", sedeName(s.sede_origen_id, db!)],
+                  ["Se retira en", sedeName(s.sede_destino_id, db!)],
+                  [
+                    "Ejemplar",
+                    s.ejemplar_id
+                      ? linkTo(
+                          `/ejemplares/${s.ejemplar_id}`,
+                          db!.ejemplares.find((e) => e.id === s.ejemplar_id)?.codigo_inventario,
+                        )
+                      : "Sin asignar",
+                  ],
+                  ["Registrada", dateTimeLabel(s.fecha_solicitud)],
+                  ...(remito
+                    ? ([["Remito", linkTo(`/remitos/${remito.id}`, `${remito.numero} · ${statusLabels[remito.estado]}`)]] as [string, ReactNode][])
+                    : []),
+                  ...(s.reserva_id
+                    ? ([["Reserva", linkTo(`/reservas/${s.reserva_id}`, code("RES", s.reserva_id))]] as [string, ReactNode][])
+                    : []),
+                  ...(prestamo
+                    ? ([["Préstamo", linkTo(`/prestamos/${prestamo.id}`, code("PRE", prestamo.id))]] as [string, ReactNode][])
+                    : []),
+                ]}
+              />
+            </section>
+          </div>
+          <div className="grid gap-4">
+            <NextStep
+              title="Qué sigue"
+              text={
+                s.estado === "ASIGNADA" && remito && !s.acciones.includes("preparar-entrega")
+                  ? `La copia ya viaja en el remito ${remito.numero} (${statusLabels[remito.estado].toLowerCase()}). ${sedeName(s.sede_origen_id, db!)} lo empaqueta y despacha; cuando ${sedeName(s.sede_destino_id, db!)} lo reciba, se habilita la entrega.`
+                  : solicitudHint[s.estado]
+              }
+            >
+              {s.acciones.map((a) => (
+                <Button
+                  key={a}
+                  size="sm"
+                  variant={["cancelar", "rechazar"].includes(a) ? "danger" : "primary"}
+                  onClick={() => run(a as Command)}
+                >
+                  {actionLabels[a as Command]}
+                </Button>
+              ))}
+              {s.estado === "ASIGNADA" && remito && (
+                <Link className="btn btn-outline btn-sm" to={`/remitos/${remito.id}`}>
+                  Ir al remito {remito.numero}
+                </Link>
+              )}
+              {s.estado === "EN_TRASLADO" && remito && (
+                <Link className="btn btn-outline btn-sm" to={`/remitos/${remito.id}`}>
+                  Seguir el envío
+                </Link>
+              )}
+            </NextStep>
+            <PatternNote pattern="Strategy">
+              El tipo de la solicitud elige la estrategia{" "}
+              <code>{s.estrategia}</code>. Al preparar la entrega:{" "}
+              {s.estrategia_descripcion} El resto del circuito (asignar,
+              entregar, devolver) es común a ambos tipos.
+            </PatternNote>
+          </div>
+        </div>
+      </>
+    );
   }
-  if (resource === "prestamos" && !data.fecha_devolucion)
-    actions.push("devolver");
-  if (resource === "reservas") {
-    if (data.estado === "PENDIENTE") actions.push("asignar-reserva");
-    if (["PENDIENTE", "LISTA_PARA_RETIRO"].includes(String(data.estado)))
-      actions.push("cancelar");
-    if (
-      data.estado === "LISTA_PARA_RETIRO" &&
-      data.fecha_limite_retiro &&
-      Date.parse(String(data.fecha_limite_retiro)) < Date.now()
-    )
-      actions.push("expirar");
-  }
+
   if (resource === "remitos") {
-    if (data.estado === "EN_PREPARACION")
-      actions.push("asignar", "empaquetar", "cancelar");
-    if (data.estado === "EMPAQUETADO") actions.push("despachar", "cancelar");
-    if (data.estado === "DESPACHADO") actions.push("registrar-salida");
-    if (data.estado === "EN_TRANSITO") actions.push("recibir");
-  }
-  function display(k: string, v: string | number | null): ReactNode {
-    if (v === null || v === "") return "—";
-    if (
-      k === "estado" ||
-      k === "condicion_fisica" ||
-      k === "condicion_devolucion"
-    )
-      return <Badge value={String(v)} />;
-    if (k.startsWith("fecha_")) return dateLabel(String(v));
-    if (k.startsWith("sede_")) return sedeName(Number(v), db!);
-    if (k === "libro_id")
-      return (
-        <Link className="underline underline-offset-4" to={`/catalogo/${v}`}>
-          {bookName(Number(v), db!)}
-        </Link>
-      );
-    if (k === "socio_id")
-      return (
-        <Link className="underline underline-offset-4" to={`/socios/${v}`}>
-          {socioName(Number(v), db!)}
-        </Link>
-      );
-    if (k === "solicitud_id")
-      return (
-        <Link className="underline underline-offset-4" to={`/solicitudes/${v}`}>
-          {code("SOL", Number(v))}
-        </Link>
-      );
-    if (k === "reserva_id")
-      return (
-        <Link className="underline underline-offset-4" to={`/reservas/${v}`}>
-          {code("RES", Number(v))}
-        </Link>
-      );
-    if (k === "ejemplar_id" || k === "ejemplar_asignado_id")
-      return (
-        <Link className="underline underline-offset-4" to={`/ejemplares/${v}`}>
-          {db!.ejemplares.find((e) => e.id === v)?.codigo_inventario}
-        </Link>
-      );
-    return statusLabels[String(v)] ?? v;
-  }
-  const editable = ["socios", "sedes", "libros", "ejemplares"].includes(
-    resource,
-  );
-  const es =
-    resource === "libros" ? db!.ejemplares.filter((e) => e.libro_id === n) : [];
-  const s =
-    resource === "prestamos"
-      ? db!.solicitudes.find((s) => s.id === data.solicitud_id)
-      : undefined;
-  return (
-    <>
-      <Back to={`/${pathOf(resource)}`} />
-      <Heading
-        title={
-          resource === "solicitudes"
-            ? `Solicitud ${name}`
-            : resource === "prestamos"
-              ? `Préstamo ${name}`
-              : name
-        }
-        description={
-          resource === "libros"
-            ? authorNames(
-                db!.libros.find((b) => b.id === n)!,
-                db!,
-              )
-            : config[resource]!.description
-        }
-        action={
-          editable && (
-            <Link
-              className={outlineClass}
-              to={`/${pathOf(resource)}/${n}/editar`}
-            >
-              Editar {config[resource]!.singular}
-            </Link>
-          )
-        }
-      />
-      <div className="mb-8 flex flex-wrap gap-3">
-        {actions.map((a) => (
-          <Button
-            key={a}
-            variant={
-              ["cancelar", "inhabilitar", "dar-de-baja"].includes(a)
-                ? "outline"
-                : "primary"
-            }
-            onClick={() => setAction(a)}
-          >
-            {resource === "remitos" && a === "asignar"
-              ? "Agregar ejemplar"
-              : actionLabels[a]}
-          </Button>
-        ))}
-        {resource === "solicitudes" &&
-          data.tipo === "INTERBIBLIOTECARIO" &&
-          data.estado === "ASIGNADA" && (
-            <Link
-              className={primaryClass}
-              to={`/remitos/nuevo?sede_origen_id=${data.sede_origen_id}&sede_destino_id=${data.sede_destino_id}`}
-            >
-              Preparar remito
-            </Link>
+    const r = db!.remitos.find((x) => x.id === n)!;
+    const detalles = db!.detalle_remitos.filter((d) => d.remito_id === n);
+    const eventos = db!.evento_remitos
+      .filter((e) => e.remito_id === n)
+      .sort((a, b) => Date.parse(a.fecha_hora) - Date.parse(b.fecha_hora) || a.id - b.id);
+    const incid = r.estado === "RECIBIDO_CON_INCIDENCIAS";
+    title = `Remito ${r.numero}`;
+    kicker = (
+      <>
+        {sedeName(r.sede_origen_id, db!)} → {sedeName(r.sede_destino_id, db!)}{" "}
+        <Badge value={r.estado} />
+      </>
+    );
+    const ops: OperacionRemito[] = ["agregar", "quitar", "empaquetar", "reabrir", "despachar", "recibir", "cancelar"];
+    body = (
+      <>
+        <section className="card card-pad mb-4">
+          {r.estado === "CANCELADO" ? (
+            <Alert tone="neutral">Este envío fue cancelado antes de salir.</Alert>
+          ) : (
+            <Stepper
+              current={incid ? "RECIBIDO" : r.estado}
+              failed={incid}
+              steps={[
+                { key: "EN_PREPARACION", label: "En preparación", hint: dateLabel(r.fecha_creacion) },
+                { key: "EMPAQUETADO", label: "Empaquetado" },
+                { key: "EN_TRANSITO", label: "En tránsito", hint: r.fecha_despacho ? dateLabel(r.fecha_despacho) : undefined },
+                {
+                  key: "RECIBIDO",
+                  label: incid ? "Recibido con incidencias" : "Recibido",
+                  hint: r.fecha_recepcion ? dateLabel(r.fecha_recepcion) : undefined,
+                },
+              ]}
+            />
           )}
-        {resource === "ejemplares" &&
-          data.estado === "EN_REVISION" &&
-          data.sede_actual_id &&
-          data.sede_actual_id !== data.sede_propietaria_id && (
-            <Link
-              className={primaryClass}
-              to={`/remitos/nuevo?sede_origen_id=${data.sede_actual_id}&sede_destino_id=${data.sede_propietaria_id}`}
-            >
-              Preparar retorno a sede propietaria
-            </Link>
-          )}
-        {resource === "reservas" && data.estado === "LISTA_PARA_RETIRO" && (
-          <Link
-            className={primaryClass}
-            to={`/solicitudes/${db!.solicitudes.find((s) => s.reserva_id === n)?.id}`}
-          >
-            Registrar entrega
-          </Link>
-        )}
-      </div>
-      <section
-        className={`${panelClass} record-sheet mb-8 flex flex-col gap-8 sm:flex-row`}
-      >
-        {resource === "libros" && <Cover id={n} title={name} large />}
-        {resource === "ejemplares" && (
-          <Cover
-            key={String(data.libro_id)}
-            id={Number(data.libro_id)}
-            title={bookName(Number(data.libro_id), db!)}
-            large
-          />
-        )}
-        <dl className="grid flex-1 gap-x-8 gap-y-6 sm:grid-cols-2">
-          {Object.entries(data)
-            .filter(([k]) => k !== "id")
-            .map(([k, v]) => (
-              <div key={k}>
-                <dt className="mb-2 text-xs text-[var(--muted-foreground)]">
-                  {labels[k] ?? k}
-                </dt>
-                <dd className="break-words text-sm">{display(k, v)}</dd>
-              </div>
-            ))}
-          {s && (
-            <>
-              <div>
-                <dt className="mb-2 text-xs text-[var(--muted-foreground)]">
-                  Socio y libro (desde solicitud)
-                </dt>
-                <dd className="text-sm">
-                  {socioName(s.socio_id, db!)} · {bookName(s.libro_id, db!)}
-                </dd>
-              </div>
-              <div>
-                <dt className="mb-2 text-xs text-[var(--muted-foreground)]">
-                  Situación
-                </dt>
-                <dd>
-                  <Badge
-                    value={
-                      data.fecha_devolucion
-                        ? "DEVUELTO"
-                        : isOverdue(db!.prestamos.find((p) => p.id === n)!)
-                          ? "VENCIDO"
-                          : "ACTIVO"
-                    }
-                  />
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
-      </section>
-      {resource === "libros" && (
-        <>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-            <h2 className="font-heading text-xl">Ejemplares en la red</h2>
-            <Link
-              to={`/ejemplares/nuevo?libro_id=${n}`}
-              className={outlineClass}
-            >
-              Nuevo ejemplar
-            </Link>
-          </div>
-          <Table
-            headers={[
-              "Ejemplar",
-              "Sede propietaria",
-              "Ubicación actual",
-              "Estado",
-              "",
-            ]}
-            rows={es.map((e) => [
-              e.codigo_inventario,
-              sedeName(e.sede_propietaria_id, db!),
-              sedeName(e.sede_actual_id, db!),
-              <Badge value={e.estado} />,
-              available(e, db!) ? (
-                <Link
-                  className={outlineClass}
-                  to={`/solicitudes/nuevo?libro_id=${n}&ejemplar_id=${e.id}`}
-                >
-                  Seleccionar
-                </Link>
-              ) : (
-                <Link className={outlineClass} to={`/ejemplares/${e.id}`}>
-                  Ver detalle
-                </Link>
-              ),
-            ])}
-          />
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              className={primaryClass}
-              to={`/solicitudes/nuevo?libro_id=${n}`}
-            >
-              Nueva solicitud
-            </Link>
-            <Link className={outlineClass} to={`/reservas/nuevo?libro_id=${n}`}>
-              Registrar reserva
-            </Link>
-            <Link className={outlineClass} to={`/ejemplares?libro_id=${n}`}>
-              Gestionar ejemplares
-            </Link>
-          </div>
-        </>
-      )}
-      {resource === "socios" && (
-        <>
-          <h2 className="font-heading mb-5 text-xl">Solicitudes del socio</h2>
-          <Table
-            headers={["Solicitud", "Libro", "Estado", ""]}
-            rows={db!.solicitudes
-              .filter((s) => s.socio_id === n)
-              .map((s) => [
-                code("SOL", s.id),
-                bookName(s.libro_id, db!),
-                <Badge value={s.estado} />,
-                <Link to={`/solicitudes/${s.id}`} className={outlineClass}>
-                  Ver detalle
-                </Link>,
-              ])}
-          />
-        </>
-      )}
-      {resource === "sedes" && (
-        <>
-          <h2 className="font-heading mb-5 text-xl">Ejemplares de la sede</h2>
-          <Table
-            headers={["Ejemplar", "Libro", "Estado", ""]}
-            rows={db!.ejemplares
-              .filter((e) => e.sede_propietaria_id === n)
-              .map((e) => [
-                e.codigo_inventario,
-                bookName(e.libro_id, db!),
-                <Badge value={e.estado} />,
-                <Link className={outlineClass} to={`/ejemplares/${e.id}`}>
-                  Ver detalle
-                </Link>,
-              ])}
-          />
-        </>
-      )}
-      {resource === "solicitudes" && (
-        <>
-          <h2 className="font-heading mb-5 text-xl">Seguimiento</h2>
-          <section className={panelClass}>
-            <p className="text-sm">
-              Solicitud registrada · {dateLabel(String(data.fecha_solicitud))}
-            </p>
-            <p className="my-4 text-sm">
-              Estado actual: {statusLabels[String(data.estado)]}
-            </p>
-            {db!.detalle_remitos
-              .filter((d) => d.solicitud_id === n)
-              .map((d) => (
-                <Link
-                  key={d.id}
-                  className={`${outlineClass} mr-3`}
-                  to={`/remitos/${d.remito_id}`}
-                >
-                  Ver remito{" "}
-                  {db!.remitos.find((r) => r.id === d.remito_id)?.numero}
-                </Link>
-              ))}
-            {db!.prestamos
-              .filter((p) => p.solicitud_id === n)
-              .map((p) => (
-                <Link
-                  key={p.id}
-                  className={outlineClass}
-                  to={`/prestamos/${p.id}`}
-                >
-                  Ver préstamo
-                </Link>
-              ))}
-            {data.estado === "EN_TRASLADO" && (
-              <Alert>
-                La entrega al socio se habilita cuando el ejemplar llega a la
-                sede de retiro.
-              </Alert>
-            )}
-          </section>
-        </>
-      )}
-      {resource === "remitos" && (
-        <>
-          <h2 className="font-heading mb-5 text-xl">Ejemplares del remito</h2>
-          <Table
-            headers={[
-              "Ejemplar",
-              "Libro",
-              "Solicitud",
-              "Condición de salida",
-              "Recepción",
-            ]}
-            rows={db!.detalle_remitos
-              .filter((d) => d.remito_id === n)
-              .map((d) => {
-                const e = db!.ejemplares.find((e) => e.id === d.ejemplar_id)!;
+        </section>
+        <div className="detail-grid">
+          <div className="grid min-w-0 gap-4">
+            <h2 className="section-title !mt-0">Contenido del paquete</h2>
+            <Table
+              headers={["Ejemplar", "Libro", "Motivo", "Salió", "Llegó"]}
+              rows={detalles.map((d) => {
+                const e = db!.ejemplares.find((x) => x.id === d.ejemplar_id)!;
                 return [
-                  <Link className="underline" to={`/ejemplares/${e.id}`}>
-                    {e.codigo_inventario}
-                  </Link>,
+                  <Link className="mono underline" to={`/ejemplares/${e.id}`}>{e.codigo_inventario}</Link>,
                   bookName(e.libro_id, db!),
                   d.solicitud_id ? (
-                    <Link
-                      className="underline"
-                      to={`/solicitudes/${d.solicitud_id}`}
-                    >
-                      {code("SOL", d.solicitud_id)}
+                    <Link className="underline" to={`/solicitudes/${d.solicitud_id}`}>
+                      Pedido {code("SOL", d.solicitud_id)}
                     </Link>
+                  ) : e.sede_propietaria_id === r.sede_destino_id ? (
+                    "Retorno a su sede"
                   ) : (
                     "Traslado"
                   ),
-                  statusLabels[d.condicion_salida] ?? d.condicion_salida,
-                  d.condicion_recepcion
-                    ? (statusLabels[d.condicion_recepcion] ??
-                      d.condicion_recepcion)
-                    : "Pendiente",
+                  <Badge value={d.condicion_salida} />,
+                  d.resultado_recepcion ? <Badge value={d.resultado_recepcion} /> : <span className="muted">—</span>,
                 ];
               })}
-          />
-          <h2 className="font-heading mt-8 mb-5 text-xl">
-            Historial del remito
-          </h2>
-          <ol className={panelClass}>
-            {db!.evento_remitos
-              .filter((e) => e.remito_id === n)
-              .sort(
-                (a, b) => Date.parse(a.fecha_hora) - Date.parse(b.fecha_hora),
-              )
-              .map((e) => (
-                <li
-                  key={e.id}
-                  className="border-l-2 border-[var(--border)] pb-6 pl-5 last:pb-0"
+              empty={
+                <div className="empty">
+                  <strong>El paquete está vacío</strong>
+                  <span>Agregá al menos un ejemplar para poder empaquetarlo.</span>
+                </div>
+              }
+            />
+            <h2 className="section-title">Trazabilidad</h2>
+            <section className="card card-pad">
+              <ol className="timeline">
+                {eventos.map((e) => (
+                  <li key={e.id}>
+                    <b>
+                      {e.estado_anterior ? `${statusLabels[e.estado_anterior] ?? e.estado_anterior} → ` : ""}
+                      {statusLabels[e.estado_nuevo] ?? e.estado_nuevo}
+                    </b>
+                    <small>
+                      {dateTimeLabel(e.fecha_hora)} · {e.responsable}
+                      {e.observacion ? ` · ${e.observacion}` : ""}
+                    </small>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          </div>
+          <div className="grid gap-4">
+            <NextStep title="Qué sigue" text={nextHint[r.estado]}>
+              {r.acciones.map((op) => (
+                <Button
+                  key={op}
+                  size="sm"
+                  variant={op === "cancelar" ? "danger" : op === "quitar" || op === "reabrir" ? "outline" : "primary"}
+                  disabled={(op === "quitar" || op === "empaquetar") && !detalles.length}
+                  onClick={() => run(remitoOps[op])}
                 >
-                  <p className="text-sm font-medium">
-                    {e.estado_anterior
-                      ? `${statusLabels[e.estado_anterior]} → `
-                      : ""}
-                    {statusLabels[e.estado_nuevo]}
-                  </p>
-                  <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-                    {new Date(e.fecha_hora).toLocaleString("es-AR", {
-                      timeZone: "America/Argentina/Buenos_Aires",
-                    })}{" "}
-                    · {e.responsable}
-                  </p>
-                  {e.observacion && (
-                    <p className="mt-2 text-sm">{e.observacion}</p>
-                  )}
-                </li>
+                  {remitoOpLabels[op]}
+                </Button>
               ))}
-          </ol>
-        </>
-      )}
+            </NextStep>
+            <PatternNote pattern="State">
+              El remito delega cada operación en el objeto de su estado actual,{" "}
+              <code>{r.estado_clase}</code>: {r.estado_descripcion}
+              <div className="ops" aria-label="Operaciones del estado">
+                {ops.map((op) => (
+                  <span key={op} className={`op ${r.acciones.includes(op) ? "on" : "off"}`}>
+                    {op}()
+                  </span>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+                Verde: lo que este estado admite. Tachado: lo rechaza con un
+                error de transición.
+              </p>
+            </PatternNote>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (resource === "prestamos") {
+    const p = db!.prestamos.find((x) => x.id === n)!;
+    const s = db!.solicitudes.find((x) => x.id === p.solicitud_id)!;
+    const e = db!.ejemplares.find((x) => x.id === s.ejemplar_id);
+    const estado = loanState(p);
+    const debeVolver =
+      e && e.estado === "EN_REVISION" && e.sede_actual_id !== e.sede_propietaria_id && !inOpenRemito(e.id, db!);
+    title = `Préstamo ${code("PRE", n)}`;
+    kicker = (
+      <>
+        Préstamo <Badge value={estado} />
+      </>
+    );
+    body = (
+      <div className="detail-grid">
+        <section className="card card-pad">
+          <Facts
+            items={[
+              ["Socio", linkTo(`/socios/${s.socio_id}`, socioName(s.socio_id, db!))],
+              ["Libro", linkTo(`/catalogo/${s.libro_id}`, bookName(s.libro_id, db!))],
+              ["Ejemplar", e ? linkTo(`/ejemplares/${e.id}`, e.codigo_inventario) : "—"],
+              ["Entregado en", sedeName(s.sede_destino_id, db!)],
+              ["Entrega", dateTimeLabel(p.fecha_entrega)],
+              ["Vence", dateTimeLabel(p.fecha_vencimiento)],
+              ["Devolución", p.fecha_devolucion ? dateTimeLabel(p.fecha_devolucion) : "Pendiente"],
+              ["Estado al devolver", p.condicion_devolucion ? <Badge value={p.condicion_devolucion} /> : "—"],
+              ["Días de atraso", p.dias_atraso ? <b className="text-[var(--bad)]">{p.dias_atraso}</b> : "0"],
+              ["Multa", p.multa ? <b className="text-[var(--bad)]">{pesos(p.multa)}</b> : pesos(0)],
+              ["Solicitud", linkTo(`/solicitudes/${s.id}`, code("SOL", s.id))],
+            ]}
+          />
+        </section>
+        <NextStep
+          title="Qué sigue"
+          text={
+            !p.fecha_devolucion
+              ? estado === "VENCIDO"
+                ? `Está vencido: acumula ${pesos(p.multa)} de multa. Al devolverlo, el ejemplar pasa a revisión.`
+                : "Cuando el socio devuelva el libro, registrá la devolución y el estado del material."
+              : debeVolver
+                ? "El ejemplar es de otra sede: armá el remito de retorno."
+                : "El préstamo está cerrado."
+          }
+        >
+          {!p.fecha_devolucion && (
+            <Button size="sm" onClick={() => run("devolver")}>
+              Registrar devolución
+            </Button>
+          )}
+          {debeVolver && e && (
+            <Button size="sm" disabled={busy} onClick={() => void retorno(e.id)}>
+              <Undo2 size={14} /> Preparar retorno
+            </Button>
+          )}
+        </NextStep>
+      </div>
+    );
+  }
+
+  if (resource === "reservas") {
+    const r = db!.reservas.find((x) => x.id === n)!;
+    const s = db!.solicitudes.find((x) => x.reserva_id === n);
+    const vencida =
+      r.estado === "LISTA_PARA_RETIRO" && r.fecha_limite_retiro && Date.parse(r.fecha_limite_retiro) < Date.now();
+    title = `Reserva ${code("RES", n)}`;
+    kicker = (
+      <>
+        Reserva <Badge value={r.estado} />
+      </>
+    );
+    body = (
+      <>
+        <section className="card card-pad mb-4">
+          {["CANCELADA", "EXPIRADA"].includes(r.estado) ? (
+            <Alert tone="neutral">La reserva está {statusLabels[r.estado].toLowerCase()}.</Alert>
+          ) : (
+            <Stepper
+              current={r.estado}
+              steps={[
+                { key: "PENDIENTE", label: "En espera", hint: "Sin copia apartada" },
+                { key: "LISTA_PARA_RETIRO", label: "Lista para retirar", hint: r.fecha_limite_retiro ? `hasta ${dateLabel(r.fecha_limite_retiro)}` : undefined },
+                { key: "CUMPLIDA", label: "Retirada" },
+              ]}
+            />
+          )}
+        </section>
+        <div className="detail-grid">
+          <section className="card card-pad">
+            <Facts
+              items={[
+                ["Socio", linkTo(`/socios/${r.socio_id}`, socioName(r.socio_id, db!))],
+                ["Libro", linkTo(`/catalogo/${r.libro_id}`, bookName(r.libro_id, db!))],
+                ["Sede de retiro", sedeName(r.sede_retiro_id, db!)],
+                ["Reservada", dateTimeLabel(r.fecha_reserva)],
+                ["Retirar hasta", dateTimeLabel(r.fecha_limite_retiro)],
+                [
+                  "Ejemplar apartado",
+                  r.ejemplar_asignado_id
+                    ? linkTo(`/ejemplares/${r.ejemplar_asignado_id}`, db!.ejemplares.find((e) => e.id === r.ejemplar_asignado_id)?.codigo_inventario)
+                    : "—",
+                ],
+              ]}
+            />
+          </section>
+          <NextStep
+            title="Qué sigue"
+            text={
+              r.estado === "PENDIENTE"
+                ? "Cuando haya una copia disponible en la sede de retiro, apartala para el socio."
+                : r.estado === "LISTA_PARA_RETIRO"
+                  ? vencida
+                    ? "Venció el plazo de retiro. Podés marcarla como expirada para liberar la copia."
+                    : "La copia está apartada en mostrador. Entregala cuando el socio venga."
+                  : "La reserva está cerrada."
+            }
+          >
+            {r.estado === "PENDIENTE" && (
+              <Button size="sm" onClick={() => run("asignar-reserva")}>Apartar copia</Button>
+            )}
+            {r.estado === "LISTA_PARA_RETIRO" && s && !vencida && (
+              <Button size="sm" onClick={() => run("entregar", "solicitudes", s.id)}>Entregar al socio</Button>
+            )}
+            {vencida && (
+              <Button size="sm" variant="outline" onClick={() => run("expirar")}>Marcar como expirada</Button>
+            )}
+            {["PENDIENTE", "LISTA_PARA_RETIRO"].includes(r.estado) && (
+              <Button size="sm" variant="danger" onClick={() => run("cancelar")}>Cancelar reserva</Button>
+            )}
+          </NextStep>
+        </div>
+      </>
+    );
+  }
+
+  if (resource === "ejemplares") {
+    const e = db!.ejemplares.find((x) => x.id === n)!;
+    const lejos = e.sede_actual_id !== null && e.sede_actual_id !== e.sede_propietaria_id;
+    const viaja = inOpenRemito(e.id, db!);
+    title = e.codigo_inventario;
+    kicker = (
+      <>
+        Ejemplar <Badge value={e.estado} />
+      </>
+    );
+    const historial = db!.detalle_remitos.filter((d) => d.ejemplar_id === n);
+    body = (
+      <>
+        <div className="detail-grid">
+          <section className="card card-pad flex flex-col gap-6 sm:flex-row">
+            <Cover id={e.libro_id} title={bookName(e.libro_id, db!)} large />
+            <Facts
+              items={[
+                ["Libro", linkTo(`/catalogo/${e.libro_id}`, bookName(e.libro_id, db!))],
+                ["Pertenece a", sedeName(e.sede_propietaria_id, db!)],
+                ["Está en", e.sede_actual_id === null ? "Viajando" : sedeName(e.sede_actual_id, db!)],
+                ["Estado", <Badge value={e.estado} />],
+                ["Condición", <Badge value={e.condicion_fisica} />],
+                ["Alta", dateLabel(e.fecha_alta ?? null)],
+              ]}
+            />
+          </section>
+          <NextStep
+            title="Qué sigue"
+            text={
+              e.estado === "EN_REVISION"
+                ? lejos
+                  ? viaja
+                    ? "Ya está incluido en un remito de retorno."
+                    : "Está fuera de su sede: armá el remito de retorno."
+                  : e.condicion_fisica === "APTO"
+                    ? "Revisalo y aprobá su disponibilidad para que vuelva a circular."
+                    : "No está apto. Repará y cambiá su condición (Editar) o dalo de baja."
+                : e.estado === "DISPONIBLE"
+                  ? "Disponible para préstamo."
+                  : `Está ${statusLabels[e.estado].toLowerCase()}.`
+            }
+          >
+            {e.estado === "EN_REVISION" && !lejos && e.condicion_fisica === "APTO" && (
+              <Button size="sm" onClick={() => run("aprobar-disponibilidad")}>Aprobar disponibilidad</Button>
+            )}
+            {e.estado === "EN_REVISION" && lejos && !viaja && (
+              <Button size="sm" disabled={busy} onClick={() => void retorno(e.id)}>
+                <Undo2 size={14} /> Preparar retorno
+              </Button>
+            )}
+            {["DISPONIBLE", "EN_REVISION"].includes(e.estado) && (
+              <Button size="sm" variant="danger" onClick={() => run("dar-de-baja")}>Dar de baja</Button>
+            )}
+          </NextStep>
+        </div>
+        <h2 className="section-title">Recorrido entre sedes</h2>
+        <Table
+          headers={["Remito", "Trayecto", "Estado", "Resultado"]}
+          rows={historial.map((d) => {
+            const r = db!.remitos.find((x) => x.id === d.remito_id)!;
+            return [
+              <Link className="underline" to={`/remitos/${r.id}`}>{r.numero}</Link>,
+              `${sedeName(r.sede_origen_id, db!)} → ${sedeName(r.sede_destino_id, db!)}`,
+              <Badge value={r.estado} />,
+              d.resultado_recepcion ? <Badge value={d.resultado_recepcion} /> : "—",
+            ];
+          })}
+          empty={<div className="empty">Este ejemplar nunca viajó entre sedes.</div>}
+        />
+      </>
+    );
+  }
+
+  if (resource === "libros") {
+    const b = db!.libros.find((x) => x.id === n)!;
+    const es = db!.ejemplares.filter((e) => e.libro_id === n);
+    title = b.titulo;
+    kicker = "Catálogo";
+    body = <BookDetail db={db!} id={n} />;
+    headerActions = (
+      <>
+        {headerActions}
+        <Link className={primaryClass} to={`/solicitudes/nuevo?libro_id=${n}`}>Pedir este libro</Link>
+      </>
+    );
+    void es;
+  }
+
+  if (resource === "socios") {
+    const s = db!.socios.find((x) => x.id === n)!;
+    title = s.nombre;
+    kicker = (
+      <>
+        Socio N.º {s.numero_socio} <Badge value={s.estado} />
+      </>
+    );
+    const sols = db!.solicitudes.filter((x) => x.socio_id === n);
+    const prestamos = db!.prestamos.filter((p) => sols.some((x) => x.id === p.solicitud_id));
+    const deuda = prestamos.reduce((acc, p) => acc + (p.multa || 0), 0);
+    body = (
+      <>
+        <div className="detail-grid">
+          <section className="card card-pad">
+            <Facts
+              items={[
+                ["Documento", s.documento],
+                ["Contacto", s.contacto],
+                ["Préstamos activos", prestamos.filter((p) => !p.fecha_devolucion).length],
+                ["Multas", deuda ? <b className="text-[var(--bad)]">{pesos(deuda)}</b> : pesos(0)],
+              ]}
+            />
+          </section>
+          <NextStep
+            title="Habilitación"
+            text={
+              s.estado === "HABILITADO"
+                ? "Puede pedir préstamos y reservas."
+                : "No puede iniciar préstamos ni reservas. Sí puede devolver."
+            }
+          >
+            <Button
+              size="sm"
+              variant={s.estado === "HABILITADO" ? "danger" : "primary"}
+              onClick={() => run(s.estado === "HABILITADO" ? "inhabilitar" : "habilitar")}
+            >
+              {s.estado === "HABILITADO" ? "Inhabilitar" : "Habilitar"}
+            </Button>
+            {s.estado === "HABILITADO" && (
+              <Link className="btn btn-outline btn-sm" to={`/solicitudes/nuevo?socio_id=${n}`}>
+                Nueva solicitud
+              </Link>
+            )}
+          </NextStep>
+        </div>
+        <h2 className="section-title">Historial de lectura</h2>
+        <Table
+          headers={["Solicitud", "Libro", "Estado", "Préstamo"]}
+          onRowClick={(i) => navigate(`/solicitudes/${sols[i].id}`)}
+          rows={sols.map((x) => {
+            const p = prestamos.find((pp) => pp.solicitud_id === x.id);
+            return [
+              <span className="mono">{code("SOL", x.id)}</span>,
+              bookName(x.libro_id, db!),
+              <Badge value={x.estado} />,
+              p ? <Badge value={loanState(p)} /> : "—",
+            ];
+          })}
+          empty={<div className="empty">Todavía no pidió libros.</div>}
+        />
+      </>
+    );
+  }
+
+  if (resource === "sedes") {
+    const s = db!.sedes.find((x) => x.id === n)!;
+    title = s.nombre;
+    kicker = (
+      <>
+        Sede <Badge value={s.estado} />
+      </>
+    );
+    const propios = db!.ejemplares.filter((e) => e.sede_propietaria_id === n);
+    body = (
+      <>
+        <div className="detail-grid">
+          <section className="card card-pad">
+            <Facts
+              items={[
+                ["Dirección", s.direccion],
+                ["Contacto", s.contacto],
+                ["Horarios", s.horarios],
+                ["Ejemplares propios", propios.length],
+                ["Disponibles", propios.filter((e) => available(e, db!)).length],
+              ]}
+            />
+          </section>
+          <NextStep
+            title="Estado en la red"
+            text={
+              s.estado === "ACTIVA"
+                ? "Opera normalmente. Darla de baja impide iniciar préstamos, reservas y envíos desde o hacia ella."
+                : "Está dada de baja: no inicia operaciones nuevas."
+            }
+          >
+            <Button
+              size="sm"
+              variant={s.estado === "ACTIVA" ? "danger" : "primary"}
+              onClick={() => run(s.estado === "ACTIVA" ? "dar-de-baja" : "reactivar")}
+            >
+              {s.estado === "ACTIVA" ? "Dar de baja" : "Reactivar"}
+            </Button>
+          </NextStep>
+        </div>
+        <h2 className="section-title">Fondo de la sede</h2>
+        <Table
+          headers={["Ejemplar", "Libro", "Ubicación", "Estado"]}
+          onRowClick={(i) => navigate(`/ejemplares/${propios[i].id}`)}
+          rows={propios.map((e) => [
+            <span className="mono">{e.codigo_inventario}</span>,
+            bookName(e.libro_id, db!),
+            e.sede_actual_id === n ? "En la sede" : sedeName(e.sede_actual_id, db!),
+            <Badge value={e.estado} />,
+          ])}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Back to={`/${pathOf(resource)}`}>Volver a {config[resource]?.title.toLowerCase()}</Back>
+      <Heading kicker={kicker} title={title} action={headerActions} />
+      {body}
       {action && (
         <CommandDialog
-          resource={resource}
-          id={n}
-          action={action}
+          resource={action.resource}
+          id={action.id}
+          action={action.command}
           onClose={() => setAction(null)}
         />
       )}
+    </>
+  );
+}
+
+function BookDetail({ db, id }: { db: Database; id: number }) {
+  const navigate = useNavigate();
+  const b = db.libros.find((x) => x.id === id)!;
+  const es = db.ejemplares.filter((e) => e.libro_id === id);
+  const porSede = db.sedes
+    .map((s) => ({
+      sede: s,
+      total: es.filter((e) => e.sede_propietaria_id === s.id && e.estado !== "BAJA").length,
+      disponibles: es.filter((e) => e.sede_propietaria_id === s.id && available(e, db)).length,
+    }))
+    .filter((x) => x.total);
+  return (
+    <>
+      <div className="detail-grid">
+        <section className="card card-pad flex flex-col gap-6 sm:flex-row">
+          <Cover id={id} title={b.titulo} large />
+          <Facts
+            items={[
+              ["Autor", b.autor],
+              ["Editorial", b.editorial],
+              ["Edición", b.edicion],
+              ["ISBN", b.isbn ?? "Sin ISBN"],
+              ["Copias en la red", es.filter((e) => e.estado !== "BAJA").length],
+              ["Disponibles ahora", es.filter((e) => available(e, db)).length],
+            ]}
+          />
+        </section>
+        <section className="card card-pad">
+          <h3 className="mb-3 font-bold">Disponibilidad por sede</h3>
+          <div className="sede-avail">
+            {porSede.map(({ sede, total, disponibles }) => (
+              <div key={sede.id} className="row">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">{sede.nombre}</p>
+                  <div className="avail-bar">
+                    <span style={{ width: `${(disponibles / total) * 100}%` }} />
+                  </div>
+                </div>
+                <span className="text-sm">
+                  <b>{disponibles}</b>/{total}
+                </span>
+              </div>
+            ))}
+            {!porSede.length && <p className="muted text-sm">No hay copias registradas.</p>}
+          </div>
+          <div className="action-stack mt-4">
+            <Link className="btn btn-primary btn-sm" to={`/solicitudes/nuevo?libro_id=${id}`}>
+              Pedir prestado
+            </Link>
+            <Link className="btn btn-outline btn-sm" to={`/reservas/nuevo?libro_id=${id}`}>
+              Reservar
+            </Link>
+            <Link className="btn btn-outline btn-sm" to={`/ejemplares/nuevo?libro_id=${id}`}>
+              Agregar copia
+            </Link>
+          </div>
+        </section>
+      </div>
+      <h2 className="section-title">Copias</h2>
+      <Table
+        headers={["Ejemplar", "Pertenece a", "Está en", "Estado", "Condición"]}
+        onRowClick={(i) => navigate(`/ejemplares/${es[i].id}`)}
+        rows={es.map((e) => [
+          <span className="mono">{e.codigo_inventario}</span>,
+          sedeName(e.sede_propietaria_id, db),
+          e.sede_actual_id === null ? "Viajando" : sedeName(e.sede_actual_id, db),
+          <Badge value={e.estado} />,
+          <Badge value={e.condicion_fisica} />,
+        ])}
+      />
     </>
   );
 }

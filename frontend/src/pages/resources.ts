@@ -7,6 +7,8 @@ export interface FormField {
   type?: "text" | "textarea" | "select" | "datetime-local";
   required?: boolean;
   options?: [string, string][];
+  hint?: string;
+  placeholder?: string;
 }
 export interface ResourceConfig {
   title: string;
@@ -35,7 +37,7 @@ export const config: Partial<Record<Resource, ResourceConfig>> = {
     title: "Catálogo",
     singular: "libro",
     description:
-      "El fondo de la red, libro por libro. Consultá las copias y su disponibilidad antes de registrar una solicitud.",
+      "El fondo de toda la red. Abrí un libro para ver en qué sedes hay copias disponibles y pedirlo.",
     create: "Nuevo libro",
     search: "Buscar por título, autor o ISBN",
   },
@@ -50,14 +52,15 @@ export const config: Partial<Record<Resource, ResourceConfig>> = {
   solicitudes: {
     title: "Solicitudes",
     singular: "solicitud",
-    description: "Seguí cada solicitud desde su registro hasta la entrega.",
+    description:
+      "Cada pedido de un socio, desde que se registra hasta que se entrega. Abrí una para ver en qué paso está y qué sigue.",
     create: "Nueva solicitud",
     search: "Buscar por solicitud, socio o libro",
   },
   prestamos: {
     title: "Préstamos",
     singular: "préstamo",
-    description: "Consultá las entregas, los vencimientos y las devoluciones.",
+    description: "Libros en manos de socios: vencimientos, atrasos y multas.",
     create: "Registrar devolución",
     search: "Buscar préstamo, socio o ejemplar",
   },
@@ -72,7 +75,8 @@ export const config: Partial<Record<Resource, ResourceConfig>> = {
   remitos: {
     title: "Remitos",
     singular: "remito",
-    description: "Prepará y seguí el traslado de ejemplares entre sedes.",
+    description:
+      "Paquetes de ejemplares que viajan entre sedes. Se arman solos al preparar solicitudes interbibliotecarias o retornos.",
     create: "Nuevo remito",
     search: "Buscar remito, sede o ejemplar",
   },
@@ -151,13 +155,17 @@ export function fieldsFor(resource: Resource, db: Database): FormField[] {
       return [
         select("socio_id", "Socio", socios),
         select("libro_id", "Libro", libros),
-        select("sede_retiro_id", "Sede de retiro", sedes),
+        select("sede_retiro_id", "Lo retira en", sedes),
       ];
     case "remitos":
       return [
-        field("numero", "Número de remito"),
-        select("sede_origen_id", "Sede de origen", sedes),
-        select("sede_destino_id", "Sede de destino", sedes),
+        select("sede_origen_id", "Sale de", sedes),
+        select("sede_destino_id", "Va hacia", sedes),
+        {
+          ...field("numero", "Número de remito", "text", false),
+          hint: "Si lo dejás vacío se genera automáticamente (REM-año-número).",
+          placeholder: "Automático",
+        },
       ];
     default:
       return [];

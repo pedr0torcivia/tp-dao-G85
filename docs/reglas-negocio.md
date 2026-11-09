@@ -30,7 +30,9 @@ Cancelar o expirar una reserva libera la copia y cancela su solicitud pendiente.
 
 ## Remitos
 
-EN_PREPARACION permite agregar copias; no se empaqueta un remito vacío. La secuencia es EN_PREPARACION, EMPAQUETADO, DESPACHADO, EN_TRANSITO y RECIBIDO. Solo se cancela antes del despacho. No se modifican sedes o número de un remito con copias asignadas. Se recibe el conjunto completo, indicando responsable y verificando cada copia.
+EN_PREPARACION permite agregar y quitar copias; no se empaqueta un remito vacío. La secuencia es EN_PREPARACION, EMPAQUETADO, EN_TRANSITO y RECIBIDO (o RECIBIDO_CON_INCIDENCIAS). Un remito empaquetado puede reabrirse. Solo se cancela antes del despacho. No se modifican sedes o número de un remito con copias asignadas; si no se indica número, se genera REM-año-número. Se recibe el conjunto completo indicando responsable y el resultado de cada copia: conforme, dañada (queda no apta y en revisión) o extraviada (se da de baja). Una solicitud cuya copia llega dañada o no llega vuelve a PENDIENTE para asignar otra.
+
+Un préstamo no puede superar 60 días. Un socio con préstamos vencidos sin devolver no retira material nuevo. Cada día de atraso genera una multa de $ 150, visible en el préstamo, en la ficha del socio y en el reporte de vencidos.
 
 La recepción o devolución de operaciones iniciadas sigue permitida si una sede se da de baja; no se inician nuevas solicitudes, reservas o envíos desde o hacia una sede de baja. La recepción conserva ubicación, condición e historial. Los cambios de estados y disponibilidad de cada comando se confirman en una transacción.
 

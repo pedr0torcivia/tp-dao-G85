@@ -81,7 +81,7 @@ describe("Contrato HTTP con Django", () => {
       hasta: "2026-10-20",
       sede: 2,
     });
-    expect(result.rows).toEqual([["Rayuela", 2, "Norte"]]);
+    expect(result.rows).toEqual([[1, "Rayuela", 2, "Norte"]]);
     expect(fetch.mock.calls[0]).toBeDefined();
   });
 });

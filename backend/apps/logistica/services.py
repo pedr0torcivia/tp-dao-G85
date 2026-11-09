@@ -1,77 +1,74 @@
+"""Casos de uso de logística.
+
+Cada servicio bloquea las filas involucradas, valida las reglas transversales
+(sedes activas, pertenencia del ejemplar) y delega la operación en el objeto
+State del remito (`remito.comportamiento`). El estado decide si la operación
+es válida y aplica sus efectos; los servicios nunca escriben `Remito.estado`.
+"""
+
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar
-from apps.circulacion.models import (
-    EstadoSolicitud,
-    SolicitudPrestamo,
-    TipoSolicitud,
-)
+from apps.circulacion.models import EstadoSolicitud, SolicitudPrestamo, TipoSolicitud
 from apps.sedes.models import Sede
 from apps.sedes.services import validar_sede_activa
-from apps.socios.models import EstadoSocio
 
 from .exceptions import (
     EjemplarInvalidoError,
     NumeroRemitoDuplicadoError,
     RecepcionInvalidaError,
     SedesInvalidasError,
-    SocioInhabilitadoError,
-    TransicionInvalidaError,
 )
-from .models import DetalleRemito, EstadoRemito, EventoRemito, Remito
-from .states import estado_actual
+from .models import (
+    ESTADOS_VIGENTES,
+    DetalleRemito,
+    EstadoRemito,
+    EventoRemito,
+    Remito,
+    ResultadoRecepcion,
+)
 
 RESPONSABLE_BASE = "Personal de biblioteca"
 
-ESTADOS_VIGENTES = (
-    EstadoRemito.EN_PREPARACION,
-    EstadoRemito.EMPAQUETADO,
-    EstadoRemito.DESPACHADO,
-    EstadoRemito.EN_TRANSITO,
-)
-
 
 def _validar_sedes_activas(*, sede_origen_id: int, sede_destino_id: int) -> None:
-    for sede_id in (sede_origen_id, sede_destino_id):
-        sede = Sede.objects.get(pk=sede_id)
+    for sede in Sede.objects.filter(pk__in=(sede_origen_id, sede_destino_id)):
         validar_sede_activa(sede=sede)
 
 
-def _registrar_evento(
-    *,
-    remito: Remito,
-    destino: str,
-    responsable: str,
-    observacion: str,
-) -> None:
-    EventoRemito.objects.create(
-        remito=remito,
-        estado_anterior=remito.estado,
-        estado_nuevo=destino,
-        responsable=responsable.strip() or RESPONSABLE_BASE,
-        observacion=observacion.strip(),
-    )
+def _bloquear(remito: Remito) -> Remito:
+    return Remito.objects.select_for_update().get(pk=remito.pk)
+
+
+def _numero_siguiente() -> str:
+    anio = timezone.localdate().year
+    ultimo = Remito.objects.order_by("-id").values_list("id", flat=True).first() or 0
+    for n in range(ultimo + 1, ultimo + 1000):
+        numero = f"REM-{anio}-{n:05d}"
+        if not Remito.objects.filter(numero__iexact=numero).exists():
+            return numero
+    raise NumeroRemitoDuplicadoError("No se pudo generar un número de remito libre.")
 
 
 @transaction.atomic
 def crear_remito(
     *,
-    numero: str,
     sede_origen_id: int,
     sede_destino_id: int,
+    numero: str | None = None,
 ) -> Remito:
-    _validar_sedes_activas(sede_origen_id=sede_origen_id, sede_destino_id=sede_destino_id)
-
     if sede_origen_id == sede_destino_id:
         raise SedesInvalidasError("El origen y el destino deben ser diferentes.")
+    _validar_sedes_activas(sede_origen_id=sede_origen_id, sede_destino_id=sede_destino_id)
 
     try:
-        remito = Remito.objects.create(
-            numero=numero.strip(),
-            sede_origen_id=sede_origen_id,
-            sede_destino_id=sede_destino_id,
-        )
+        with transaction.atomic():
+            remito = Remito.objects.create(
+                numero=(numero or "").strip() or _numero_siguiente(),
+                sede_origen_id=sede_origen_id,
+                sede_destino_id=sede_destino_id,
+            )
     except IntegrityError as error:
         raise NumeroRemitoDuplicadoError("Ya existe un remito con ese número.") from error
 
@@ -82,249 +79,167 @@ def crear_remito(
         responsable=RESPONSABLE_BASE,
         observacion="Remito registrado.",
     )
-
     return remito
+
+
+def remito_abierto(*, sede_origen_id: int, sede_destino_id: int) -> Remito:
+    """Reutiliza el remito en preparación del mismo trayecto o crea uno nuevo.
+
+    Así varias solicitudes hacia la misma sede viajan juntas en un paquete.
+    """
+    existente = (
+        Remito.objects.select_for_update()
+        .filter(
+            sede_origen_id=sede_origen_id,
+            sede_destino_id=sede_destino_id,
+            estado=EstadoRemito.EN_PREPARACION,
+        )
+        .order_by("id")
+        .first()
+    )
+    if existente is not None:
+        return existente
+    return crear_remito(sede_origen_id=sede_origen_id, sede_destino_id=sede_destino_id)
 
 
 @transaction.atomic
 def agregar_ejemplar(*, remito: Remito, ejemplar_id: int) -> DetalleRemito:
+    remito = _bloquear(remito)
     _validar_sedes_activas(
         sede_origen_id=remito.sede_origen_id, sede_destino_id=remito.sede_destino_id
     )
-
-    remito = Remito.objects.select_for_update().get(pk=remito.pk)
-
-    if not estado_actual(remito).admite_asignar():
-        raise TransicionInvalidaError("Sólo se agregan ejemplares durante la preparación.")
+    if "agregar" not in remito.comportamiento.operaciones_admitidas():
+        remito.comportamiento._rechazar("agregar ejemplares")
 
     try:
         ejemplar = Ejemplar.objects.select_for_update().get(pk=ejemplar_id)
     except Ejemplar.DoesNotExist as error:
         raise EjemplarInvalidoError("Ejemplar inexistente.") from error
 
+    if ejemplar.sede_actual_id != remito.sede_origen_id:
+        raise EjemplarInvalidoError("El ejemplar no se encuentra en la sede de origen del remito.")
+
+    if DetalleRemito.objects.filter(
+        ejemplar=ejemplar, remito__estado__in=ESTADOS_VIGENTES
+    ).exists():
+        raise EjemplarInvalidoError("El ejemplar ya está incluido en un remito vigente.")
+
+    solicitud = SolicitudPrestamo.objects.filter(
+        ejemplar=ejemplar, estado=EstadoSolicitud.ASIGNADA
+    ).first()
+
     es_retorno = (
         ejemplar.sede_actual_id != ejemplar.sede_propietaria_id
         and remito.sede_destino_id == ejemplar.sede_propietaria_id
         and ejemplar.estado == EstadoEjemplar.EN_REVISION
     )
-    if ejemplar.sede_actual_id != remito.sede_origen_id or (
-        ejemplar.sede_propietaria_id != remito.sede_origen_id and not es_retorno
-    ):
-        raise EjemplarInvalidoError(
-            "El ejemplar debe estar en origen y pertenecer allí, o retornar a su sede propietaria."
-        )
-
-    en_remito_vigente = DetalleRemito.objects.filter(
-        ejemplar=ejemplar,
-        remito__estado__in=ESTADOS_VIGENTES,
-    ).exists()
-    if en_remito_vigente:
-        raise EjemplarInvalidoError("El ejemplar ya está incluido en un remito vigente.")
-
-    solicitud = SolicitudPrestamo.objects.filter(
-        ejemplar=ejemplar,
-        estado=EstadoSolicitud.ASIGNADA,
-    ).first()
-
-    disponible = (
-        ejemplar.estado == EstadoEjemplar.DISPONIBLE
-        and ejemplar.condicion_fisica == CondicionFisica.APTO
-        and ejemplar.sede_actual_id == ejemplar.sede_propietaria_id
-    )
-    para_traslado = (
+    para_solicitud = (
         solicitud is not None
         and solicitud.tipo == TipoSolicitud.INTERBIBLIOTECARIO
         and solicitud.sede_destino_id == remito.sede_destino_id
+        and ejemplar.sede_propietaria_id == remito.sede_origen_id
     )
-    if not (disponible or para_traslado or es_retorno):
-        raise EjemplarInvalidoError("El ejemplar no está disponible para este trayecto.")
+    traslado_libre = (
+        solicitud is None
+        and ejemplar.estado == EstadoEjemplar.DISPONIBLE
+        and ejemplar.condicion_fisica == CondicionFisica.APTO
+        and ejemplar.sede_propietaria_id == remito.sede_origen_id
+    )
+    if not (es_retorno or para_solicitud or traslado_libre):
+        if solicitud is not None and solicitud.sede_destino_id != remito.sede_destino_id:
+            raise EjemplarInvalidoError(
+                "El ejemplar está asignado a una solicitud con otra sede de destino."
+            )
+        raise EjemplarInvalidoError(
+            "El ejemplar no está disponible para este trayecto: debe estar disponible en su "
+            "sede, asignado a una solicitud hacia el destino o volver a su sede propietaria."
+        )
 
-    detalle = DetalleRemito.objects.create(
+    detalle = DetalleRemito(
         remito=remito,
         ejemplar=ejemplar,
-        solicitud=solicitud,
+        solicitud=solicitud if para_solicitud else None,
         condicion_salida=ejemplar.condicion_fisica,
     )
-    ejemplar.estado = EstadoEjemplar.ASIGNADO
-    ejemplar.save(update_fields=["estado"])
-
+    remito.comportamiento.agregar(remito, detalle)
     return detalle
 
 
 @transaction.atomic
-def empaquetar_remito(
-    *,
-    remito: Remito,
-    responsable: str = "",
-    observacion: str = "",
-) -> Remito:
-    _validar_sedes_activas(
-        sede_origen_id=remito.sede_origen_id, sede_destino_id=remito.sede_destino_id
-    )
-
-    remito = Remito.objects.select_for_update().get(pk=remito.pk)
-    destino = estado_actual(remito).empaquetar(remito)
-
-    _registrar_evento(
-        remito=remito,
-        destino=destino,
-        responsable=responsable,
-        observacion=observacion,
-    )
-    remito.estado = destino
-    remito.save(update_fields=["estado"])
-
+def quitar_ejemplar(*, remito: Remito, ejemplar_id: int) -> Remito:
+    remito = _bloquear(remito)
+    detalle = remito.detalles.select_related("ejemplar").filter(ejemplar_id=ejemplar_id).first()
+    if detalle is None:
+        raise EjemplarInvalidoError("El ejemplar no forma parte del remito.")
+    remito.comportamiento.quitar(remito, detalle)
     return remito
 
 
 @transaction.atomic
-def cancelar_remito(
-    *,
-    remito: Remito,
-    responsable: str = "",
-    observacion: str = "",
-) -> Remito:
-    remito = Remito.objects.select_for_update().get(pk=remito.pk)
-    destino = estado_actual(remito).cancelar(remito)
+def preparar_retorno(*, ejemplar_id: int) -> Remito:
+    """Arma (o completa) el remito que devuelve un ejemplar a su sede propietaria."""
+    try:
+        ejemplar = Ejemplar.objects.get(pk=ejemplar_id)
+    except Ejemplar.DoesNotExist as error:
+        raise EjemplarInvalidoError("Ejemplar inexistente.") from error
+    if ejemplar.sede_actual_id is None or ejemplar.sede_actual_id == ejemplar.sede_propietaria_id:
+        raise EjemplarInvalidoError("El ejemplar ya está en su sede propietaria.")
+    remito = remito_abierto(
+        sede_origen_id=ejemplar.sede_actual_id, sede_destino_id=ejemplar.sede_propietaria_id
+    )
+    agregar_ejemplar(remito=remito, ejemplar_id=ejemplar.pk)
+    return remito
 
-    for detalle in remito.detalles.select_related("ejemplar"):
-        if detalle.solicitud_id is None:
-            ejemplar = detalle.ejemplar
-            ejemplar.estado = (
-                EstadoEjemplar.EN_REVISION
-                if ejemplar.sede_actual_id != ejemplar.sede_propietaria_id
-                or ejemplar.condicion_fisica != CondicionFisica.APTO
-                else EstadoEjemplar.DISPONIBLE
+
+def _transicion(nombre: str, *, validar_sedes: bool):
+    """Fabrica servicios de transición simples que delegan en el estado."""
+
+    @transaction.atomic
+    def servicio(*, remito: Remito, responsable: str = "", observacion: str = "") -> Remito:
+        remito = _bloquear(remito)
+        if validar_sedes:
+            _validar_sedes_activas(
+                sede_origen_id=remito.sede_origen_id, sede_destino_id=remito.sede_destino_id
             )
-            ejemplar.save(update_fields=["estado"])
+        getattr(remito.comportamiento, nombre)(
+            remito, responsable=responsable.strip() or RESPONSABLE_BASE, observacion=observacion
+        )
+        return remito
 
-    _registrar_evento(
-        remito=remito,
-        destino=destino,
-        responsable=responsable,
-        observacion=observacion,
-    )
-    remito.estado = destino
-    remito.save(update_fields=["estado"])
-
-    return remito
+    servicio.__name__ = f"{nombre}_remito"
+    return servicio
 
 
-@transaction.atomic
-def despachar_remito(
-    *,
-    remito: Remito,
-    responsable: str = "",
-    observacion: str = "",
-) -> Remito:
-    _validar_sedes_activas(
-        sede_origen_id=remito.sede_origen_id,
-        sede_destino_id=remito.sede_destino_id,
-    )
-
-    remito = Remito.objects.select_for_update().get(pk=remito.pk)
-    destino = estado_actual(remito).despachar(remito)
-
-    detalles = list(remito.detalles.select_related("ejemplar", "solicitud", "solicitud__socio"))
-    for detalle in detalles:
-        solicitud = detalle.solicitud
-        if solicitud is not None and solicitud.socio.estado != EstadoSocio.HABILITADO:
-            raise SocioInhabilitadoError("El socio debe estar habilitado.")
-
-    remito.fecha_despacho = timezone.now()
-    for detalle in detalles:
-        ejemplar = detalle.ejemplar
-        ejemplar.estado = EstadoEjemplar.EN_TRANSITO
-        ejemplar.sede_actual = None
-        ejemplar.save(update_fields=["estado", "sede_actual"])
-
-        solicitud = detalle.solicitud
-        if solicitud is not None:
-            solicitud.estado = EstadoSolicitud.EN_TRASLADO
-            solicitud.save(update_fields=["estado"])
-
-    _registrar_evento(
-        remito=remito,
-        destino=destino,
-        responsable=responsable,
-        observacion=observacion,
-    )
-    remito.estado = destino
-    remito.save(update_fields=["estado", "fecha_despacho"])
-
-    return remito
-
-
-@transaction.atomic
-def registrar_salida_remito(
-    *,
-    remito: Remito,
-    responsable: str = "",
-    observacion: str = "",
-) -> Remito:
-    _validar_sedes_activas(
-        sede_origen_id=remito.sede_origen_id,
-        sede_destino_id=remito.sede_destino_id,
-    )
-
-    remito = Remito.objects.select_for_update().get(pk=remito.pk)
-    destino = estado_actual(remito).registrar_salida(remito)
-
-    _registrar_evento(
-        remito=remito,
-        destino=destino,
-        responsable=responsable,
-        observacion=observacion,
-    )
-    remito.estado = destino
-    remito.save(update_fields=["estado"])
-
-    return remito
+empaquetar_remito = _transicion("empaquetar", validar_sedes=True)
+reabrir_remito = _transicion("reabrir", validar_sedes=False)
+# Despachar inicia el envío: la regla «no iniciar envíos desde/hacia una sede de baja» aplica acá.
+despachar_remito = _transicion("despachar", validar_sedes=True)
+cancelar_remito = _transicion("cancelar", validar_sedes=False)
 
 
 @transaction.atomic
 def recibir_remito(
     *,
     remito: Remito,
-    verificados: list[int],
     responsable: str,
+    verificados: list[int] | None = None,
+    resultados: dict[int, str] | None = None,
     observacion: str = "",
 ) -> Remito:
-    remito = Remito.objects.select_for_update().get(pk=remito.pk)
-    destino = estado_actual(remito).recibir(remito)
+    """Registra la llegada. Cada ejemplar se marca conforme, dañado o extraviado.
 
-    detalles = list(remito.detalles.select_related("ejemplar", "solicitud"))
-    verificados_set = set(verificados)
-    if any(detalle.ejemplar_id not in verificados_set for detalle in detalles):
-        raise RecepcionInvalidaError(
-            "Verificá todos los ejemplares. El remito se recibe completo."
-        )
-    if not responsable.strip():
-        raise RecepcionInvalidaError("Indicá quién recibe el material.")
-
-    remito.fecha_recepcion = timezone.now()
-    for detalle in detalles:
-        ejemplar = detalle.ejemplar
-        detalle.condicion_recepcion = ejemplar.condicion_fisica
-        ejemplar.sede_actual_id = remito.sede_destino_id
-
-        solicitud = detalle.solicitud
-        if solicitud is not None:
-            ejemplar.estado = EstadoEjemplar.LISTO_PARA_ENTREGA
-            solicitud.estado = EstadoSolicitud.LISTA_PARA_ENTREGA
-            solicitud.save(update_fields=["estado"])
-        else:
-            ejemplar.estado = EstadoEjemplar.EN_REVISION
-        ejemplar.save(update_fields=["estado", "sede_actual"])
-        detalle.save(update_fields=["condicion_recepcion"])
-
-    _registrar_evento(
-        remito=remito,
-        destino=destino,
-        responsable=responsable,
-        observacion=observacion,
+    `verificados` se mantiene por compatibilidad: equivale a marcar esos
+    ejemplares como conformes.
+    """
+    remito = _bloquear(remito)
+    combinados: dict[int, str] = {
+        int(ejemplar_id): ResultadoRecepcion.CONFORME for ejemplar_id in (verificados or [])
+    }
+    for ejemplar_id, resultado in (resultados or {}).items():
+        combinados[int(ejemplar_id)] = resultado
+    if not combinados and remito.detalles.exists():
+        raise RecepcionInvalidaError("Verificá todos los ejemplares. El remito se recibe completo.")
+    remito.comportamiento.recibir(
+        remito, resultados=combinados, responsable=responsable, observacion=observacion
     )
-    remito.estado = destino
-    remito.save(update_fields=["estado", "fecha_recepcion"])
-
     return remito

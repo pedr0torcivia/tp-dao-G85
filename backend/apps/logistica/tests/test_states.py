@@ -1,141 +1,119 @@
-from types import SimpleNamespace
+"""Pruebas del patrón State: cada clase concreta admite sólo sus operaciones."""
 
 from django.test import TestCase
 
+from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
 from apps.logistica import states
 from apps.logistica.exceptions import RemitoVacioError, TransicionInvalidaError
-from apps.logistica.models import EstadoRemito
+from apps.logistica.models import EstadoRemito, EventoRemito, Remito
+from apps.sedes.models import Sede
 
-
-class DetallesFalsos:
-    def __init__(self, cantidad: int):
-        self._cantidad = cantidad
-
-    def exists(self) -> bool:
-        return self._cantidad > 0
-
-
-def remito_falso(estado: str, detalles: int = 0) -> SimpleNamespace:
-    """Sustituto de Remito para probar las clases de estado sin base de datos."""
-    return SimpleNamespace(estado=estado, detalles=DetallesFalsos(detalles))
-
-
-TRANSICIONES = ("empaquetar", "despachar", "registrar_salida", "recibir", "cancelar")
+ESPERADAS = {
+    EstadoRemito.EN_PREPARACION: ["agregar", "quitar", "empaquetar", "cancelar"],
+    EstadoRemito.EMPAQUETADO: ["reabrir", "despachar", "cancelar"],
+    EstadoRemito.EN_TRANSITO: ["recibir"],
+    EstadoRemito.RECIBIDO: [],
+    EstadoRemito.RECIBIDO_CON_INCIDENCIAS: [],
+    EstadoRemito.CANCELADO: [],
+}
 
 
 class RegistroEstadosTest(TestCase):
     def test_hay_una_clase_por_estado_persistido(self):
-        self.assertEqual(len(states.ESTADOS_REMITO), len(EstadoRemito.values))
+        self.assertEqual(set(states.ESTADOS_REMITO), set(EstadoRemito.values))
 
     def test_cada_clase_declara_su_valor_persistido(self):
-        for valor, clase in states.ESTADOS_REMITO.items():
-            self.assertEqual(clase.nombre, valor)
+        for valor, objeto in states.ESTADOS_REMITO.items():
+            self.assertEqual(objeto.codigo, valor)
+            self.assertIsInstance(objeto, states.EstadoRemitoBase)
 
-    def test_estado_actual_devuelve_la_clase_del_estado(self):
-        remito = remito_falso(EstadoRemito.EMPAQUETADO)
-        self.assertIsInstance(states.estado_actual(remito), states.Empaquetado)
+    def test_cada_estado_expone_exactamente_sus_operaciones(self):
+        for valor, esperadas in ESPERADAS.items():
+            self.assertEqual(
+                states.ESTADOS_REMITO[valor].operaciones_admitidas(), esperadas, msg=valor
+            )
+
+    def test_los_estados_finales_se_declaran_como_tales(self):
+        finales = {v for v, o in states.ESTADOS_REMITO.items() if o.es_final}
+        self.assertEqual(
+            finales,
+            {
+                EstadoRemito.RECIBIDO,
+                EstadoRemito.RECIBIDO_CON_INCIDENCIAS,
+                EstadoRemito.CANCELADO,
+            },
+        )
 
 
-class EmpaquetarTest(TestCase):
-    def test_preparacion_con_detalles_transiciona_a_empaquetado(self):
-        remito = remito_falso(EstadoRemito.EN_PREPARACION, detalles=2)
+class TransicionesTest(TestCase):
+    def setUp(self):
+        self.central = Sede.objects.create(
+            nombre="Central", direccion="A", contacto="c", horarios="h"
+        )
+        self.norte = Sede.objects.create(nombre="Norte", direccion="B", contacto="n", horarios="h")
+        libro = Libro.objects.create(titulo="Ficciones", autor="Borges", editorial="E", edicion="1")
+        self.ejemplar = Ejemplar.objects.create(
+            codigo_inventario="E-1",
+            libro=libro,
+            sede_propietaria=self.central,
+            sede_actual=self.central,
+            estado=EstadoEjemplar.ASIGNADO,
+            condicion_fisica=CondicionFisica.APTO,
+        )
 
-        destino = states.estado_actual(remito).empaquetar(remito)
+    def remito(self, estado, con_detalle=True):
+        remito = Remito.objects.create(
+            numero=f"R-{estado}", sede_origen=self.central, sede_destino=self.norte, estado=estado
+        )
+        if con_detalle:
+            remito.detalles.create(ejemplar=self.ejemplar, condicion_salida=CondicionFisica.APTO)
+        return remito
 
-        self.assertEqual(destino, EstadoRemito.EMPAQUETADO)
+    def test_el_contexto_delega_en_la_clase_de_su_estado(self):
+        remito = self.remito(EstadoRemito.EMPAQUETADO)
+        self.assertIsInstance(remito.comportamiento, states.Empaquetado)
 
-    def test_preparacion_sin_detalles_se_rechaza(self):
-        remito = remito_falso(EstadoRemito.EN_PREPARACION, detalles=0)
+    def test_empaquetar_cambia_el_estado_y_deja_evento(self):
+        remito = self.remito(EstadoRemito.EN_PREPARACION)
+        remito.comportamiento.empaquetar(remito, responsable="Ana")
+        self.assertEqual(remito.estado, EstadoRemito.EMPAQUETADO)
+        evento = EventoRemito.objects.get(remito=remito)
+        self.assertEqual(
+            (evento.estado_anterior, evento.estado_nuevo, evento.responsable),
+            (EstadoRemito.EN_PREPARACION, EstadoRemito.EMPAQUETADO, "Ana"),
+        )
 
+    def test_no_se_empaqueta_un_remito_vacio(self):
+        remito = self.remito(EstadoRemito.EN_PREPARACION, con_detalle=False)
         with self.assertRaises(RemitoVacioError):
-            states.estado_actual(remito).empaquetar(remito)
+            remito.comportamiento.empaquetar(remito, responsable="Ana")
 
-    def test_empaquetado_y_otros_estados_no_aceptan_reempaquetar(self):
-        for estado in EstadoRemito.values:
-            if estado == EstadoRemito.EN_PREPARACION:
-                continue
-            remito = remito_falso(estado, detalles=3)
+    def test_reabrir_vuelve_a_preparacion(self):
+        remito = self.remito(EstadoRemito.EMPAQUETADO)
+        remito.comportamiento.reabrir(remito, responsable="Ana")
+        self.assertEqual(remito.estado, EstadoRemito.EN_PREPARACION)
 
-            with self.assertRaises(TransicionInvalidaError):
-                states.estado_actual(remito).empaquetar(remito)
+    def test_despachar_pone_el_material_en_transito(self):
+        remito = self.remito(EstadoRemito.EMPAQUETADO)
+        remito.comportamiento.despachar(remito, responsable="Ana")
+        self.assertEqual(remito.estado, EstadoRemito.EN_TRANSITO)
+        self.assertIsNotNone(remito.fecha_despacho)
+        self.ejemplar.refresh_from_db()
+        self.assertEqual(self.ejemplar.estado, EstadoEjemplar.EN_TRANSITO)
+        self.assertIsNone(self.ejemplar.sede_actual)
 
-
-class DespacharTest(TestCase):
-    def test_empaquetado_con_detalles_transiciona_a_despachado(self):
-        remito = remito_falso(EstadoRemito.EMPAQUETADO, detalles=1)
-
-        destino = states.estado_actual(remito).despachar(remito)
-
-        self.assertEqual(destino, EstadoRemito.DESPACHADO)
-
-    def test_empaquetado_sin_detalles_se_rechaza(self):
-        remito = remito_falso(EstadoRemito.EMPAQUETADO, detalles=0)
-
-        with self.assertRaises(RemitoVacioError):
-            states.estado_actual(remito).despachar(remito)
-
-    def test_la_preparacion_no_despacha_directamente(self):
-        remito = remito_falso(EstadoRemito.EN_PREPARACION, detalles=5)
-
-        with self.assertRaises(TransicionInvalidaError):
-            states.estado_actual(remito).despachar(remito)
-
-
-class RegistrarSalidaTest(TestCase):
-    def test_solo_despachado_registra_salida(self):
-        remito = remito_falso(EstadoRemito.DESPACHADO)
-
-        destino = states.estado_actual(remito).registrar_salida(remito)
-
-        self.assertEqual(destino, EstadoRemito.EN_TRANSITO)
-
-
-class RecibirTest(TestCase):
-    def test_solo_en_transito_recibe(self):
-        remito = remito_falso(EstadoRemito.EN_TRANSITO)
-
-        destino = states.estado_actual(remito).recibir(remito)
-
-        self.assertEqual(destino, EstadoRemito.RECIBIDO)
-
-
-class CancelarTest(TestCase):
-    def test_se_cancela_en_preparacion_y_empaquetado(self):
-        for estado in (EstadoRemito.EN_PREPARACION, EstadoRemito.EMPAQUETADO):
-            remito = remito_falso(estado)
-
-            destino = states.estado_actual(remito).cancelar(remito)
-
-            self.assertEqual(destino, EstadoRemito.CANCELADO)
-
-    def test_no_se_cancela_despues_de_despachar(self):
-        for estado in (
-            EstadoRemito.DESPACHADO,
-            EstadoRemito.EN_TRANSITO,
-            EstadoRemito.RECIBIDO,
-            EstadoRemito.CANCELADO,
-        ):
-            remito = remito_falso(estado)
-
-            with self.assertRaises(TransicionInvalidaError):
-                states.estado_actual(remito).cancelar(remito)
-
-
-class EstadosTerminalesTest(TestCase):
-    def test_recibido_y_cancelado_rechazan_todas_las_transiciones(self):
-        for estado in (EstadoRemito.RECIBIDO, EstadoRemito.CANCELADO):
-            remito = remito_falso(estado)
-            clase = states.estado_actual(remito)
-
-            for transicion in TRANSICIONES:
-                with self.assertRaises(TransicionInvalidaError, msg=transicion):
-                    getattr(clase, transicion)(remito)
-
-
-class AsignarEjemplarTest(TestCase):
-    def test_solo_la_preparacion_admite_asignar(self):
-        for estado in EstadoRemito.values:
-            remito = remito_falso(estado)
-            esperado = estado == EstadoRemito.EN_PREPARACION
-
-            self.assertIs(states.estado_actual(remito).admite_asignar(), esperado)
+    def test_cada_estado_rechaza_lo_que_no_admite(self):
+        llamadas = {
+            "empaquetar": lambda e, r: e.empaquetar(r, responsable="x"),
+            "reabrir": lambda e, r: e.reabrir(r, responsable="x"),
+            "despachar": lambda e, r: e.despachar(r, responsable="x"),
+            "cancelar": lambda e, r: e.cancelar(r, responsable="x"),
+            "recibir": lambda e, r: e.recibir(r, resultados={}, responsable="x"),
+        }
+        for valor, admitidas in ESPERADAS.items():
+            for operacion, llamar in llamadas.items():
+                if operacion in admitidas:
+                    continue
+                remito = Remito(estado=valor)
+                with self.assertRaises(TransicionInvalidaError, msg=f"{valor}.{operacion}"):
+                    llamar(states.ESTADOS_REMITO[valor], remito)

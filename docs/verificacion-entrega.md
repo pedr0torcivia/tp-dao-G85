@@ -61,7 +61,7 @@ npm run build
 npm run test:e2e
 ```
 
-Playwright inicia y detiene Vite automáticamente si no se indicó E2E_BASE_URL. El modo mock se habilita únicamente de forma explícita y conserva sus propias pruebas.
+Playwright inicia y detiene Vite automáticamente si no se indicó E2E_BASE_URL. El frontend no tiene modo mock: todas las pruebas de navegador usan la API real.
 
 ## Cierre del grupo
 

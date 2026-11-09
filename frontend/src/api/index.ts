@@ -1,5 +1,5 @@
-import { createMockApi } from "./mock";
 import { httpApi } from "./http";
 
-export const isDemo = import.meta.env.VITE_DATA_SOURCE === "mock";
-export const api = isDemo ? createMockApi() : httpApi;
+// La interfaz siempre trabaja contra la API de Django: las reglas de negocio
+// viven en un solo lugar (el backend) y el frontend sólo las presenta.
+export const api = httpApi;

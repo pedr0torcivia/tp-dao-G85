@@ -9,6 +9,7 @@ from apps.sedes.models import Sede
 from apps.socios.models import Socio
 
 from .models import Prestamo, Reserva, SolicitudPrestamo, TipoSolicitud
+from .strategies import obtener_estrategia
 
 
 class SolicitudPrestamoSerializer(serializers.ModelSerializer):
@@ -18,6 +19,13 @@ class SolicitudPrestamoSerializer(serializers.ModelSerializer):
     sede_origen_id = serializers.IntegerField(read_only=True)
     sede_destino_id = serializers.IntegerField(read_only=True)
     reserva_id = serializers.IntegerField(read_only=True, allow_null=True)
+    estrategia = serializers.SerializerMethodField(
+        help_text="Clase Strategy que tramita la solicitud según su tipo."
+    )
+    estrategia_descripcion = serializers.SerializerMethodField()
+    recorrido = serializers.SerializerMethodField()
+    acciones = serializers.SerializerMethodField()
+    remito_id = serializers.SerializerMethodField()
 
     class Meta:
         model = SolicitudPrestamo
@@ -32,8 +40,41 @@ class SolicitudPrestamoSerializer(serializers.ModelSerializer):
             "fecha_solicitud",
             "tipo",
             "estado",
+            "estrategia",
+            "estrategia_descripcion",
+            "recorrido",
+            "acciones",
+            "remito_id",
         ]
         read_only_fields = fields
+
+    def get_estrategia(self, solicitud) -> str:
+        return type(obtener_estrategia(solicitud.tipo)).__name__
+
+    def get_estrategia_descripcion(self, solicitud) -> str:
+        return obtener_estrategia(solicitud.tipo).descripcion_preparacion
+
+    def get_recorrido(self, solicitud) -> list[str]:
+        return list(obtener_estrategia(solicitud.tipo).recorrido)
+
+    def _en_remito_vigente(self, solicitud) -> bool:
+        valor = getattr(solicitud, "en_remito_vigente", None)
+        if valor is None:
+            valor = solicitud.detalles_remito.filter(
+                remito__estado__in=("EN_PREPARACION", "EMPAQUETADO", "EN_TRANSITO")
+            ).exists()
+        return valor
+
+    def get_acciones(self, solicitud) -> list[str]:
+        from .services import acciones_solicitud
+
+        return acciones_solicitud(solicitud, en_remito_vigente=self._en_remito_vigente(solicitud))
+
+    def get_remito_id(self, solicitud) -> int | None:
+        if hasattr(solicitud, "ultimo_remito_id"):
+            return solicitud.ultimo_remito_id
+        detalle = solicitud.detalles_remito.order_by("-id").first()
+        return detalle.remito_id if detalle else None
 
 
 class CrearSolicitudSerializer(serializers.Serializer):
@@ -74,6 +115,8 @@ class EntregarSolicitudSerializer(serializers.Serializer):
 
 class PrestamoSerializer(serializers.ModelSerializer):
     solicitud_id = serializers.IntegerField(read_only=True)
+    dias_atraso = serializers.SerializerMethodField()
+    multa = serializers.SerializerMethodField(help_text="Multa acumulada en pesos.")
 
     class Meta:
         model = Prestamo
@@ -84,8 +127,16 @@ class PrestamoSerializer(serializers.ModelSerializer):
             "fecha_vencimiento",
             "fecha_devolucion",
             "condicion_devolucion",
+            "dias_atraso",
+            "multa",
         ]
         read_only_fields = fields
+
+    def get_dias_atraso(self, prestamo) -> int:
+        return prestamo.dias_atraso()
+
+    def get_multa(self, prestamo) -> float:
+        return float(prestamo.multa())
 
 
 class DevolverPrestamoSerializer(serializers.Serializer):

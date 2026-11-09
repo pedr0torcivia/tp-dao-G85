@@ -9,10 +9,14 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.circulacion.reglas import MULTA_DIARIA
+
 from .selectors import obtener_prestamos_vencidos
 from .services import (
+    activos_y_en_transito,
     demanda_interbibliotecaria,
     disponibilidad_catalogo,
+    efectividad_logistica,
     movimientos_entre_sedes,
     operaciones_abmc,
 )
@@ -38,6 +42,8 @@ class PrestamosVencidosView(APIView):
                 "fecha_corte": hasta.isoformat(),
                 "filtros": {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "sede": sede},
                 "cantidad": sum(sede["cantidad"] for sede in sedes),
+                "multas_total": sum(sede["multas"] for sede in sedes),
+                "multa_diaria": float(MULTA_DIARIA),
                 "sedes": sedes,
             }
         )
@@ -138,5 +144,33 @@ def reportes_operaciones(request):
     desde, hasta = _periodo(request)
     sede = _sede_opcional(request)
     datos = operaciones_abmc(desde=desde, hasta=hasta, sede_id=sede)
+    datos["filtros"] = {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "sede": sede}
+    return Response(datos)
+
+
+@extend_schema(
+    responses={200: OpenApiTypes.OBJECT},
+    summary="RP06 — préstamos activos y material en tránsito",
+    parameters=FILTROS_PERIODO,
+)
+@api_view(["GET"])
+def reportes_activos(request):
+    desde, hasta = _periodo(request)
+    sede = _sede_opcional(request)
+    datos = activos_y_en_transito(desde=desde, hasta=hasta, sede_id=sede)
+    datos["filtros"] = {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "sede": sede}
+    return Response(datos)
+
+
+@extend_schema(
+    responses={200: OpenApiTypes.OBJECT},
+    summary="RP07 — tasa de envíos exitosos e incidencias",
+    parameters=FILTROS_PERIODO,
+)
+@api_view(["GET"])
+def reportes_logistica(request):
+    desde, hasta = _periodo(request)
+    sede = _sede_opcional(request)
+    datos = efectividad_logistica(desde=desde, hasta=hasta, sede_id=sede)
     datos["filtros"] = {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "sede": sede}
     return Response(datos)

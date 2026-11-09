@@ -161,3 +161,17 @@ class Prestamo(models.Model):
 
     def __str__(self) -> str:
         return f"Préstamo {self.id} · solicitud {self.solicitud_id}"
+
+    def dias_atraso(self, al=None) -> int:
+        from .reglas import dias_atraso
+
+        return dias_atraso(
+            fecha_vencimiento=self.fecha_vencimiento,
+            fecha_devolucion=self.fecha_devolucion,
+            al=al,
+        )
+
+    def multa(self, al=None):
+        from .reglas import multa
+
+        return multa(self.dias_atraso(al))

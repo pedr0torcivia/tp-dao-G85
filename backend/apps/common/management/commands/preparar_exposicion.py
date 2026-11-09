@@ -199,7 +199,6 @@ class Command(BaseCommand):
             for nuevo, dia in [
                 ("EN_PREPARACION", 1),
                 ("EMPAQUETADO", despacho),
-                ("DESPACHADO", despacho),
                 ("EN_TRANSITO", despacho),
                 *([("RECIBIDO", recepcion)] if recepcion else []),
             ]:

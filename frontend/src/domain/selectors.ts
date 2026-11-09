@@ -69,9 +69,12 @@ export const statusLabels: Record<string, string> = {
   EXPIRADA: "Expirada",
   EN_PREPARACION: "En preparación",
   EMPAQUETADO: "Empaquetado",
-  DESPACHADO: "Despachado",
   RECIBIDO: "Recibido",
+  RECIBIDO_CON_INCIDENCIAS: "Recibido con incidencias",
   CANCELADO: "Cancelado",
+  CONFORME: "Llegó bien",
+  DANADO: "Dañado",
+  EXTRAVIADO: "Extraviado",
   LOCAL: "Local",
   INTERBIBLIOTECARIO: "Interbibliotecario",
   APTO: "Apto para préstamo",
@@ -81,3 +84,76 @@ export const statusLabels: Record<string, string> = {
   VENCIDO: "Vencido",
   LISTA_PARA_RETIRO: "Lista para retiro",
 };
+
+export type Tone = "ok" | "warn" | "bad" | "info" | "move" | "neutral";
+const tones: Record<string, Tone> = {
+  ACTIVA: "ok",
+  HABILITADO: "ok",
+  DISPONIBLE: "ok",
+  CUMPLIDA: "ok",
+  RECIBIDO: "ok",
+  DEVUELTO: "ok",
+  APTO: "ok",
+  CONFORME: "ok",
+  ACTIVO: "info",
+  LISTO_PARA_ENTREGA: "info",
+  LISTA_PARA_ENTREGA: "info",
+  LISTA_PARA_RETIRO: "info",
+  PRESTADO: "info",
+  ASIGNADO: "info",
+  ASIGNADA: "info",
+  PENDIENTE: "warn",
+  EN_PREPARACION: "warn",
+  EMPAQUETADO: "warn",
+  EN_REVISION: "warn",
+  RECIBIDO_CON_INCIDENCIAS: "warn",
+  DANADO: "warn",
+  EN_TRANSITO: "move",
+  EN_TRASLADO: "move",
+  LOCAL: "neutral",
+  INTERBIBLIOTECARIO: "move",
+  BAJA: "bad",
+  INHABILITADO: "bad",
+  RECHAZADA: "bad",
+  CANCELADA: "neutral",
+  CANCELADO: "neutral",
+  EXPIRADA: "neutral",
+  VENCIDO: "bad",
+  NO_APTO: "bad",
+  EXTRAVIADO: "bad",
+};
+export const toneOf = (value: string): Tone => tones[value] ?? "neutral";
+
+export const pesos = (n: number) =>
+  new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(n);
+export const dateTimeLabel = (value: string | null) =>
+  value
+    ? new Intl.DateTimeFormat("es-AR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "America/Argentina/Buenos_Aires",
+      }).format(new Date(value))
+    : "—";
+export const loanState = (p: Prestamo) =>
+  p.fecha_devolucion ? "DEVUELTO" : isOverdue(p) ? "VENCIDO" : "ACTIVO";
+export const inOpenRemito = (ejemplarId: number, db: Database) =>
+  db.detalle_remitos.some(
+    (d) =>
+      d.ejemplar_id === ejemplarId &&
+      ["EN_PREPARACION", "EMPAQUETADO", "EN_TRANSITO"].includes(
+        db.remitos.find((r) => r.id === d.remito_id)?.estado ?? "",
+      ),
+  );
+/** Ejemplares que esperan volver a su sede propietaria (y todavía no viajan). */
+export const awaitingReturn = (db: Database) =>
+  db.ejemplares.filter(
+    (e) =>
+      e.estado === "EN_REVISION" &&
+      e.sede_actual_id !== null &&
+      e.sede_actual_id !== e.sede_propietaria_id &&
+      !inOpenRemito(e.id, db),
+  );

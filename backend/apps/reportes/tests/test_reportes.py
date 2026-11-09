@@ -315,3 +315,64 @@ class DisponibilidadTest(APITestCase, BaseReportesTest):
 
         response = self.client.get(reverse("reportes-disponibilidad"), {"sede": "xyz"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class LogisticaYActivosTest(APITestCase, BaseReportesTest):
+    def setUp(self):
+        super().setUp()
+        from apps.logistica.models import DetalleRemito, Remito
+
+        self.libro_logistica = Libro.objects.create(
+            titulo="Watchmen", autor="Moore", editorial="DC", edicion="1"
+        )
+        copias = [
+            Ejemplar.objects.create(
+                codigo_inventario=f"LOG-{n}",
+                libro=self.libro_logistica,
+                sede_propietaria=self.central,
+                sede_actual=self.norte,
+                estado=EstadoEjemplar.EN_REVISION,
+                condicion_fisica=CondicionFisica.APTO,
+            )
+            for n in range(3)
+        ]
+        for numero, estado, copia, resultado in [
+            ("R-OK", "RECIBIDO", copias[0], "CONFORME"),
+            ("R-INC", "RECIBIDO_CON_INCIDENCIAS", copias[1], "DANADO"),
+            ("R-VIAJE", "EN_TRANSITO", copias[2], None),
+        ]:
+            remito = Remito.objects.create(
+                numero=numero,
+                sede_origen=self.central,
+                sede_destino=self.norte,
+                estado=estado,
+                fecha_despacho=_momento(5),
+                fecha_recepcion=_momento(7) if resultado else None,
+            )
+            DetalleRemito.objects.create(
+                remito=remito,
+                ejemplar=copia,
+                condicion_salida="APTO",
+                resultado_recepcion=resultado,
+            )
+
+    def test_tasa_de_exito_sobre_recibidos(self):
+        respuesta = self.client.get(
+            reverse("reportes-logistica"), {"desde": "2026-10-01", "hasta": "2026-10-31"}
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        fila = respuesta.data["filas"][0]
+        self.assertEqual(
+            (fila["despachados"], fila["exitosos"], fila["con_incidencias"], fila["en_transito"]),
+            (3, 1, 1, 1),
+        )
+        self.assertEqual(fila["danados"], 1)
+        self.assertEqual(fila["tasa_exito"], 50)
+
+    def test_material_en_transito(self):
+        respuesta = self.client.get(
+            reverse("reportes-activos"), {"desde": "2026-10-01", "hasta": "2026-10-31"}
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        tipos = [fila["tipo"] for fila in respuesta.data["filas"]]
+        self.assertEqual(tipos, ["TRANSITO"])

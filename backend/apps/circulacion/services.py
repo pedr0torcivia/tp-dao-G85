@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -33,12 +35,30 @@ from .models import (
     SolicitudPrestamo,
     TipoSolicitud,
 )
+from .reglas import PLAZO_MAXIMO_DIAS
 from .strategies import obtener_estrategia
+
+ESTADOS_REMITO_VIGENTES = ("EN_PREPARACION", "EMPAQUETADO", "EN_TRANSITO")
 
 
 def validar_socio_habilitado(*, socio: Socio) -> None:
     if socio.estado != EstadoSocio.HABILITADO:
         raise SocioInhabilitadoError(f"El socio '{socio.numero_socio}' está inhabilitado.")
+
+
+def validar_sin_prestamos_vencidos(*, socio: Socio, al=None) -> None:
+    """Un socio con material vencido sin devolver no retira material nuevo."""
+    al = al or timezone.now()
+    vencidos = Prestamo.objects.filter(
+        solicitud__socio=socio,
+        fecha_devolucion__isnull=True,
+        fecha_vencimiento__lt=al,
+    ).count()
+    if vencidos:
+        raise SocioInhabilitadoError(
+            f"El socio tiene {vencidos} préstamo(s) vencido(s) sin devolver. "
+            "Registrá la devolución antes de entregarle material nuevo."
+        )
 
 
 @transaction.atomic
@@ -163,14 +183,29 @@ def preparar_entrega(
         raise EstadoSolicitudInvalidoError("La solicitud todavía no tiene un ejemplar asignado.")
 
     ejemplar = Ejemplar.objects.select_for_update().get(pk=solicitud.ejemplar_id)
+    validar_sede_activa(sede=solicitud.sede_origen)
+    validar_sede_activa(sede=solicitud.sede_destino)
 
+    # Strategy: el servicio no distingue circuitos; cada estrategia prepara a su modo.
     estrategia = obtener_estrategia(solicitud.tipo)
     estrategia.preparar_entrega(
         solicitud=solicitud,
         ejemplar=ejemplar,
     )
 
+    solicitud.refresh_from_db()
     return solicitud
+
+
+def acciones_solicitud(solicitud: SolicitudPrestamo, *, en_remito_vigente: bool) -> list[str]:
+    """Operaciones que la interfaz debe ofrecer según estado y circuito."""
+    if solicitud.estado == EstadoSolicitud.PENDIENTE:
+        return ["asignar", "rechazar", "cancelar"]
+    if solicitud.estado == EstadoSolicitud.ASIGNADA:
+        return ["cancelar"] if en_remito_vigente else ["preparar-entrega", "cancelar"]
+    if solicitud.estado == EstadoSolicitud.LISTA_PARA_ENTREGA:
+        return ["entregar"]
+    return []
 
 
 @transaction.atomic
@@ -212,6 +247,11 @@ def entregar_solicitud(
 
     if fecha_vencimiento <= fecha_entrega:
         raise FechaPrestamoInvalidaError("El vencimiento debe ser posterior a la entrega.")
+    if fecha_vencimiento - fecha_entrega > timedelta(days=PLAZO_MAXIMO_DIAS):
+        raise FechaPrestamoInvalidaError(
+            f"El plazo del préstamo no puede superar {PLAZO_MAXIMO_DIAS} días."
+        )
+    validar_sin_prestamos_vencidos(socio=solicitud.socio, al=fecha_entrega)
 
     if Prestamo.objects.filter(solicitud=solicitud).exists():
         raise PrestamoYaCreadoError("La solicitud ya generó un préstamo.")
@@ -309,7 +349,7 @@ def cancelar_solicitud(
     if solicitud.estado not in estados_cancelables:
         raise EstadoSolicitudInvalidoError("La solicitud no puede cancelarse en su estado actual.")
 
-    if solicitud.detalles_remito.exclude(remito__estado__in=("CANCELADO", "RECIBIDO")).exists():
+    if solicitud.detalles_remito.filter(remito__estado__in=ESTADOS_REMITO_VIGENTES).exists():
         raise SolicitudEnRemitoVigenteError(
             "La solicitud pertenece a un remito vigente. Cancelá primero el remito."
         )

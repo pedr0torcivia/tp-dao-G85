@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.circulacion.models import Prestamo
+from apps.circulacion.reglas import MULTA_DIARIA
 
 
 def obtener_prestamos_vencidos(
@@ -38,8 +39,10 @@ def obtener_prestamos_vencidos(
         solicitud = prestamo.solicitud
         sede = solicitud.sede_destino
 
+        dias = (fecha_corte - timezone.localdate(prestamo.fecha_vencimiento)).days
         por_sede[(sede.pk, sede.nombre)].append(
             {
+                "multa": float(MULTA_DIARIA * dias),
                 "prestamo_id": prestamo.pk,
                 "socio_id": solicitud.socio_id,
                 "numero_socio": solicitud.socio.numero_socio,
@@ -47,7 +50,7 @@ def obtener_prestamos_vencidos(
                 "libro": solicitud.libro.titulo,
                 "fecha_entrega": prestamo.fecha_entrega,
                 "fecha_vencimiento": prestamo.fecha_vencimiento,
-                "dias_atraso": (fecha_corte - timezone.localdate(prestamo.fecha_vencimiento)).days,
+                "dias_atraso": dias,
             }
         )
 
@@ -56,6 +59,7 @@ def obtener_prestamos_vencidos(
             "sede_id": sede_id,
             "sede": nombre_sede,
             "cantidad": len(prestamos_sede),
+            "multas": sum(p["multa"] for p in prestamos_sede),
             "prestamos": prestamos_sede,
         }
         for (sede_id, nombre_sede), prestamos_sede in por_sede.items()

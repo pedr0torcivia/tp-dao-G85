@@ -9,10 +9,11 @@ despachado sin recibir entra al conteo pero no al promedio.
 from datetime import date
 
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar
-from apps.circulacion.models import SolicitudPrestamo
-from apps.logistica.models import Remito
+from apps.circulacion.models import Prestamo, SolicitudPrestamo
+from apps.logistica.models import EstadoRemito, Remito, ResultadoRecepcion
 
 NSEM = 86400
 
@@ -248,4 +249,153 @@ def operaciones_abmc(*, desde: date, hasta: date, sede_id: int | None = None) ->
         "no se cuentan como cambios. La baja es lógica y conserva el historial. "
         "Con sede se incluyen solo registros vinculados a esa sede; "
         "libros y socios globales se ven sin filtro de sede.",
+    }
+
+
+def activos_y_en_transito(*, desde: date, hasta: date, sede_id: int | None = None) -> dict:
+    """RP06 — Préstamos abiertos al cierre del período y material que sigue viajando.
+
+    Un préstamo cuenta si se entregó entre Desde y Hasta y no estaba devuelto al
+    cierre de Hasta. El material en tránsito es el de los remitos despachados en
+    el período que todavía no se recibieron.
+    """
+    prestamos = (
+        Prestamo.objects.filter(
+            Q(fecha_devolucion__isnull=True) | Q(fecha_devolucion__date__gt=hasta),
+            fecha_entrega__date__gte=desde,
+            fecha_entrega__date__lte=hasta,
+        )
+        .select_related(
+            "solicitud__socio",
+            "solicitud__libro",
+            "solicitud__sede_destino",
+            "solicitud__ejemplar",
+        )
+        .order_by("fecha_vencimiento")
+    )
+    if sede_id is not None:
+        prestamos = prestamos.filter(solicitud__sede_destino_id=sede_id)
+
+    filas = []
+    for prestamo in prestamos:
+        solicitud = prestamo.solicitud
+        atraso = max(0, (hasta - timezone.localdate(prestamo.fecha_vencimiento)).days)
+        filas.append(
+            {
+                "tipo": "PRESTAMO",
+                "referencia": f"PRE-{prestamo.pk:04d}",
+                "detalle": f"{solicitud.libro.titulo} · {solicitud.socio.nombre}",
+                "ejemplar": solicitud.ejemplar.codigo_inventario if solicitud.ejemplar else "",
+                "ubicacion": solicitud.sede_destino.nombre,
+                "desde": prestamo.fecha_entrega,
+                "situacion": f"Vencido hace {atraso} días" if atraso else "Al día",
+            }
+        )
+
+    remitos = (
+        Remito.objects.filter(
+            estado=EstadoRemito.EN_TRANSITO,
+            fecha_despacho__date__gte=desde,
+            fecha_despacho__date__lte=hasta,
+        )
+        .select_related("sede_origen", "sede_destino")
+        .prefetch_related("detalles__ejemplar__libro")
+    )
+    if sede_id is not None:
+        remitos = remitos.filter(Q(sede_origen_id=sede_id) | Q(sede_destino_id=sede_id))
+    en_transito = 0
+    for remito in remitos:
+        dias = (hasta - timezone.localdate(remito.fecha_despacho)).days
+        for detalle in remito.detalles.all():
+            en_transito += 1
+            filas.append(
+                {
+                    "tipo": "TRANSITO",
+                    "referencia": remito.numero,
+                    "detalle": detalle.ejemplar.libro.titulo,
+                    "ejemplar": detalle.ejemplar.codigo_inventario,
+                    "ubicacion": f"{remito.sede_origen.nombre} → {remito.sede_destino.nombre}",
+                    "desde": remito.fecha_despacho,
+                    "situacion": f"{dias} días de viaje",
+                }
+            )
+
+    activos = len(filas) - en_transito
+    return {
+        "reporte": "RP06",
+        "criterio": (
+            "Préstamos entregados en el período y abiertos al cierre de Hasta, por sede de "
+            "entrega; y ejemplares de remitos despachados en el período que siguen en tránsito. "
+            "Con sede: préstamos entregados allí y envíos que salen o llegan."
+        ),
+        "resumen": f"{activos} préstamos activos · {en_transito} ejemplares en tránsito",
+        "filas": filas,
+    }
+
+
+def _tasa(grupo: dict) -> int | None:
+    recibidos = grupo["exitosos"] + grupo["con_incidencias"]
+    return round(grupo["exitosos"] / recibidos * 100) if recibidos else None
+
+
+def efectividad_logistica(*, desde: date, hasta: date, sede_id: int | None = None) -> dict:
+    """RP07 — Tasa de envíos exitosos e incidencias por trayecto.
+
+    Un envío es exitoso si se recibió sin daños ni extravíos. La tasa se calcula
+    sobre los envíos ya recibidos; los que siguen viajando se informan aparte.
+    """
+    filtros = Q(fecha_despacho__date__gte=desde) & Q(fecha_despacho__date__lte=hasta)
+    if sede_id is not None:
+        filtros &= Q(sede_origen_id=sede_id) | Q(sede_destino_id=sede_id)
+    remitos = (
+        Remito.objects.filter(filtros)
+        .select_related("sede_origen", "sede_destino")
+        .prefetch_related("detalles")
+    )
+    vacio = {
+        "despachados": 0,
+        "exitosos": 0,
+        "con_incidencias": 0,
+        "en_transito": 0,
+        "danados": 0,
+        "extraviados": 0,
+    }
+    grupos: dict[tuple[str, str], dict] = {}
+    for remito in remitos:
+        grupo = grupos.setdefault(
+            (remito.sede_origen.nombre, remito.sede_destino.nombre), dict(vacio)
+        )
+        grupo["despachados"] += 1
+        if remito.estado == EstadoRemito.EN_TRANSITO:
+            grupo["en_transito"] += 1
+        elif remito.estado == EstadoRemito.RECIBIDO_CON_INCIDENCIAS:
+            grupo["con_incidencias"] += 1
+        elif remito.estado == EstadoRemito.RECIBIDO:
+            grupo["exitosos"] += 1
+        for detalle in remito.detalles.all():
+            if detalle.resultado_recepcion == ResultadoRecepcion.DANADO:
+                grupo["danados"] += 1
+            elif detalle.resultado_recepcion == ResultadoRecepcion.EXTRAVIADO:
+                grupo["extraviados"] += 1
+
+    filas = [
+        {"origen": origen, "destino": destino, **grupo, "tasa_exito": _tasa(grupo)}
+        for (origen, destino), grupo in sorted(grupos.items())
+    ]
+    total = {clave: sum(fila[clave] for fila in filas) for clave in vacio}
+    tasa_total = _tasa(total)
+    return {
+        "reporte": "RP07",
+        "criterio": (
+            "Remitos despachados en el período, por trayecto. Exitoso: recibido sin "
+            "incidencias. La tasa se calcula sobre los recibidos; los que siguen en tránsito "
+            "se muestran aparte. Incidencias: ejemplares dañados o extraviados al recibir."
+        ),
+        "resumen": (
+            f"{total['despachados']} envíos · {total['danados']} dañados · "
+            f"{total['extraviados']} extraviados · tasa de éxito "
+            + (f"{tasa_total} %" if tasa_total is not None else "sin recepciones")
+        ),
+        "totales": {**total, "tasa_exito": tasa_total},
+        "filas": filas,
     }

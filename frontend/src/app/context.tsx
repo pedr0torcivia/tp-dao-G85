@@ -43,8 +43,24 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const t = localStorage.getItem("entrelibros:theme");
     return t === "light" || t === "dark" || t === "system" ? t : "light";
   });
-  const [sedeId, setSedeId] = useState(1),
-    [toast, setToast] = useState("");
+  const [sedeId, setSedeIdState] = useState(() => {
+    try {
+      return Number(localStorage.getItem("entrelibros:sede")) || 1;
+    } catch {
+      return 1;
+    }
+  });
+  const [toast, setToast] = useState("");
+  const setSedeId = (id: number | ((actual: number) => number)) =>
+    setSedeIdState((actual) => {
+      const next = typeof id === "function" ? id(actual) : id;
+      try {
+        localStorage.setItem("entrelibros:sede", String(next));
+      } catch {
+        /* almacenamiento no disponible */
+      }
+      return next;
+    });
   async function refresh() {
     if (!usuario) return;
     const version = generation.current;
@@ -72,7 +88,6 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     setDb(null);
     setError("");
     setToast("");
-    setSedeId(1);
   }
   async function comprobarSesion() {
     setAuthLoading(true);
