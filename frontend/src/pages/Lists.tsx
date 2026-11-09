@@ -48,7 +48,7 @@ export function Cover({
       src={src}
       alt={`Portada de ${title}`}
       onError={() => setFailed(true)}
-      className={`${size} shrink-0 rounded object-cover shadow-md`}
+      className={`${size} shrink-0 cover-img object-cover`}
     />
   ) : (
     <div
@@ -111,24 +111,33 @@ export function EntityList({ resource }: { resource: Resource }) {
       });
   }
   if (resource === "ejemplares") {
-    headers = ["Ejemplar", "Pertenece a", "Está en", "Estado"];
+    headers = ["Código", "Libro", "Sede", "Estado", "Condición"];
     const libro = Number(searchParams.get("libro_id")) || null;
-    for (const e of db!.ejemplares.filter((e) => !libro || e.libro_id === libro))
+    const corto = (id: number | null) => sedeName(id, db!).replace(/^Biblioteca /, "");
+    for (const e of db!.ejemplares.filter((e) => !libro || e.libro_id === libro)) {
+      const b = db!.libros.find((x) => x.id === e.libro_id);
+      const fuera = e.sede_actual_id !== e.sede_propietaria_id;
       records.push({
         id: e.id,
-        search: `${e.codigo_inventario} ${bookName(e.libro_id, db!)} ${sedeName(e.sede_propietaria_id, db!)}`,
+        search: `${e.codigo_inventario} ${b?.titulo} ${b?.autor} ${sedeName(e.sede_propietaria_id, db!)}`,
         sedes: [e.sede_propietaria_id, ...(e.sede_actual_id ? [e.sede_actual_id] : [])],
         state: e.estado,
         cells: [
-          <div className="flex items-center gap-3">
-            <Cover title={bookName(e.libro_id, db!)} compact />
-            {main(bookName(e.libro_id, db!), <span className="mono">{e.codigo_inventario}</span>)}
-          </div>,
-          sedeName(e.sede_propietaria_id, db!),
-          e.sede_actual_id === null ? "Viajando" : sedeName(e.sede_actual_id, db!),
+          <span className="mono font-semibold">{e.codigo_inventario}</span>,
+          main(b?.titulo ?? "—", b?.autor),
+          fuera ? (
+            <div>
+              <div>{e.sede_actual_id === null ? "Viajando" : `En ${corto(e.sede_actual_id)}`}</div>
+              <div className="cell-sub">de {corto(e.sede_propietaria_id)}</div>
+            </div>
+          ) : (
+            corto(e.sede_propietaria_id)
+          ),
           <Badge value={e.estado} />,
+          e.condicion_fisica === "APTO" ? <span className="muted">Apta</span> : <Badge value="NO_APTO" label="No apta" />,
         ],
       });
+    }
   }
   if (resource === "solicitudes") {
     headers = ["Solicitud", "Libro y socio", "Trayecto", "Estado"];
@@ -341,15 +350,7 @@ export function EntityList({ resource }: { resource: Resource }) {
                     <h2>{b.titulo}</h2>
                     <p className="author">{b.autor}</p>
                     <div className="avail">
-                      <div className="flex items-center justify-between text-xs">
-                        <Badge
-                          value={av.length ? "DISPONIBLE" : "PENDIENTE"}
-                          label={av.length ? "Disponible" : "Sin copias libres"}
-                        />
-                        <span className="muted">
-                          {av.length}/{es.length}
-                        </span>
-                      </div>
+                      {av.length ? `${av.length} de ${es.length} disponibles` : es.length ? "Sin copias libres · reservable" : "Sin copias"}
                       <div className="avail-bar">
                         <span style={{ width: es.length ? `${(av.length / es.length) * 100}%` : 0 }} />
                       </div>

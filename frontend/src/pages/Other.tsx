@@ -31,7 +31,7 @@ export function Appearance() {
   return (
     <>
       <Heading title="Apariencia" description="Elegí el tema con el que querés trabajar." />
-      <div className="card card-pad max-w-[640px]">
+      <div className="max-w-[640px]">
         <div role="group" aria-label="Tema de la aplicación" className="flex flex-wrap gap-2">
           {(["light", "dark", "system"] as const).map((t, i) => (
             <Button
@@ -69,7 +69,6 @@ export function Returns() {
   return (
     <>
       <Heading
-        kicker="Circulación"
         title="Registrar devolución"
         description="Buscá por socio, libro o código del ejemplar. Al devolver, el material queda en revisión hasta que lo habilites (o vuelva a su sede)."
       />
@@ -235,7 +234,7 @@ export function Access() {
           </section>
           <form
             onSubmit={submit}
-            className="rounded-2xl border border-[var(--access-border)] bg-[var(--access-card)] p-7 sm:p-10"
+            className="access-form p-7 sm:p-10"
           >
             <h2 className="text-[26px] font-semibold text-[var(--access-title)]">
               Ingresá a tu biblioteca

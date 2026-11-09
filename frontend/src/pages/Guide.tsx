@@ -21,7 +21,7 @@ function Flow({ nodes }: { nodes: (string | [string, "final" | "bad"])[] }) {
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="card card-pad">
+    <section className="border-t border-[var(--rule-strong)] pt-3">
       <h2 className="card-title">{title}</h2>
       <div className="grid gap-3 text-sm leading-relaxed">{children}</div>
     </section>
@@ -52,7 +52,6 @@ export function Guide() {
   return (
     <>
       <Heading
-        kicker="Guía"
         title="Cómo funciona EntreLibros"
         description="El recorrido de un libro desde que un socio lo pide hasta que vuelve a su biblioteca, y los dos patrones de diseño que lo resuelven."
       />
@@ -75,7 +74,7 @@ export function Guide() {
           <p>
             La <Link className="font-semibold text-[var(--primary)] underline" to="/inicio">Mesa de trabajo</Link>{" "}
             muestra lo que tu sede tiene que resolver, cada fila con el botón del paso siguiente.
-            Cambiá de sede desde la barra lateral para ver la jornada de otra biblioteca.
+            Cambiá de sede con el selector «Sede» de la barra superior para ver la jornada de otra biblioteca.
           </p>
           <p>
             Para un pedido nuevo usá <b>Nueva solicitud</b>: elegís socio, libro y sede de retiro, y la
@@ -113,7 +112,7 @@ export function Guide() {
             muestra sólo los botones que el estado admite.
           </p>
         </Card>
-        <section className="card card-pad">
+        <section className="border-t border-[var(--rule-strong)] pt-3">
           <h2 className="card-title">Operaciones por estado</h2>
           <div className="table-wrap !shadow-none">
             <table>

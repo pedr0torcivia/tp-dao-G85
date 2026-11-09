@@ -331,7 +331,7 @@ export function CommandDialog({
             </Alert>
           )}
           {action === "asignar" && solicitud && (
-            <label className="flex items-start gap-3 rounded-xl border border-[var(--border)] p-3 text-sm">
+            <label className="option-row">
               <input
                 type="checkbox"
                 className="mt-1"

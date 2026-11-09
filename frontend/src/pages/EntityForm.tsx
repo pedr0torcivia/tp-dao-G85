@@ -132,7 +132,7 @@ function GenericForm({ resource }: { resource: Resource }) {
         title={id ? `Editar ${conf.singular}` : conf.create}
       />
       <div className="form-layout">
-        <form onSubmit={submit} className="card card-pad">
+        <form onSubmit={submit}>
           {error && <Alert error>{error.message}</Alert>}
           <div className="form-grid">
             {fields.map((f) => (
@@ -189,7 +189,7 @@ function GenericForm({ resource }: { resource: Resource }) {
           </div>
         </form>
         {h && (
-          <aside className="card card-pad side-help">
+          <aside className="side-help">
             <p className="kicker">Antes de guardar</p>
             <h2 className="font-heading text-lg font-semibold">{h.title}</h2>
             <ol>
@@ -277,12 +277,11 @@ function NuevaSolicitud() {
     <>
       <Back to="/solicitudes" />
       <Heading
-        kicker="Circulación"
         title="Nueva solicitud de préstamo"
         description="Elegí quién pide, qué libro y dónde lo retira. El sistema muestra dónde hay copias y decide si el préstamo es local o interbibliotecario."
       />
       <form onSubmit={submit} className="form-layout">
-        <div className="card card-pad grid gap-5">
+        <div className="grid gap-5">
           {error && <Alert error>{error.message}</Alert>}
           <div className="form-grid">
             <Field label="1. Socio" error={error?.fields.socio_id}>
@@ -380,7 +379,7 @@ function NuevaSolicitud() {
           )}
 
           {libro && copiasOrigen.length > 0 && (
-            <label className="flex items-start gap-3 rounded-xl border border-[var(--border)] p-3 text-sm">
+            <label className="option-row">
               <input type="checkbox" className="mt-1" checked={asignarYa} onChange={(e) => setAsignarYa(e.target.checked)} />
               <span>
                 <b>Asignar la copia {copiasOrigen[0].codigo_inventario} y prepararla ahora</b>
@@ -404,7 +403,7 @@ function NuevaSolicitud() {
         </div>
 
         <aside className="grid gap-4">
-          <section className="card card-pad">
+          <section className="side-help">
             <p className="kicker">Resumen</p>
             <p className="text-sm">
               Tipo:{" "}

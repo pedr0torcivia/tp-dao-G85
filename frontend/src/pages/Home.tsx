@@ -1,108 +1,83 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import {
-  AlertTriangle,
-  ArrowRight,
-  BookOpenCheck,
-  ClipboardList,
-  HandHelping,
-  PackageCheck,
-  Plus,
-  Search,
-  Truck,
-  Undo2,
-  Wrench,
-} from "lucide-react";
+import { Plus, Undo2 } from "lucide-react";
 import type { Resource } from "../domain/models";
 import type { Command } from "../api/contracts";
 import { useLibrary } from "../app/context";
 import { tasksFor } from "../domain/tasks";
 import {
+  available,
   awaitingReturn,
   bookName,
   code,
-  dateLabel,
   pesos,
   sedeName,
   socioName,
-  type Tone,
 } from "../domain/selectors";
 import { api } from "../api";
-import { Badge, Button, Kpi } from "../components/ui";
+import { Button } from "../components/ui";
 import { CommandDialog } from "./Commands";
 
-const plural = (n: number, uno: string, varios: string) =>
-  `${n} ${n === 1 ? uno : varios}`;
-
-interface Task {
+type Run = { resource: Resource; id: number; command: Command };
+interface Row {
   key: string;
-  title: ReactNode;
-  detail: ReactNode;
+  sig: string;
+  title: string;
+  detail: string;
   to: string;
-  action?: { label: string; resource: Resource; id: number; command: Command };
+  urgent?: boolean;
+  action?: Run & { label: string };
   custom?: ReactNode;
 }
-
-function Lane({
-  title,
-  subtitle,
-  icon,
-  tone,
-  tasks,
-  empty,
-  more,
-  onRun,
-}: {
+interface Group {
+  key: string;
   title: string;
-  subtitle: string;
-  icon: ReactNode;
-  tone: Tone;
-  tasks: Task[];
-  empty: string;
-  more?: { to: string; label: string };
-  onRun: (t: NonNullable<Task["action"]>) => void;
-}) {
-  const visible = tasks.slice(0, 6);
+  hint: string;
+  rows: Row[];
+  urgent?: boolean;
+}
+
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+const shortDate = (iso: string) =>
+  new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "short",
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(new Date(iso));
+const LIMIT = 5;
+
+function QueueGroup({ group, onRun }: { group: Group; onRun: (r: Run) => void }) {
+  const [all, setAll] = useState(false);
+  if (!group.rows.length) return null;
+  const rows = all ? group.rows : group.rows.slice(0, LIMIT);
   return (
-    <section
-      className="lane card"
-      style={
-        {
-          "--tone": `var(--${tone})`,
-          "--tone-bg": `var(--${tone}-bg)`,
-        } as React.CSSProperties
-      }
-    >
-      <header className="lane-head">
-        <span className="lane-icon">{icon}</span>
-        <div>
-          <h2>{title}</h2>
-          <p>{subtitle}</p>
-        </div>
-        <span className="count">{tasks.length}</span>
+    <section className={`queue-group ${group.urgent ? "urgent" : ""}`} aria-label={group.title}>
+      <header>
+        <h2>{group.title}</h2>
+        <span className="count">{group.rows.length}</span>
+        <p className="hidden sm:block">{group.hint}</p>
       </header>
-      {visible.length ? (
-        visible.map((t) => (
-          <div key={t.key} className="task">
-            <Link to={t.to} className="task-body">
-              <p>{t.title}</p>
-              <small>{t.detail}</small>
-            </Link>
-            {t.custom ??
-              (t.action && (
-                <Button size="sm" onClick={() => onRun(t.action!)}>
-                  {t.action.label}
-                </Button>
-              ))}
+      {rows.map((r) => (
+        <div key={r.key} className={`queue-row ${r.urgent ? "urgent" : ""}`}>
+          <span className="sig">{r.sig}</span>
+          <div className="what">
+            <Link to={r.to}>{r.title}</Link>
+            <small>{r.detail}</small>
           </div>
-        ))
-      ) : (
-        <p className="lane-empty">{empty}</p>
-      )}
-      {more && tasks.length > visible.length && (
-        <Link to={more.to} className="lane-more">
-          {more.label} ({tasks.length}) →
-        </Link>
+          {r.custom ??
+            (r.action ? (
+              <Button size="sm" variant={r.urgent ? "primary" : "outline"} onClick={() => onRun(r.action!)}>
+                {r.action.label}
+              </Button>
+            ) : (
+              <span />
+            ))}
+        </div>
+      ))}
+      {group.rows.length > LIMIT && (
+        <button type="button" className="queue-more" onClick={() => setAll((v) => !v)}>
+          {all ? "Mostrar menos" : `Ver las ${group.rows.length}`}
+        </button>
       )}
     </section>
   );
@@ -110,18 +85,18 @@ function Lane({
 
 export function Home() {
   const { db, sedeId, refresh, notify } = useLibrary();
-  const [run, setRun] = useState<NonNullable<Task["action"]> | null>(null);
+  const [run, setRun] = useState<Run | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   const t = tasksFor(db!, sedeId);
-  const sede = sedeName(sedeId, db!);
   const sol = (id: number) => db!.solicitudes.find((s) => s.id === id)!;
+  const nDetalles = (remitoId: number) => db!.detalle_remitos.filter((d) => d.remito_id === remitoId).length;
 
   async function retorno(ejemplarId: number) {
     setBusy(ejemplarId);
     try {
-      const remito = await api.prepararRetorno(ejemplarId);
+      await api.prepararRetorno(ejemplarId);
       await refresh();
-      notify(`Ejemplar agregado al remito de retorno #${remito.id}.`);
+      notify("El ejemplar se agregó al remito de retorno.");
     } catch (e) {
       notify(e instanceof Error ? e.message : "No pudimos preparar el retorno.");
     } finally {
@@ -129,202 +104,219 @@ export function Home() {
     }
   }
 
-  const mostrador: Task[] = t.paraEntregar.map((s) => ({
-    key: `e${s.id}`,
-    title: `${bookName(s.libro_id, db!)}`,
-    detail: `${socioName(s.socio_id, db!)} · ${s.reserva_id ? "reserva" : s.tipo === "LOCAL" ? "local" : `llegó de ${sedeName(s.sede_origen_id, db!)}`}`,
-    to: `/solicitudes/${s.id}`,
-    action: { label: "Entregar", resource: "solicitudes", id: s.id, command: "entregar" },
-  }));
-
-  const pedidos: Task[] = [
-    ...t.porAsignar.map((s) => ({
-      key: `a${s.id}`,
-      title: bookName(s.libro_id, db!),
-      detail: `${code("SOL", s.id)} · ${socioName(s.socio_id, db!)} · ${s.tipo === "LOCAL" ? "retira acá" : `retira en ${sedeName(s.sede_destino_id, db!)}`}`,
-      to: `/solicitudes/${s.id}`,
-      action: { label: "Asignar copia", resource: "solicitudes" as Resource, id: s.id, command: "asignar" as Command },
-    })),
-    ...t.porPreparar.map((s) => ({
-      key: `p${s.id}`,
-      title: bookName(s.libro_id, db!),
-      detail: `${code("SOL", s.id)} · copia asignada, falta prepararla`,
-      to: `/solicitudes/${s.id}`,
-      action: { label: "Preparar", resource: "solicitudes" as Resource, id: s.id, command: "preparar-entrega" as Command },
-    })),
-    ...t.reservasPorAsignar.map((r) => ({
-      key: `r${r.id}`,
-      title: bookName(r.libro_id, db!),
-      detail: `${code("RES", r.id)} · reserva de ${socioName(r.socio_id, db!)}`,
-      to: `/reservas/${r.id}`,
-      action: { label: "Apartar copia", resource: "reservas" as Resource, id: r.id, command: "asignar-reserva" as Command },
-    })),
-  ];
-
-  const envios: Task[] = [
-    ...t.remitosPorRecibir.map((r) => ({
-      key: `in${r.id}`,
-      title: `${r.numero} · llega de ${sedeName(r.sede_origen_id, db!)}`,
-      detail: `${plural(db!.detalle_remitos.filter((d) => d.remito_id === r.id).length, "ejemplar", "ejemplares")} · despachado ${dateLabel(r.fecha_despacho)}`,
-      to: `/remitos/${r.id}`,
-      action: { label: "Recibir", resource: "remitos" as Resource, id: r.id, command: "recibir" as Command },
-    })),
-    ...t.remitosPorArmar.map((r) => {
-      const n = db!.detalle_remitos.filter((d) => d.remito_id === r.id).length;
-      const next: Command | null =
-        r.estado === "EMPAQUETADO" ? "despachar" : n ? "empaquetar" : null;
-      return {
-        key: `out${r.id}`,
-        title: `${r.numero} · hacia ${sedeName(r.sede_destino_id, db!)}`,
-        detail: `${plural(n, "ejemplar", "ejemplares")} · ${r.estado === "EMPAQUETADO" ? "listo para despachar" : "en preparación"}`,
-        to: `/remitos/${r.id}`,
-        action: next
-          ? {
-              label: next === "despachar" ? "Despachar" : "Empaquetar",
-              resource: "remitos" as Resource,
-              id: r.id,
-              command: next,
-            }
-          : undefined,
-      };
-    }),
-  ];
-
-  const pendientesRetorno = awaitingReturn(db!).filter(
-    (e) => e.sede_actual_id === sedeId,
-  );
-  const revision: Task[] = [
-    ...t.vencidos.map((p) => {
-      const s = sol(p.solicitud_id);
-      return {
-        key: `v${p.id}`,
-        title: `${socioName(s.socio_id, db!)} · ${p.dias_atraso} días de atraso`,
-        detail: `${bookName(s.libro_id, db!)} · multa ${pesos(p.multa)}`,
-        to: `/prestamos/${p.id}`,
-        action: { label: "Devolución", resource: "prestamos" as Resource, id: p.id, command: "devolver" as Command },
-      };
-    }),
-    ...t.enRevision.map((e) => {
-      const ajeno = e.sede_propietaria_id !== e.sede_actual_id;
-      const enCola = pendientesRetorno.some((x) => x.id === e.id);
-      return {
-        key: `x${e.id}`,
-        title: `${bookName(e.libro_id, db!)} · ${e.codigo_inventario}`,
-        detail: ajeno
-          ? `Es de ${sedeName(e.sede_propietaria_id, db!)}: debe volver a su sede`
-          : e.condicion_fisica === "APTO"
-            ? "Devuelto en buen estado: revisalo y habilitalo"
-            : "No apto: reparar o dar de baja",
-        to: `/ejemplares/${e.id}`,
-        action:
-          !ajeno && e.condicion_fisica === "APTO"
-            ? { label: "Habilitar", resource: "ejemplares" as Resource, id: e.id, command: "aprobar-disponibilidad" as Command }
+  const sinRemito = new Set(awaitingReturn(db!).map((e) => e.id));
+  const groups: Group[] = [
+    {
+      key: "urgente",
+      title: "Atender primero",
+      hint: "Atrasos y envíos que ya llegaron a la puerta",
+      urgent: true,
+      rows: [
+        ...t.vencidos.map((p) => {
+          const s = sol(p.solicitud_id);
+          return {
+            key: `v${p.id}`,
+            sig: `VENCE −${p.dias_atraso}d`,
+            urgent: true,
+            title: `${bookName(s.libro_id, db!)} · ${socioName(s.socio_id, db!)}`,
+            detail: `${code("PRE", p.id)} · venció el ${shortDate(p.fecha_vencimiento)} · multa ${pesos(p.multa)}`,
+            to: `/prestamos/${p.id}`,
+            action: { label: "Devolución", resource: "prestamos" as Resource, id: p.id, command: "devolver" as Command },
+          };
+        }),
+        ...t.remitosPorRecibir.map((r) => ({
+          key: `in${r.id}`,
+          sig: r.numero,
+          title: `Llega de ${sedeName(r.sede_origen_id, db!)}`,
+          detail: `${plural(nDetalles(r.id), "ejemplar", "ejemplares")} en tránsito desde el ${r.fecha_despacho ? shortDate(r.fecha_despacho) : "—"}`,
+          to: `/remitos/${r.id}`,
+          action: { label: "Recibir", resource: "remitos" as Resource, id: r.id, command: "recibir" as Command },
+        })),
+      ],
+    },
+    {
+      key: "mostrador",
+      title: "Mostrador",
+      hint: "Listos para entregar al socio",
+      rows: t.paraEntregar.map((s) => ({
+        key: `e${s.id}`,
+        sig: code("SOL", s.id),
+        title: `${bookName(s.libro_id, db!)}`,
+        detail: `${socioName(s.socio_id, db!)} · ${s.reserva_id ? "reserva" : s.tipo === "LOCAL" ? "préstamo local" : `llegó de ${sedeName(s.sede_origen_id, db!)}`}`,
+        to: `/solicitudes/${s.id}`,
+        action: { label: "Entregar", resource: "solicitudes" as Resource, id: s.id, command: "entregar" as Command },
+      })),
+    },
+    {
+      key: "pedidos",
+      title: "Pedidos que esperan una copia",
+      hint: "Solicitudes y reservas que debe atender esta sede",
+      rows: [
+        ...t.porAsignar.map((s) => ({
+          key: `a${s.id}`,
+          sig: code("SOL", s.id),
+          title: bookName(s.libro_id, db!),
+          detail: `${socioName(s.socio_id, db!)} · ${s.tipo === "LOCAL" ? "retira acá" : `retira en ${sedeName(s.sede_destino_id, db!)}`}`,
+          to: `/solicitudes/${s.id}`,
+          action: { label: "Asignar copia", resource: "solicitudes" as Resource, id: s.id, command: "asignar" as Command },
+        })),
+        ...t.porPreparar.map((s) => ({
+          key: `p${s.id}`,
+          sig: code("SOL", s.id),
+          title: bookName(s.libro_id, db!),
+          detail: `${socioName(s.socio_id, db!)} · copia asignada, falta prepararla`,
+          to: `/solicitudes/${s.id}`,
+          action: { label: "Preparar", resource: "solicitudes" as Resource, id: s.id, command: "preparar-entrega" as Command },
+        })),
+        ...t.reservasPorAsignar.map((r) => ({
+          key: `r${r.id}`,
+          sig: code("RES", r.id),
+          title: bookName(r.libro_id, db!),
+          detail: `Reserva de ${socioName(r.socio_id, db!)}`,
+          to: `/reservas/${r.id}`,
+          action: { label: "Apartar copia", resource: "reservas" as Resource, id: r.id, command: "asignar-reserva" as Command },
+        })),
+      ],
+    },
+    {
+      key: "envios",
+      title: "Envíos por armar",
+      hint: "Remitos que salen de esta sede",
+      rows: t.remitosPorArmar.map((r) => {
+        const n = nDetalles(r.id);
+        const next: Command | null = r.estado === "EMPAQUETADO" ? "despachar" : n ? "empaquetar" : null;
+        return {
+          key: `out${r.id}`,
+          sig: r.numero,
+          title: `Hacia ${sedeName(r.sede_destino_id, db!)}`,
+          detail: `${plural(n, "ejemplar", "ejemplares")} · ${r.estado === "EMPAQUETADO" ? "empaquetado, falta despachar" : "en preparación"}`,
+          to: `/remitos/${r.id}`,
+          action: next
+            ? { label: next === "despachar" ? "Despachar" : "Empaquetar", resource: "remitos" as Resource, id: r.id, command: next }
             : undefined,
-        custom:
-          ajeno && enCola ? (
-            <Button size="sm" variant="outline" disabled={busy === e.id} onClick={() => void retorno(e.id)}>
-              <Undo2 size={14} /> Retorno
-            </Button>
-          ) : ajeno ? (
-            <Badge value="EN_TRANSITO" label="En remito" />
-          ) : undefined,
-      };
-    }),
+        };
+      }),
+    },
+    {
+      key: "revision",
+      title: "Material en revisión",
+      hint: "Devoluciones para habilitar o devolver a su sede",
+      rows: t.enRevision.map((e) => {
+        const ajeno = e.sede_propietaria_id !== e.sede_actual_id;
+        return {
+          key: `x${e.id}`,
+          sig: e.codigo_inventario,
+          title: bookName(e.libro_id, db!),
+          detail: ajeno
+            ? `Pertenece a ${sedeName(e.sede_propietaria_id, db!)}: debe volver`
+            : e.condicion_fisica === "APTO"
+              ? "Volvió en buen estado"
+              : "No apto: reparar o dar de baja",
+          to: `/ejemplares/${e.id}`,
+          action:
+            !ajeno && e.condicion_fisica === "APTO"
+              ? { label: "Habilitar", resource: "ejemplares" as Resource, id: e.id, command: "aprobar-disponibilidad" as Command }
+              : undefined,
+          custom:
+            ajeno && sinRemito.has(e.id) ? (
+              <Button size="sm" variant="outline" disabled={busy === e.id} onClick={() => void retorno(e.id)}>
+                <Undo2 size={13} /> Retorno
+              </Button>
+            ) : ajeno ? (
+              <span className="mono muted">en remito</span>
+            ) : undefined,
+        };
+      }),
+    },
   ];
+  const total = groups.reduce((n, g) => n + g.rows.length, 0);
 
-  const fecha = new Intl.DateTimeFormat("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date());
+  const hoy = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+  const proximos = [...t.prestamosSede]
+    .filter((p) => !p.dias_atraso)
+    .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento))
+    .slice(0, 5);
+  const disponibles = db!.ejemplares.filter((e) => e.sede_propietaria_id === sedeId && available(e, db!)).length;
 
   return (
     <>
-      <section className="hero">
-        <p className="kicker">{fecha}</p>
-        <h1>Mesa de trabajo · {sede}</h1>
-        <p>
-          Todo lo que tu sede tiene que resolver, ordenado por tarea. Cada fila
-          tiene el botón del paso siguiente: no hace falta buscarlo.
-        </p>
-        <div className="hero-actions">
+      <div className="desk-head">
+        <div>
+          <p className="kicker">
+            {sedeName(sedeId, db!)} · {hoy}
+          </p>
+          <h1>Mesa de trabajo</h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <Link className="btn btn-primary" to="/solicitudes/nuevo">
-            <Plus size={16} /> Nueva solicitud
+            <Plus size={15} /> Nueva solicitud
           </Link>
           <Link className="btn btn-outline" to="/prestamos/devolucion">
-            <Undo2 size={16} /> Registrar devolución
+            Registrar devolución
           </Link>
-          <Link className="btn btn-outline" to="/catalogo">
-            <Search size={16} /> Consultar disponibilidad
+          <Link className="btn btn-outline hidden md:inline-flex" to="/catalogo">
+            Buscar en el catálogo
           </Link>
         </div>
-      </section>
-
-      <div className="kpi-grid">
-        <Kpi icon={<ClipboardList size={18} />} value={pedidos.length} label="Pedidos por atender" tone="warn" to="/solicitudes" />
-        <Kpi icon={<BookOpenCheck size={18} />} value={t.prestamosSede.length} label="Préstamos activos en la sede" tone="info" to="/prestamos" />
-        <Kpi icon={<AlertTriangle size={18} />} value={t.vencidos.length} label="Préstamos vencidos" tone={t.vencidos.length ? "bad" : "ok"} to="/reportes/vencidos" />
-        <Kpi icon={<Truck size={18} />} value={t.enCamino.length} label="Libros viajando hacia acá" tone="move" to="/remitos" />
       </div>
 
-      <div className="lanes">
-        <Lane
-          title="Mostrador: listos para entregar"
-          subtitle="El socio puede retirarlos ahora"
-          icon={<HandHelping size={19} />}
-          tone="info"
-          tasks={mostrador}
-          empty="No hay material esperando en el mostrador."
-          more={{ to: "/solicitudes", label: "Ver todas" }}
-          onRun={setRun}
-        />
-        <Lane
-          title="Pedidos por atender"
-          subtitle="Solicitudes y reservas que esperan una copia de esta sede"
-          icon={<ClipboardList size={19} />}
-          tone="warn"
-          tasks={pedidos}
-          empty="Sin pedidos pendientes. ¡Al día!"
-          more={{ to: "/solicitudes", label: "Ver solicitudes" }}
-          onRun={setRun}
-        />
-        <Lane
-          title="Envíos entre sedes"
-          subtitle="Remitos por armar, despachar o recibir"
-          icon={<PackageCheck size={19} />}
-          tone="move"
-          tasks={envios}
-          empty="No hay envíos que requieran acción."
-          more={{ to: "/remitos", label: "Ver remitos" }}
-          onRun={setRun}
-        />
-        <Lane
-          title="Vencidos y material en revisión"
-          subtitle="Atrasos para reclamar y copias para revisar o devolver"
-          icon={<Wrench size={19} />}
-          tone="bad"
-          tasks={revision}
-          empty="Nada para revisar."
-          more={{ to: "/prestamos", label: "Ver préstamos" }}
-          onRun={setRun}
-        />
+      <div className="desk">
+        <div className="min-w-0">
+          <p className="mt-3 text-[13px] text-[var(--ink-soft)]">
+            {total
+              ? `${plural(total, "tarea pendiente", "tareas pendientes")} en esta sede, ordenadas por prioridad.`
+              : "La sede está al día: no hay tareas pendientes."}
+          </p>
+          {groups.map((g) => (
+            <QueueGroup key={g.key} group={g} onRun={setRun} />
+          ))}
+        </div>
+
+        <aside className="side-col">
+          <section className="ledger" aria-label="Estado de la sede">
+            <h3 className="label">La sede hoy</h3>
+            <Link to="/prestamos">
+              Préstamos activos <b>{t.prestamosSede.length}</b>
+            </Link>
+            <Link to="/reportes/vencidos" className={t.vencidos.length ? "bad" : ""}>
+              Vencidos <b>{t.vencidos.length}</b>
+            </Link>
+            <Link to="/remitos">
+              Libros viajando hacia acá <b>{t.enCamino.length}</b>
+            </Link>
+            <Link to="/ejemplares">
+              Copias disponibles <b>{disponibles}</b>
+            </Link>
+          </section>
+          <section className="ledger" aria-label="Próximos vencimientos">
+            <h3 className="label">Próximos vencimientos</h3>
+            {proximos.length ? (
+              proximos.map((p) => {
+                const s = sol(p.solicitud_id);
+                return (
+                  <Link key={p.id} to={`/prestamos/${p.id}`}>
+                    <span className="min-w-0 truncate">
+                      {bookName(s.libro_id, db!)}
+                      <span className="block text-[12px] text-[var(--ink-faint)]">{socioName(s.socio_id, db!)}</span>
+                    </span>
+                    <span className="mono">{shortDate(p.fecha_vencimiento)}</span>
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="row muted">Sin préstamos por vencer.</div>
+            )}
+          </section>
+          <p className="text-[12.5px] text-[var(--ink-faint)]">
+            ¿Dudas con el circuito?{" "}
+            <Link to="/guia" className="text-[var(--green)] underline underline-offset-2">
+              Cómo funciona
+            </Link>
+          </p>
+        </aside>
       </div>
 
-      <p className="mt-6 text-sm text-[var(--muted-foreground)]">
-        ¿Primera vez? Mirá{" "}
-        <Link to="/guia" className="font-semibold text-[var(--primary)] underline underline-offset-4">
-          cómo funciona el circuito <ArrowRight size={13} className="inline" />
-        </Link>
-      </p>
-
-      {run && (
-        <CommandDialog
-          resource={run.resource}
-          id={run.id}
-          action={run.command}
-          onClose={() => setRun(null)}
-        />
-      )}
+      {run && <CommandDialog resource={run.resource} id={run.id} action={run.command} onClose={() => setRun(null)} />}
     </>
   );
 }

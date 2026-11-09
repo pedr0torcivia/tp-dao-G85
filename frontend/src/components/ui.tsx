@@ -6,6 +6,7 @@ import {
   isValidElement,
   type ReactElement,
   type ButtonHTMLAttributes,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { Link } from "react-router-dom";
@@ -14,7 +15,6 @@ import {
   ArrowLeft,
   Check,
   Info,
-  Puzzle,
   Search,
   SearchX,
   X,
@@ -193,6 +193,7 @@ export function Table({
                 {h}
               </th>
             ))}
+            {onRowClick && <th aria-hidden="true" />}
           </tr>
         </thead>
         <tbody>
@@ -212,6 +213,11 @@ export function Table({
               {r.map((c, j) => (
                 <td key={j}>{c}</td>
               ))}
+              {onRowClick && (
+                <td className="go" aria-hidden="true">
+                  →
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -409,19 +415,17 @@ export function PatternNote({
 }) {
   return (
     <aside className="pattern-note">
-      <span className="tag">
-        <Puzzle size={12} /> Patrón {pattern}
-      </span>
+      <span className="tag">Patrón {pattern}</span>
       <div>{children}</div>
     </aside>
   );
 }
 
+/** Cifra integrada a una franja de datos. Sólo lo urgente toma color. */
 export function Kpi({
-  icon,
   value,
   label,
-  tone = "info",
+  tone,
   to,
 }: {
   icon?: ReactNode;
@@ -430,24 +434,25 @@ export function Kpi({
   tone?: Tone;
   to?: string;
 }) {
+  const style =
+    tone === "bad" ? ({ "--tone": "var(--stamp)" } as CSSProperties) : undefined;
   const body = (
     <>
-      {icon && <span className="kpi-icon">{icon}</span>}
       <strong>{value}</strong>
       <span>{label}</span>
     </>
   );
-  const style = {
-    "--tone": `var(--${tone})`,
-    "--tone-bg": `var(--${tone}-bg)`,
-  } as React.CSSProperties;
   return to ? (
-    <Link to={to} className="kpi" style={style}>
+    <Link to={to} className="figure" style={style}>
       {body}
     </Link>
   ) : (
-    <div className="kpi" style={style}>
+    <div className="figure" style={style}>
       {body}
     </div>
   );
+}
+
+export function Figures({ children }: { children: ReactNode }) {
+  return <div className="figures">{children}</div>;
 }

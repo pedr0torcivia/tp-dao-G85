@@ -105,7 +105,7 @@ function NextStep({
   children?: ReactNode;
 }) {
   return (
-    <section className="card card-pad next-step">
+    <section className="next-step">
       <h3>{title}</h3>
       <p>{text}</p>
       {children && <div className="action-stack">{children}</div>}
@@ -162,7 +162,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     const prestamo = db!.prestamos.find((p) => p.solicitud_id === n);
     const remito = s.remito_id ? db!.remitos.find((r) => r.id === s.remito_id) : undefined;
     const cerrada = ["RECHAZADA", "CANCELADA"].includes(s.estado);
-    title = `Solicitud ${code("SOL", n)}`;
+    title = <span className="mono !text-[0.85em] !tracking-normal">{code("SOL", n)}</span>;
     kicker = (
       <>
         Solicitud {statusLabels[s.tipo].toLowerCase()} <Badge value={s.estado} />
@@ -170,7 +170,12 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     );
     body = (
       <>
-        <section className="card card-pad mb-4">
+        <p className="route">
+          {bookName(s.libro_id, db!)}
+          <span className="arrow">para</span>
+          {socioName(s.socio_id, db!)}
+        </p>
+        <section className="mb-6">
           {cerrada ? (
             <Alert tone="neutral">{solicitudHint[s.estado]}</Alert>
           ) : (
@@ -182,7 +187,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
         </section>
         <div className="detail-grid">
           <div className="grid gap-4">
-            <section className="card card-pad">
+            <section>
               <Facts
                 items={[
                   ["Socio", linkTo(`/socios/${s.socio_id}`, socioName(s.socio_id, db!))],
@@ -261,17 +266,21 @@ export function EntityDetail({ resource }: { resource: Resource }) {
       .filter((e) => e.remito_id === n)
       .sort((a, b) => Date.parse(a.fecha_hora) - Date.parse(b.fecha_hora) || a.id - b.id);
     const incid = r.estado === "RECIBIDO_CON_INCIDENCIAS";
-    title = `Remito ${r.numero}`;
+    title = <span className="mono !text-[0.85em] !tracking-normal">{r.numero}</span>;
     kicker = (
       <>
-        {sedeName(r.sede_origen_id, db!)} → {sedeName(r.sede_destino_id, db!)}{" "}
-        <Badge value={r.estado} />
+        Remito <Badge value={r.estado} />
       </>
     );
     const ops: OperacionRemito[] = ["agregar", "quitar", "empaquetar", "reabrir", "despachar", "recibir", "cancelar"];
     body = (
       <>
-        <section className="card card-pad mb-4">
+        <p className="route">
+          {sedeName(r.sede_origen_id, db!)}
+          <span className="arrow">——→</span>
+          {sedeName(r.sede_destino_id, db!)}
+        </p>
+        <section className="mb-6">
           {r.estado === "CANCELADO" ? (
             <Alert tone="neutral">Este envío fue cancelado antes de salir.</Alert>
           ) : (
@@ -322,18 +331,21 @@ export function EntityDetail({ resource }: { resource: Resource }) {
               }
             />
             <h2 className="section-title">Trazabilidad</h2>
-            <section className="card card-pad">
+            <section>
               <ol className="timeline">
                 {eventos.map((e) => (
                   <li key={e.id}>
-                    <b>
-                      {e.estado_anterior ? `${statusLabels[e.estado_anterior] ?? e.estado_anterior} → ` : ""}
-                      {statusLabels[e.estado_nuevo] ?? e.estado_nuevo}
-                    </b>
-                    <small>
-                      {dateTimeLabel(e.fecha_hora)} · {e.responsable}
-                      {e.observacion ? ` · ${e.observacion}` : ""}
-                    </small>
+                    <small>{dateTimeLabel(e.fecha_hora)}</small>
+                    <div>
+                      <b>
+                        {e.estado_anterior ? `${statusLabels[e.estado_anterior] ?? e.estado_anterior} → ` : ""}
+                        {statusLabels[e.estado_nuevo] ?? e.estado_nuevo}
+                      </b>
+                      <span>
+                        {e.responsable}
+                        {e.observacion ? ` · ${e.observacion}` : ""}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ol>
@@ -381,7 +393,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     const estado = loanState(p);
     const debeVolver =
       e && e.estado === "EN_REVISION" && e.sede_actual_id !== e.sede_propietaria_id && !inOpenRemito(e.id, db!);
-    title = `Préstamo ${code("PRE", n)}`;
+    title = <span className="mono !text-[0.85em] !tracking-normal">{code("PRE", n)}</span>;
     kicker = (
       <>
         Préstamo <Badge value={estado} />
@@ -389,7 +401,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     );
     body = (
       <div className="detail-grid">
-        <section className="card card-pad">
+        <section>
           <Facts
             items={[
               ["Socio", linkTo(`/socios/${s.socio_id}`, socioName(s.socio_id, db!))],
@@ -438,7 +450,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     const s = db!.solicitudes.find((x) => x.reserva_id === n);
     const vencida =
       r.estado === "LISTA_PARA_RETIRO" && r.fecha_limite_retiro && Date.parse(r.fecha_limite_retiro) < Date.now();
-    title = `Reserva ${code("RES", n)}`;
+    title = <span className="mono !text-[0.85em] !tracking-normal">{code("RES", n)}</span>;
     kicker = (
       <>
         Reserva <Badge value={r.estado} />
@@ -446,7 +458,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     );
     body = (
       <>
-        <section className="card card-pad mb-4">
+        <section className="mb-6">
           {["CANCELADA", "EXPIRADA"].includes(r.estado) ? (
             <Alert tone="neutral">La reserva está {statusLabels[r.estado].toLowerCase()}.</Alert>
           ) : (
@@ -461,7 +473,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
           )}
         </section>
         <div className="detail-grid">
-          <section className="card card-pad">
+          <section>
             <Facts
               items={[
                 ["Socio", linkTo(`/socios/${r.socio_id}`, socioName(r.socio_id, db!))],
@@ -512,7 +524,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     const e = db!.ejemplares.find((x) => x.id === n)!;
     const lejos = e.sede_actual_id !== null && e.sede_actual_id !== e.sede_propietaria_id;
     const viaja = inOpenRemito(e.id, db!);
-    title = e.codigo_inventario;
+    title = <span className="mono !text-[0.85em] !tracking-normal">{e.codigo_inventario}</span>;
     kicker = (
       <>
         Ejemplar <Badge value={e.estado} />
@@ -522,7 +534,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     body = (
       <>
         <div className="detail-grid">
-          <section className="card card-pad flex flex-col gap-6 sm:flex-row">
+          <section className="flex flex-col gap-6 sm:flex-row">
             <Cover id={e.libro_id} title={bookName(e.libro_id, db!)} large />
             <Facts
               items={[
@@ -611,7 +623,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     body = (
       <>
         <div className="detail-grid">
-          <section className="card card-pad">
+          <section>
             <Facts
               items={[
                 ["Documento", s.documento],
@@ -674,7 +686,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     body = (
       <>
         <div className="detail-grid">
-          <section className="card card-pad">
+          <section>
             <Facts
               items={[
                 ["Dirección", s.direccion],
@@ -748,7 +760,7 @@ function BookDetail({ db, id }: { db: Database; id: number }) {
   return (
     <>
       <div className="detail-grid">
-        <section className="card card-pad flex flex-col gap-6 sm:flex-row">
+        <section className="flex flex-col gap-6 sm:flex-row">
           <Cover id={id} title={b.titulo} large />
           <Facts
             items={[
@@ -761,8 +773,8 @@ function BookDetail({ db, id }: { db: Database; id: number }) {
             ]}
           />
         </section>
-        <section className="card card-pad">
-          <h3 className="mb-3 font-bold">Disponibilidad por sede</h3>
+        <section>
+          <h3 className="label mb-2">Disponibilidad por sede</h3>
           <div className="sede-avail">
             {porSede.map(({ sede, total, disponibles }) => (
               <div key={sede.id} className="row">

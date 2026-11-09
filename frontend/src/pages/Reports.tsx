@@ -16,8 +16,8 @@ import {
   Field,
   Heading,
   inputClass,
+  Figures,
   Kpi,
-  panelClass,
   Table,
 } from "../components/ui";
 
@@ -39,18 +39,18 @@ export function ReportCenter() {
   return (
     <>
       <Heading
-        kicker="Análisis"
         title="Reportes"
         description="Indicadores de circulación, logística y disponibilidad. Todos se filtran por período y sede, y se pueden imprimir o exportar a CSV."
       />
       <div className="report-list">
         {reports.map(([id, name, description], i) => (
-          <Link key={id} to={`/reportes/${id}`} className="card report-card">
-            <span className="num">{i + 1}</span>
+          <Link key={id} to={`/reportes/${id}`} className="report-card">
+            <span className="num">RP{String(i + 1).padStart(2, "0")}</span>
             <div>
               <h2>{name}</h2>
               <p>{description}</p>
             </div>
+            <span className="go hidden sm:inline">Consultar →</span>
           </Link>
         ))}
       </div>
@@ -153,7 +153,7 @@ export function ReportPage() {
           setError("");
           setFilter(draft);
         }}
-        className={`${panelClass} no-print mb-6 flex flex-wrap items-end gap-4`}
+        className="no-print mb-5 flex flex-wrap items-end gap-3 border-b border-[var(--rule)] pb-4"
       >
         {
           <Field label="Desde">
@@ -207,13 +207,15 @@ export function ReportPage() {
       {result && (
         <>
           {result.kpis && (
-            <div className="kpi-grid mb-5">
-              {result.kpis.map((k) => (
-                <Kpi key={k.label} value={k.value} label={k.label} tone={k.tone ?? "info"} />
-              ))}
+            <div className="mb-4">
+              <Figures>
+                {result.kpis.map((k) => (
+                  <Kpi key={k.label} value={k.value} label={k.label} tone={k.tone ?? "info"} />
+                ))}
+              </Figures>
             </div>
           )}
-          <h2 className="section-title !mt-2 !mb-1">{result.summary}</h2>
+          <h2 className="section-title !mt-2">{result.summary}</h2>
           <p className="mb-5 max-w-[90ch] text-sm text-[var(--muted-foreground)]">
             <b>Criterio:</b> {result.rule}
           </p>

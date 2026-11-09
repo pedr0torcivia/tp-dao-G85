@@ -47,7 +47,7 @@ export const config: Partial<Record<Resource, ResourceConfig>> = {
     description:
       "Cada copia física conserva su identificación y sede propietaria.",
     create: "Nuevo ejemplar",
-    search: "Buscar por identificador o sede",
+    search: "Buscar por código, título o autor",
   },
   solicitudes: {
     title: "Solicitudes",

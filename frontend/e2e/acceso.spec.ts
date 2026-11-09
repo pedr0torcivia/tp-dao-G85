@@ -20,15 +20,12 @@ test("protege rutas, rechaza clave incorrecta, restaura sesión y la cierra", as
   await page.getByLabel("Contraseña", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Ingresar", exact: true }).click();
   await expect(page).toHaveURL(/\/catalogo$/);
-  await expect(
-    page.getByRole("button", { name: "Cerrar sesión" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menú de usuario" })).toBeVisible();
   await page.reload();
-  await expect(
-    page.getByRole("button", { name: "Cerrar sesión" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menú de usuario" })).toBeVisible();
   expect((await page.request.get("/api/libros/")).status()).toBe(200);
-  await page.getByRole("button", { name: "Cerrar sesión" }).click();
+  await page.getByRole("button", { name: "Menú de usuario" }).click();
+  await page.getByRole("menuitem", { name: "Cerrar sesión" }).click();
   await expect(page).toHaveURL(/\/acceso$/);
   expect((await page.request.get("/api/libros/")).status()).toBe(403);
   await page.goto("/inicio");
@@ -44,7 +41,7 @@ test("una sesión vencida vuelve al acceso sin mostrar datos anteriores", async 
   await page.getByRole("button", { name: "Ingresar", exact: true }).click();
   await expect(page).toHaveURL(/\/inicio$/);
   await page.context().clearCookies();
-  await page.getByRole("link", { name: "Reportes", exact: true }).click();
+  await page.getByRole("link", { name: "Informes", exact: true }).click();
   await page.getByRole("link", { name: /Préstamos vencidos/ }).click();
   await expect(page).toHaveURL(/\/acceso$/);
   await expect(
