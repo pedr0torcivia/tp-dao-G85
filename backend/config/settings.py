@@ -126,7 +126,9 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
         "rest_framework.permissions.IsAdminUser",
     ],
-    "DEFAULT_THROTTLE_RATES": {"login": "10/minute"},
+    # Intentos de ingreso por IP. Las pruebas de navegador lo amplían porque
+    # inician sesión una vez por recorrido.
+    "DEFAULT_THROTTLE_RATES": {"login": os.getenv("DJANGO_LOGIN_RATE", "10/minute")},
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "apps.common.exceptions.api_exception_handler",

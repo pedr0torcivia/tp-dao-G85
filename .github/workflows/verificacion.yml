@@ -37,7 +37,7 @@ jobs:
       - run: |
           python manage.py migrate --noinput
           python manage.py preparar_exposicion
-          python manage.py runserver 127.0.0.1:8000 --noreload > /tmp/biblioteca.log 2>&1 &
+          DJANGO_LOGIN_RATE=600/minute python manage.py runserver 127.0.0.1:8000 --noreload > /tmp/biblioteca.log 2>&1 &
         working-directory: backend
       - run: npm ci && npm test && npm run build && npx playwright install --with-deps chromium
         working-directory: frontend
