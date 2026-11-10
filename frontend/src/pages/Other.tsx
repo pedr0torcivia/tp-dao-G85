@@ -24,7 +24,6 @@ import {
   Table,
 } from "../components/ui";
 import { CommandDialog } from "./Commands";
-import { Logo } from "../components/Logo";
 
 export function Appearance() {
   const { theme, setTheme } = useLibrary();
@@ -146,8 +145,7 @@ export function Access() {
   const [user, setUser] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
-    [submitting, setSubmitting] = useState(false),
-    [motion, setMotion] = useState(true);
+    [submitting, setSubmitting] = useState(false);
   const from = location.state?.from;
   const destination =
     typeof from === "string" &&
@@ -179,121 +177,81 @@ export function Access() {
     );
   if (usuario) return <Navigate to={destination} replace />;
   return (
-    <div className="relative min-h-svh overflow-hidden bg-[var(--access-background)]">
-      <div
-        aria-hidden="true"
-        className="login-letters"
-        style={{ animationPlayState: motion ? "running" : "paused" }}
-      >
-        {loginLetters.map(
-          ([letter, left, top, size, duration, dx, dy, delay], i) => (
-            <img
-              key={i}
-              src={`/assets/motion/letra-${letter}.png`}
-              alt=""
-              style={
-                {
-                  left: `${left}%`,
-                  top: `${top}%`,
-                  "--size": `${size}px`,
-                  "--duration": `${duration}s`,
-                  "--dx": `${dx}px`,
-                  "--dy": `${dy}px`,
-                  "--delay": `${delay}s`,
-                } as CSSProperties
-              }
-            />
-          ),
-        )}
+    <div className="access">
+      <div aria-hidden="true" className="login-letters">
+        {loginLetters.map(([letter, left, top, size, duration, dx, dy, delay], i) => (
+          <img
+            key={i}
+            src={`/assets/motion/letra-${letter}.png`}
+            alt=""
+            style={
+              {
+                left: `${left}%`,
+                top: `${top}%`,
+                "--size": `${size}px`,
+                "--duration": `${duration}s`,
+                "--dx": `${dx}px`,
+                "--dy": `${dy}px`,
+                "--delay": `${delay}s`,
+              } as CSSProperties
+            }
+          />
+        ))}
       </div>
-      <div className="relative mx-auto max-w-[1440px] p-6 pt-12 md:px-16 lg:px-28">
-        <div className="mb-14 flex justify-end">
-          <Button
-            variant="outline"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            <SunMoon size={18} />
-            {theme === "dark" ? "Tema oscuro" : "Tema claro"}
-          </Button>
-        </div>
-        <div className="grid items-center gap-12 lg:grid-cols-[1fr_448px] lg:gap-24">
-          <section>
-            <Logo symbol className="mb-12 h-28 w-28 lg:mb-20" />
-            <p className="mb-6 text-xs tracking-[2px] text-[var(--muted-foreground)]">
-              ENTRELIBROS · RED DE BIBLIOTECAS
-            </p>
-            <h1 className="font-heading text-[42px] leading-[1.18] font-medium tracking-tight text-[var(--access-title)] lg:text-[64px]">
-              Una red.
-              <br />
-              Muchas historias.
-            </h1>
-            <p className="mt-8 max-w-lg text-lg leading-relaxed text-[var(--muted-foreground)]">
-              Libros, personas y sedes conectadas
-              <br className="hidden md:block" /> en un mismo lugar.
-            </p>
-          </section>
-          <form
-            onSubmit={submit}
-            className="access-form p-7 sm:p-10"
-          >
-            <h2 className="text-[26px] font-semibold text-[var(--access-title)]">
-              Ingresá a tu biblioteca
-            </h2>
-            <p className="mt-3 mb-8 text-sm text-[var(--muted-foreground)]">
-              Acceso para el personal de EntreLibros.
-            </p>
-            {(error || authError) && <Alert error>{error || authError}</Alert>}
-            {authError && (
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => void comprobarSesion()}
-              >
-                Reintentar conexión
-              </Button>
-            )}
-            <div className="space-y-6">
-              <Field label="Usuario">
-                <input
-                  className={inputClass}
-                  required
-                  autoComplete="username"
-                  value={user}
-                  onChange={(e) => setUser(e.target.value)}
-                />
-              </Field>
-              <Field label="Contraseña">
-                <input
-                  className={inputClass}
-                  required
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </Field>
-            </div>
-            <Button className="mt-8 w-full" type="submit" disabled={submitting}>
-              {submitting ? "Ingresando…" : "Ingresar"}
+      <header className="access-top">
+        <span className="access-brand">
+          <img src="/brand/isotipo-dark.svg" alt="" />
+          EntreLibros
+        </span>
+        <button
+          type="button"
+          className="access-theme"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          aria-label={theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
+          title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+        >
+          <SunMoon size={18} />
+        </button>
+      </header>
+      <div className="access-stage">
+        <h1 className="access-title">
+          Una red<span>.</span>
+          <br />
+          Muchas historias<span>.</span>
+        </h1>
+        <form onSubmit={submit} className="access-form">
+          <h2>Ingresá a tu biblioteca</h2>
+          {(error || authError) && <Alert error>{error || authError}</Alert>}
+          {authError && (
+            <Button variant="outline" type="button" onClick={() => void comprobarSesion()}>
+              Reintentar conexión
             </Button>
-            <p className="mt-7 text-xs leading-relaxed text-[var(--muted-foreground)]">
-              ¿Necesitás acceso?
-              <br />
-              Contactá a la administración de tu sede.
-            </p>
-          </form>
-        </div>
-        <footer className="mt-14 flex flex-wrap justify-between gap-4 text-xs text-[var(--muted-foreground)]">
-          <p>EntreLibros · Un espacio para cada historia.</p>
-          <button
-            type="button"
-            aria-pressed={!motion}
-            className="underline underline-offset-4"
-            onClick={() => setMotion((v) => !v)}
-          >
-            {motion ? "Pausar movimiento" : "Activar movimiento"}
-          </button>
-        </footer>
+          )}
+          <div className="mt-5 grid gap-4">
+            <Field label="Usuario">
+              <input
+                className={inputClass}
+                required
+                autoComplete="username"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+              />
+            </Field>
+            <Field label="Contraseña">
+              <input
+                className={inputClass}
+                required
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Button className="mt-6 w-full" type="submit" disabled={submitting}>
+            {submitting ? "Ingresando…" : "Ingresar"}
+          </Button>
+        </form>
       </div>
     </div>
   );

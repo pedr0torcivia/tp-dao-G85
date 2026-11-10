@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
@@ -19,8 +20,15 @@ class EstadoEjemplar(models.TextChoices):
     BAJA = "BAJA", "Dado de baja"
 
 
+ISBN_VALIDO = RegexValidator(
+    r"^\d{13}$", "El ISBN debe tener exactamente 13 números, sin letras ni símbolos."
+)
+
+
 class Libro(models.Model):
-    isbn = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    isbn = models.CharField(
+        max_length=20, unique=True, null=True, blank=True, validators=[ISBN_VALIDO]
+    )
     titulo = models.CharField(max_length=255)
     autor = models.CharField(max_length=255)
     editorial = models.CharField(max_length=255)
@@ -80,6 +88,10 @@ class Ejemplar(models.Model):
         choices=CondicionFisica.choices,
         default=CondicionFisica.APTO,
     )
+    # Foto de la copia física. Se guarda en la base para que persista con
+    # el volumen de PostgreSQL sin configurar almacenamiento de archivos.
+    foto = models.BinaryField(null=True, blank=True, editable=False)
+    foto_tipo = models.CharField(max_length=40, blank=True, default="", editable=False)
 
     class Meta:
         constraints = [

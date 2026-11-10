@@ -93,6 +93,27 @@ export const httpApi: LibraryApi = {
       body: JSON.stringify(input),
     }),
   report: (type, filter) => report(type, filter),
+  async subirFoto(ejemplarId, archivo) {
+    const csrf = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("csrftoken="))
+      ?.split("=")[1];
+    const datos = new FormData();
+    datos.append("foto", archivo);
+    const res = await fetch(`${base}/ejemplares/${ejemplarId}/foto/`, {
+      method: "POST",
+      credentials: "include",
+      headers: csrf ? { "X-CSRFToken": decodeURIComponent(csrf) } : {},
+      body: datos,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      const detalle = body?.error?.detail;
+      throw new ApiError(
+        detalle?.foto?.[0] ?? (typeof detalle === "string" ? detalle : "No pudimos subir la foto."),
+      );
+    }
+  },
   prepararRetorno: (ejemplarId) =>
     request("remitos/preparar-retorno/", {
       method: "POST",
@@ -120,8 +141,10 @@ async function report(
   type: ReportType,
   filter: ReportFilter,
 ): Promise<ReportResult> {
+  // Los reportes "al día" ignoran el inicio del período; se envía la misma fecha.
+  const alDia = ["activos", "vencidos", "disponibilidad"].includes(type);
   const query = new URLSearchParams({
-    desde: filter.desde,
+    desde: alDia ? filter.hasta : filter.desde,
     hasta: filter.hasta,
   });
   if (filter.sede) query.set("sede", String(filter.sede));
@@ -270,12 +293,21 @@ async function report(
   if (type === "demanda") {
     const data = await request<
       Base & {
-        filas: { libro: string; cantidad: number; sede_destino: string }[];
+        filas: {
+          libro: string;
+          cantidad: number;
+          sedes: { sede: string; cantidad: number }[];
+        }[];
       }
     >(`reportes/demanda-interbibliotecaria/?${query}`);
     return {
-      headers: ["#", "Libro", "Solicitudes", "Sede solicitante"],
-      rows: data.filas.map((f, i) => [i + 1, f.libro, f.cantidad, f.sede_destino]),
+      headers: ["#", "Libro", "Solicitudes", "Sedes que lo pidieron"],
+      rows: data.filas.map((f, i) => [
+        i + 1,
+        f.libro,
+        f.cantidad,
+        f.sedes.map((s) => `${s.sede.replace(/^Biblioteca /, "")} (${s.cantidad})`).join(" · "),
+      ]),
       summary: data.resumen,
       rule: data.criterio,
     };

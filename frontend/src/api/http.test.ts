@@ -72,7 +72,16 @@ describe("Contrato HTTP con Django", () => {
       json({
         resumen: "2 solicitudes válidas",
         criterio: "Excluye canceladas",
-        filas: [{ libro: "Rayuela", cantidad: 2, sede_destino: "Norte" }],
+        filas: [
+          {
+            libro: "Rayuela",
+            cantidad: 3,
+            sedes: [
+              { sede: "Biblioteca Norte", cantidad: 2 },
+              { sede: "Biblioteca Central", cantidad: 1 },
+            ],
+          },
+        ],
       }),
     );
     vi.stubGlobal("fetch", fetch);
@@ -81,7 +90,7 @@ describe("Contrato HTTP con Django", () => {
       hasta: "2026-10-20",
       sede: 2,
     });
-    expect(result.rows).toEqual([[1, "Rayuela", 2, "Norte"]]);
+    expect(result.rows).toEqual([[1, "Rayuela", 3, "Norte (2) · Central (1)"]]);
     expect(fetch.mock.calls[0]).toBeDefined();
   });
 });

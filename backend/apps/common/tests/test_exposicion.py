@@ -120,7 +120,7 @@ class ExposicionTest(APITestCase):
         datos = disponibilidad_catalogo(desde=date(2026, 10, 1), hasta=date(2026, 10, 31))
         self.assertEqual(datos["resumen"], "83 de 90 ejemplares disponibles")
         self.assertEqual(
-            disponibilidad_catalogo(desde=date(2026, 10, 2), hasta=date(2026, 10, 31))["filas"], []
+            disponibilidad_catalogo(desde=date(2026, 9, 1), hasta=date(2026, 9, 30))["filas"], []
         )
 
     def test_reinicio_preserva_cuentas_y_no_reintroduce_demo(self):

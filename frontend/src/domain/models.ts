@@ -41,6 +41,8 @@ export interface Ejemplar {
   sede_actual_id: number | null;
   estado: EstadoEjemplar;
   condicion_fisica: string;
+  /** calculado · la copia tiene foto cargada */
+  tiene_foto?: boolean;
 }
 export type EstadoSolicitud =
   | "PENDIENTE"
@@ -79,6 +81,8 @@ export interface Prestamo {
   fecha_vencimiento: string;
   fecha_devolucion: string | null;
   condicion_devolucion: string | null;
+  /** calculado · ACTIVO, VENCIDO o DEVUELTO */
+  estado?: "ACTIVO" | "VENCIDO" | "DEVUELTO";
   /** calculado · días de atraso (al día de hoy o a la devolución) */
   dias_atraso: number;
   /** calculado · multa acumulada en pesos */

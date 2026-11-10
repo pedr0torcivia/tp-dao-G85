@@ -1,6 +1,8 @@
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,7 +26,9 @@ from .services import (
     crear_ejemplar,
     crear_libro,
     dar_de_baja_ejemplar,
+    guardar_foto_ejemplar,
     liberar_ejemplar,
+    quitar_foto_ejemplar,
 )
 
 
@@ -151,6 +155,46 @@ class EjemplarDetailView(APIView):
         except ErrorCatalogo as error:
             return catalogo_error_response(error)
 
+        return Response(EjemplarSerializer(ejemplar).data)
+
+
+@extend_schema_view(
+    get=extend_schema(responses={(200, "image/*"): bytes}),
+    post=extend_schema(
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {"foto": {"type": "string", "format": "binary"}},
+            }
+        },
+        responses=EjemplarSerializer,
+    ),
+    delete=extend_schema(responses=EjemplarSerializer),
+)
+class EjemplarFotoView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, ejemplar_id):
+        ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
+        if not ejemplar.foto_tipo:
+            return Response({"error": {"detail": "El ejemplar no tiene foto."}}, status=404)
+        respuesta = HttpResponse(bytes(ejemplar.foto), content_type=ejemplar.foto_tipo)
+        respuesta["Cache-Control"] = "private, max-age=300"
+        return respuesta
+
+    def post(self, request, ejemplar_id):
+        ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
+        archivo = request.FILES.get("foto")
+        if archivo is None:
+            return Response({"error": {"detail": {"foto": ["Elegí una imagen."]}}}, status=400)
+        try:
+            ejemplar = guardar_foto_ejemplar(ejemplar=ejemplar, contenido=archivo.read())
+        except ErrorCatalogo as error:
+            return Response({"error": {"detail": {"foto": [str(error)]}}}, status=400)
+        return Response(EjemplarSerializer(ejemplar).data)
+
+    def delete(self, request, ejemplar_id):
+        ejemplar = quitar_foto_ejemplar(ejemplar=get_object_or_404(Ejemplar, id=ejemplar_id))
         return Response(EjemplarSerializer(ejemplar).data)
 
 

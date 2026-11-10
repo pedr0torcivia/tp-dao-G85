@@ -139,7 +139,8 @@ export const dateTimeLabel = (value: string | null) =>
       }).format(new Date(value))
     : "—";
 export const loanState = (p: Prestamo) =>
-  p.fecha_devolucion ? "DEVUELTO" : isOverdue(p) ? "VENCIDO" : "ACTIVO";
+  p.estado ??
+  (p.fecha_devolucion ? "DEVUELTO" : isOverdue(p) ? "VENCIDO" : "ACTIVO");
 export const inOpenRemito = (ejemplarId: number, db: Database) =>
   db.detalle_remitos.some(
     (d) =>

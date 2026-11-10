@@ -30,6 +30,8 @@ const reports: [ReportType, string, string][] = [
   ["movimientos", "Movimiento entre sedes", "Envíos por trayecto y tiempo promedio de tránsito."],
   ["operaciones", "Bitácora de operaciones", "Altas, modificaciones y bajas con usuario y cambios."],
 ];
+/** Reportes que muestran el estado a una fecha, no un período. */
+export const SNAPSHOT: ReportType[] = ["activos", "vencidos", "disponibilidad"];
 const firstOfPreviousMonth = () => {
   const [y, m] = today().split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 2, 1));
@@ -94,6 +96,7 @@ export function ReportPage() {
       active = false;
     };
   }, [type, filter, db]);
+  const snapshot = SNAPSHOT.includes(def?.[0] as ReportType);
   if (!def)
     return (
       <>
@@ -123,7 +126,7 @@ export function ReportPage() {
       <Back to="/reportes" />
       <Heading
         title={def[1]}
-        description={`Período: ${filter.desde}–${filter.hasta} · ${filter.sede ? db!.sedes.find((s) => s.id === filter.sede)?.nombre : "Todas las sedes"}`}
+        description={`${snapshot ? `Estado al ${filter.hasta}` : `Período: ${filter.desde}–${filter.hasta}`} · ${filter.sede ? db!.sedes.find((s) => s.id === filter.sede)?.nombre : "Todas las sedes"}`}
         action={
           <div className="no-print flex gap-2">
             <Button
@@ -146,7 +149,7 @@ export function ReportPage() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (draft.desde > draft.hasta) {
+          if (!snapshot && draft.desde > draft.hasta) {
             setError("La fecha inicial no puede ser posterior a la final.");
             return;
           }
@@ -155,7 +158,7 @@ export function ReportPage() {
         }}
         className="no-print mb-5 flex flex-wrap items-end gap-3 border-b border-[var(--rule)] pb-4"
       >
-        {
+        {!snapshot && (
           <Field label="Desde">
             <input
               type="date"
@@ -167,9 +170,9 @@ export function ReportPage() {
               }
             />
           </Field>
-        }
+        )}
         {
-          <Field label="Hasta">
+          <Field label={snapshot ? "Al día" : "Hasta"}>
             <input
               required
               type="date"

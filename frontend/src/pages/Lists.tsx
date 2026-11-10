@@ -226,7 +226,10 @@ export function EntityList({ resource }: { resource: Resource }) {
     }
   }
 
-  const states = [...new Set(records.map((r) => r.state))];
+  const fixedStates: Partial<Record<Resource, string[]>> = {
+    prestamos: ["ACTIVO", "VENCIDO", "DEVUELTO"],
+  };
+  const states = fixedStates[resource] ?? [...new Set(records.map((r) => r.state))];
   const filtered = records.filter(
     (r) =>
       r.search.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&

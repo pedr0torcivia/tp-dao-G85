@@ -120,6 +120,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
   const n = Number(id);
   const [action, setAction] = useState<{ resource: Resource; id: number; command: Command } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fotoVersion, setFotoVersion] = useState(0);
   const record = db![resource].find((r) => r.id === n);
   if (!record)
     return (
@@ -130,6 +131,20 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     );
   const run = (command: Command, target: Resource = resource, targetId = n) =>
     setAction({ resource: target, id: targetId, command });
+
+  async function subirFoto(ejemplarId: number, archivo: File) {
+    setBusy(true);
+    try {
+      await api.subirFoto(ejemplarId, archivo);
+      await refresh();
+      setFotoVersion((v) => v + 1);
+      notify("Foto guardada.");
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "No pudimos subir la foto.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function retorno(ejemplarId: number) {
     setBusy(true);
@@ -535,7 +550,15 @@ export function EntityDetail({ resource }: { resource: Resource }) {
       <>
         <div className="detail-grid">
           <section className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <Cover id={e.libro_id} title={bookName(e.libro_id, db!)} large />
+            {e.tiene_foto ? (
+              <img
+                src={`/api/ejemplares/${e.id}/foto/?v=${fotoVersion}`}
+                alt={`Foto de la copia ${e.codigo_inventario}`}
+                className="cover-img h-[260px] w-[176px] shrink-0 object-cover"
+              />
+            ) : (
+              <Cover id={e.libro_id} title={bookName(e.libro_id, db!)} large />
+            )}
             <Facts
               items={[
                 ["Libro", linkTo(`/catalogo/${e.libro_id}`, bookName(e.libro_id, db!))],
@@ -571,6 +594,20 @@ export function EntityDetail({ resource }: { resource: Resource }) {
                 <Undo2 size={14} /> Preparar retorno
               </Button>
             )}
+            <label className="btn btn-outline btn-sm">
+              {e.tiene_foto ? "Cambiar foto" : "Subir foto"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={busy}
+                onChange={(ev) => {
+                  const archivo = ev.target.files?.[0];
+                  ev.target.value = "";
+                  if (archivo) void subirFoto(e.id, archivo);
+                }}
+              />
+            </label>
             {["DISPONIBLE", "EN_REVISION"].includes(e.estado) && (
               <Button size="sm" variant="danger" onClick={() => run("dar-de-baja")}>Dar de baja</Button>
             )}

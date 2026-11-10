@@ -11,6 +11,11 @@ def listar_solicitudes() -> QuerySet[SolicitudPrestamo]:
     return (
         SolicitudPrestamo.objects.annotate(
             en_remito_vigente=Exists(detalles.filter(remito__estado__in=ESTADOS_VIGENTES)),
+            remito_vigente_estado=Subquery(
+                detalles.filter(remito__estado__in=ESTADOS_VIGENTES)
+                .order_by("-id")
+                .values("remito__estado")[:1]
+            ),
             ultimo_remito_id=Subquery(detalles.order_by("-id").values("remito_id")[:1]),
         )
         .select_related(

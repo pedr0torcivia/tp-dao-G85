@@ -36,3 +36,7 @@ class EjemplarNoRevisadoError(ErrorCatalogo):
 
 class EjemplarInconsistenteError(ErrorCatalogo):
     """El estado físico o la ubicación del ejemplar no permiten la operación."""
+
+
+class FotoInvalidaError(ErrorCatalogo):
+    """El archivo no es una imagen admitida o supera el tamaño máximo."""

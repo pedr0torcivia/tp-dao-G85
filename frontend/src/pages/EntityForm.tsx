@@ -87,6 +87,7 @@ function GenericForm({ resource }: { resource: Resource }) {
   });
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
+  const [foto, setFoto] = useState<File | null>(null);
   if (id && !record)
     return (
       <>
@@ -114,8 +115,16 @@ function GenericForm({ resource }: { resource: Resource }) {
       if (record)
         for (const [k, v] of Object.entries(record)) if (data[k] === undefined) data[k] = v;
       const saved = await api.save(resource, data as NewEntity<typeof resource>, id ? Number(id) : undefined);
+      let aviso = "Los datos se guardaron correctamente.";
+      if (resource === "ejemplares" && foto) {
+        try {
+          await api.subirFoto(saved.id, foto);
+        } catch (e) {
+          aviso = `Ejemplar guardado, pero la foto no se subió: ${(e as Error).message}`;
+        }
+      }
       await refresh();
-      notify("Los datos se guardaron correctamente.");
+      notify(aviso);
       navigate(`/${pathOf(resource)}/${saved.id}`);
     } catch (e) {
       setError(e instanceof ApiError ? e : new ApiError("No pudimos guardar los datos."));
@@ -171,6 +180,7 @@ function GenericForm({ resource }: { resource: Resource }) {
                     className="input"
                     required={f.required}
                     placeholder={f.placeholder}
+                    inputMode={f.key === "isbn" ? "numeric" : undefined}
                     maxLength={["contacto", "direccion"].includes(f.key) ? 255 : ["numero_socio", "documento"].includes(f.key) ? 30 : 150}
                     value={values[f.key] ?? ""}
                     onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
@@ -178,6 +188,20 @@ function GenericForm({ resource }: { resource: Resource }) {
                 )}
               </Field>
             ))}
+            {resource === "ejemplares" && (
+              <Field
+                label="Foto de la copia (opcional)"
+                hint="JPG, PNG o WEBP de hasta 3 MB. Sirve para registrar el estado físico."
+                className="span-2"
+              >
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="input file-input"
+                  onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+                />
+              </Field>
+            )}
           </div>
           <div className="mt-6 flex justify-end gap-2">
             <Link className={outlineClass} to={`/${pathOf(resource)}`}>

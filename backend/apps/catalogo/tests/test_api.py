@@ -281,9 +281,7 @@ class EjemplarApiTest(APITestCase):
         ejemplar_id = creado.data["id"]
         Ejemplar.objects.filter(pk=ejemplar_id).update(estado=EstadoEjemplar.EN_REVISION)
 
-        response = self.client.post(
-            reverse("ejemplar-aprobar-disponibilidad", args=[ejemplar_id])
-        )
+        response = self.client.post(reverse("ejemplar-aprobar-disponibilidad", args=[ejemplar_id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["estado"], EstadoEjemplar.DISPONIBLE)
@@ -324,3 +322,47 @@ class EjemplarApiTest(APITestCase):
         self.assertEqual(response.data[0]["total"], 1)
         self.assertEqual(response.data[0]["disponibles"], 0)
         self.assertEqual(response.data[0]["no_disponibles"], 1)
+
+
+class IsbnYFotoApiTest(APITestCase):
+    def setUp(self):
+        from apps.common.testing import autenticar_personal
+
+        autenticar_personal(self.client)
+
+    def test_isbn_debe_tener_13_numeros(self):
+        base = {"titulo": "Libro", "autor": "A", "editorial": "E", "edicion": "1"}
+        for isbn in ["abc", "123", "97800000000011", "978000000000X"]:
+            respuesta = self.client.post(
+                reverse("libro-list"), {**base, "isbn": isbn}, format="json"
+            )
+            self.assertEqual(respuesta.status_code, 400, isbn)
+        respuesta = self.client.post(
+            reverse("libro-list"), {**base, "isbn": "978-0-00-000000-9"}, format="json"
+        )
+        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(respuesta.data["isbn"], "9780000000009")
+
+    def test_foto_del_ejemplar(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from apps.catalogo.models import Ejemplar, Libro
+        from apps.sedes.models import Sede
+
+        sede = Sede.objects.create(nombre="Central", direccion="D", contacto="C", horarios="H")
+        libro = Libro.objects.create(titulo="T", autor="A", editorial="E", edicion="1")
+        ejemplar = Ejemplar.objects.create(
+            codigo_inventario="F-1", libro=libro, sede_propietaria=sede, sede_actual=sede
+        )
+        url = reverse("ejemplar-foto", args=[ejemplar.id])
+        texto = SimpleUploadedFile("x.png", b"no soy una imagen", content_type="image/png")
+        self.assertEqual(self.client.post(url, {"foto": texto}).status_code, 400)
+
+        png = b"\x89PNG\r\n\x1a\n" + b"0" * 32
+        imagen = SimpleUploadedFile("tapa.png", png, content_type="image/png")
+        respuesta = self.client.post(url, {"foto": imagen})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.data["tiene_foto"])
+        descarga = self.client.get(url)
+        self.assertEqual(descarga["Content-Type"], "image/png")
+        self.assertEqual(descarga.content, png)

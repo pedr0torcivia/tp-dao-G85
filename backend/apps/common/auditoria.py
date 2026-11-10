@@ -67,6 +67,17 @@ def registrar(*, entidad, registro_id, accion, usuario, antes, despues, descripc
     )
 
 
+# Campos binarios (fotos) no se copian a la bitácora: sólo se registra que cambiaron.
+CAMPOS_BINARIOS = {"foto"}
+
+
+def _instantanea(modelo, pk) -> dict:
+    fila = modelo.objects.filter(pk=pk).values().first() or {}
+    for campo in CAMPOS_BINARIOS & fila.keys():
+        fila[campo] = "con foto" if fila[campo] else "sin foto"
+    return fila
+
+
 class AuditoriaMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -84,7 +95,7 @@ class AuditoriaMiddleware:
         modelo = MODELOS[entidad]
         pk = int(partes[2]) if len(partes) > 2 and partes[2].isdigit() else None
         with transaction.atomic():
-            antes = modelo.objects.filter(pk=pk).values().first() or {} if pk else {}
+            antes = _instantanea(modelo, pk) if pk else {}
             response = self.get_response(request)
             if not (200 <= response.status_code < 300):
                 return response
@@ -92,7 +103,7 @@ class AuditoriaMiddleware:
                 pk = getattr(response, "data", {}).get("id")
             if pk is None:
                 return response
-            despues = modelo.objects.filter(pk=pk).values().first() or {}
+            despues = _instantanea(modelo, pk)
             accion = "ALTA" if not antes else "MODIFICACION"
             if request.method == "DELETE" or (
                 len(partes) > 3

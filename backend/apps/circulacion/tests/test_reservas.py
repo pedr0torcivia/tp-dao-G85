@@ -133,3 +133,37 @@ class ReservaServiceTest(TestCase):
         call_command("expirar_reservas", verbosity=0)
         reserva.refresh_from_db()
         self.assertEqual(reserva.estado, EstadoReserva.EXPIRADA)
+
+
+class PrioridadReservaTest(TestCase):
+    def test_no_se_presta_a_otro_socio_un_libro_con_reserva_en_espera(self):
+        from apps.circulacion.exceptions import ReservaPrioritariaError
+        from apps.circulacion.services import (
+            asignar_ejemplar,
+            crear_reserva,
+            crear_solicitud,
+        )
+        from apps.circulacion.tests.factories import (
+            crear_ejemplar,
+            crear_libro,
+            crear_sede,
+            crear_socio,
+        )
+
+        sede = crear_sede(nombre="Central")
+        libro = crear_libro()
+        copia = crear_ejemplar(libro=libro, sede=sede)
+        quien_reservo = crear_socio(numero="R-1", documento="R-1")
+        otro = crear_socio(numero="R-2", documento="R-2")
+        crear_reserva(socio=quien_reservo, libro=libro, sede_retiro=sede)
+
+        pedido = crear_solicitud(
+            socio=otro, libro=libro, sede_origen=sede, sede_destino=sede, tipo="LOCAL"
+        )
+        with self.assertRaises(ReservaPrioritariaError):
+            asignar_ejemplar(solicitud=pedido, ejemplar=copia)
+
+        propio = crear_solicitud(
+            socio=quien_reservo, libro=libro, sede_origen=sede, sede_destino=sede, tipo="LOCAL"
+        )
+        asignar_ejemplar(solicitud=propio, ejemplar=copia)

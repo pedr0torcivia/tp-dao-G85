@@ -77,11 +77,12 @@ class CirculacionInterbibliotecariaTest(TestCase):
         )
         self.assertIsNotNone(prestamo.pk)
 
-    def test_no_cancela_solicitud_en_remito_vigente(self):
+    def _en_remito(self, estado):
         remito = Remito.objects.create(
             numero="REM-001",
             sede_origen=self.origen,
             sede_destino=self.destino,
+            estado=estado,
         )
         DetalleRemito.objects.create(
             remito=remito,
@@ -89,5 +90,19 @@ class CirculacionInterbibliotecariaTest(TestCase):
             solicitud=self.solicitud,
             condicion_salida=self.ejemplar.condicion_fisica,
         )
+        return remito
+
+    def test_cancelar_quita_el_libro_del_remito_en_preparacion(self):
+        remito = self._en_remito("EN_PREPARACION")
+
+        solicitud = cancelar_solicitud(solicitud=self.solicitud)
+
+        self.assertEqual(solicitud.estado, "CANCELADA")
+        self.assertFalse(remito.detalles.exists())
+        self.ejemplar.refresh_from_db()
+        self.assertEqual(self.ejemplar.estado, "DISPONIBLE")
+
+    def test_no_cancela_si_el_remito_ya_esta_empaquetado(self):
+        self._en_remito("EMPAQUETADO")
         with self.assertRaises(SolicitudEnRemitoVigenteError):
             cancelar_solicitud(solicitud=self.solicitud)

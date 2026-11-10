@@ -58,5 +58,9 @@ class FechaLimiteReservaInvalidaError(ErrorCirculacion):
     """La fecha límite de retiro no es válida."""
 
 
+class ReservaPrioritariaError(ErrorCirculacion):
+    """Hay una reserva anterior en espera para ese libro en la sede de la copia."""
+
+
 class SolicitudEnRemitoVigenteError(ErrorCirculacion):
     """La solicitud forma parte de un remito que todavía está vigente."""

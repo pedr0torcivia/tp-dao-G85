@@ -66,9 +66,9 @@ def movimientos_entre_sedes(*, desde: date, hasta: date, sede_id: int | None = N
 
 
 CRITERIO_DEMANDA = (
-    "Cuenta solicitudes interbibliotecarias por libro y sede solicitante (destino), "
-    "dentro del rango de la fecha de solicitud. Se excluyen las rechazadas y las "
-    "canceladas; también las locales."
+    "Ranking de libros por cantidad de solicitudes interbibliotecarias registradas en el "
+    "período (fecha de solicitud), con el detalle de las sedes que los pidieron. Se excluyen "
+    "las rechazadas, las canceladas y los préstamos locales."
 )
 
 
@@ -98,45 +98,46 @@ def demanda_interbibliotecaria(
     if sede_id is not None:
         solicitudes = solicitudes.filter(sede_destino_id=sede_id)
 
-    grupos: dict[tuple[int, int], dict] = {}
+    grupos: dict[int, dict] = {}
     for solicitud in solicitudes:
-        clave = (solicitud.libro_id, solicitud.sede_destino_id)
         grupo = grupos.setdefault(
-            clave,
-            {
-                "libro": solicitud.libro.titulo,
-                "sede_destino": solicitud.sede_destino.nombre,
-                "cantidad": 0,
-            },
+            solicitud.libro_id,
+            {"libro": solicitud.libro.titulo, "cantidad": 0, "sedes": {}},
         )
         grupo["cantidad"] += 1
+        sede = solicitud.sede_destino.nombre
+        grupo["sedes"][sede] = grupo["sedes"].get(sede, 0) + 1
 
     filas = [
         {
             "libro_id": libro_id,
             "libro": datos["libro"],
-            "sede_destino_id": sede_id_fila,
-            "sede_destino": datos["sede_destino"],
             "cantidad": datos["cantidad"],
+            "sedes": [
+                {"sede": sede, "cantidad": n}
+                for sede, n in sorted(datos["sedes"].items(), key=lambda x: (-x[1], x[0]))
+            ],
         }
-        for (libro_id, sede_id_fila), datos in sorted(
+        for libro_id, datos in sorted(
             grupos.items(), key=lambda item: (-item[1]["cantidad"], item[1]["libro"])
         )
     ]
-
     total = sum(fila["cantidad"] for fila in filas)
     return {
         "reporte": "RP02",
         "criterio": CRITERIO_DEMANDA,
-        "resumen": f"{total} solicitudes válidas",
+        "resumen": (
+            f"{total} {'solicitud' if total == 1 else 'solicitudes'} "
+            f"{'interbibliotecaria' if total == 1 else 'interbibliotecarias'}"
+            f" · {len(filas)} {'libro' if len(filas) == 1 else 'libros'}"
+        ),
         "filas": filas,
     }
 
 
 CRITERIO_DISPONIBILIDAD = (
-    "Estado actual de los ejemplares dados de alta dentro del período, por libro y sede "
-    "propietaria. El rango filtra fecha de alta; no reconstruye el stock histórico. "
-    "Un ejemplar cuenta como "
+    "Estado actual de las copias registradas hasta la fecha indicada, por libro y sede "
+    "propietaria. Un ejemplar cuenta como "
     "disponible cuando su estado es DISPONIBLE, su condición física es apta, "
     "descansa en su sede propietaria y esa sede está activa."
 )
@@ -147,11 +148,10 @@ def disponibilidad_catalogo(
 ) -> dict:
     """RP04 — Disponibilidad de catálogo por sede.
 
-    El rango selecciona las altas; los estados y la disponibilidad son actuales.
+    Foto actual: considera las copias dadas de alta hasta `hasta`. `desde` se ignora
+    porque la disponibilidad no es un dato de período.
     """
     ejemplares = Ejemplar.objects.select_related("libro", "sede_propietaria", "sede_actual")
-    if desde is not None:
-        ejemplares = ejemplares.filter(fecha_alta__date__gte=desde)
     if hasta is not None:
         ejemplares = ejemplares.filter(fecha_alta__date__lte=hasta)
     if sede_id is not None:
@@ -253,16 +253,14 @@ def operaciones_abmc(*, desde: date, hasta: date, sede_id: int | None = None) ->
 
 
 def activos_y_en_transito(*, desde: date, hasta: date, sede_id: int | None = None) -> dict:
-    """RP06 — Préstamos abiertos al cierre del período y material que sigue viajando.
+    """RP06 — Préstamos abiertos y material en viaje al cierre de `hasta`.
 
-    Un préstamo cuenta si se entregó entre Desde y Hasta y no estaba devuelto al
-    cierre de Hasta. El material en tránsito es el de los remitos despachados en
-    el período que todavía no se recibieron.
+    Es una foto del momento: no importa cuándo se entregó el préstamo o se
+    despachó el remito, sino si al cierre del día seguían abiertos.
     """
     prestamos = (
         Prestamo.objects.filter(
             Q(fecha_devolucion__isnull=True) | Q(fecha_devolucion__date__gt=hasta),
-            fecha_entrega__date__gte=desde,
             fecha_entrega__date__lte=hasta,
         )
         .select_related(
@@ -293,11 +291,9 @@ def activos_y_en_transito(*, desde: date, hasta: date, sede_id: int | None = Non
         )
 
     remitos = (
-        Remito.objects.filter(
-            estado=EstadoRemito.EN_TRANSITO,
-            fecha_despacho__date__gte=desde,
-            fecha_despacho__date__lte=hasta,
-        )
+        Remito.objects.filter(fecha_despacho__date__lte=hasta)
+        .filter(Q(fecha_recepcion__isnull=True) | Q(fecha_recepcion__date__gt=hasta))
+        .exclude(estado=EstadoRemito.CANCELADO)
         .select_related("sede_origen", "sede_destino")
         .prefetch_related("detalles__ejemplar__libro")
     )
@@ -324,11 +320,14 @@ def activos_y_en_transito(*, desde: date, hasta: date, sede_id: int | None = Non
     return {
         "reporte": "RP06",
         "criterio": (
-            "Préstamos entregados en el período y abiertos al cierre de Hasta, por sede de "
-            "entrega; y ejemplares de remitos despachados en el período que siguen en tránsito. "
+            "Foto al cierre del día indicado: préstamos entregados y todavía sin devolver "
+            "(por sede de entrega) y ejemplares de remitos despachados que aún no se recibieron. "
             "Con sede: préstamos entregados allí y envíos que salen o llegan."
         ),
-        "resumen": f"{activos} préstamos activos · {en_transito} ejemplares en tránsito",
+        "resumen": (
+            f"{activos} {'préstamo activo' if activos == 1 else 'préstamos activos'} · "
+            f"{en_transito} {'ejemplar' if en_transito == 1 else 'ejemplares'} en tránsito"
+        ),
         "filas": filas,
     }
 

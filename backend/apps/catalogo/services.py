@@ -12,6 +12,7 @@ from .exceptions import (
     EjemplarNoAsignadoError,
     EjemplarNoDisponibleError,
     EjemplarNoRevisadoError,
+    FotoInvalidaError,
     SedePropietariaInactivaError,
 )
 from .models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
@@ -142,6 +143,46 @@ def liberar_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
 
     ejemplar.estado = EstadoEjemplar.DISPONIBLE
     ejemplar.save(update_fields=["estado"])
+    return ejemplar
+
+
+FOTO_MAXIMA = 3 * 1024 * 1024
+FIRMAS_IMAGEN = {
+    b"\xff\xd8\xff": "image/jpeg",
+    b"\x89PNG\r\n\x1a\n": "image/png",
+}
+
+
+def tipo_de_imagen(contenido: bytes) -> str | None:
+    """Identifica la imagen por su firma real, no por el nombre del archivo."""
+    for firma, tipo in FIRMAS_IMAGEN.items():
+        if contenido.startswith(firma):
+            return tipo
+    if contenido[:4] == b"RIFF" and contenido[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+@transaction.atomic
+def guardar_foto_ejemplar(*, ejemplar: Ejemplar, contenido: bytes) -> Ejemplar:
+    if len(contenido) > FOTO_MAXIMA:
+        raise FotoInvalidaError("La foto no puede superar los 3 MB.")
+    tipo = tipo_de_imagen(contenido)
+    if tipo is None:
+        raise FotoInvalidaError("La foto debe ser una imagen JPG, PNG o WEBP.")
+    ejemplar = Ejemplar.objects.select_for_update().get(pk=ejemplar.pk)
+    ejemplar.foto = contenido
+    ejemplar.foto_tipo = tipo
+    ejemplar.save(update_fields=["foto", "foto_tipo"])
+    return ejemplar
+
+
+@transaction.atomic
+def quitar_foto_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
+    ejemplar = Ejemplar.objects.select_for_update().get(pk=ejemplar.pk)
+    ejemplar.foto = None
+    ejemplar.foto_tipo = ""
+    ejemplar.save(update_fields=["foto", "foto_tipo"])
     return ejemplar
 
 

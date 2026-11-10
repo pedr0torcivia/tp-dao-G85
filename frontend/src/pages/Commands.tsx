@@ -169,7 +169,7 @@ export function CommandDialog({
         ? "El envío se anula. Los ejemplares vuelven a su estado anterior (disponibles o reservados para su solicitud)."
         : resource === "reservas"
           ? "La reserva se cierra y el ejemplar apartado vuelve a estar disponible."
-          : "La solicitud se cierra y el ejemplar asignado vuelve a estar disponible.",
+          : "La solicitud se cierra y el ejemplar asignado vuelve a estar disponible. Si ya estaba en un remito en preparación, se lo quita del paquete.",
     entregar:
       "El préstamo comienza ahora. Se verifica que el socio no tenga préstamos vencidos y que el plazo no supere 60 días.",
     devolver:

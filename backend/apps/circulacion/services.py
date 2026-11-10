@@ -23,6 +23,7 @@ from .exceptions import (
     PrestamoYaCreadoError,
     PrestamoYaDevueltoError,
     ReservaDuplicadaError,
+    ReservaPrioritariaError,
     ReservaVencidaError,
     SocioInhabilitadoError,
     SolicitudEnRemitoVigenteError,
@@ -44,6 +45,24 @@ ESTADOS_REMITO_VIGENTES = ("EN_PREPARACION", "EMPAQUETADO", "EN_TRANSITO")
 def validar_socio_habilitado(*, socio: Socio) -> None:
     if socio.estado != EstadoSocio.HABILITADO:
         raise SocioInhabilitadoError(f"El socio '{socio.numero_socio}' está inhabilitado.")
+
+
+def validar_sin_reserva_prioritaria(*, libro_id: int, sede_id: int, socio: Socio) -> None:
+    """Una copia libre se aparta primero para quien reservó antes ese libro en esa sede."""
+    espera = (
+        Reserva.objects.filter(
+            libro_id=libro_id, sede_retiro_id=sede_id, estado=EstadoReserva.PENDIENTE
+        )
+        .exclude(socio=socio)
+        .select_related("socio")
+        .order_by("fecha_reserva", "id")
+        .first()
+    )
+    if espera is not None:
+        raise ReservaPrioritariaError(
+            f"{espera.socio.nombre} reservó este libro antes (RES-{espera.pk:04d}). "
+            "Apartá primero una copia para esa reserva."
+        )
 
 
 def validar_sin_prestamos_vencidos(*, socio: Socio, al=None) -> None:
@@ -158,6 +177,10 @@ def asignar_ejemplar(
             "El ejemplar no se encuentra actualmente en la sede de origen."
         )
 
+    validar_sin_reserva_prioritaria(
+        libro_id=ejemplar.libro_id, sede_id=ejemplar.sede_propietaria_id, socio=solicitud.socio
+    )
+
     solicitud.ejemplar = ejemplar
     solicitud.estado = EstadoSolicitud.ASIGNADA
     ejemplar.estado = EstadoEjemplar.ASIGNADO
@@ -197,12 +220,16 @@ def preparar_entrega(
     return solicitud
 
 
-def acciones_solicitud(solicitud: SolicitudPrestamo, *, en_remito_vigente: bool) -> list[str]:
+def acciones_solicitud(
+    solicitud: SolicitudPrestamo, *, en_remito_vigente: bool, remito_estado: str | None = None
+) -> list[str]:
     """Operaciones que la interfaz debe ofrecer según estado y circuito."""
     if solicitud.estado == EstadoSolicitud.PENDIENTE:
         return ["asignar", "rechazar", "cancelar"]
     if solicitud.estado == EstadoSolicitud.ASIGNADA:
-        return ["cancelar"] if en_remito_vigente else ["preparar-entrega", "cancelar"]
+        if not en_remito_vigente:
+            return ["preparar-entrega", "cancelar"]
+        return ["cancelar"] if remito_estado == "EN_PREPARACION" else []
     if solicitud.estado == EstadoSolicitud.LISTA_PARA_ENTREGA:
         return ["entregar"]
     return []
@@ -349,10 +376,21 @@ def cancelar_solicitud(
     if solicitud.estado not in estados_cancelables:
         raise EstadoSolicitudInvalidoError("La solicitud no puede cancelarse en su estado actual.")
 
-    if solicitud.detalles_remito.filter(remito__estado__in=ESTADOS_REMITO_VIGENTES).exists():
-        raise SolicitudEnRemitoVigenteError(
-            "La solicitud pertenece a un remito vigente. Cancelá primero el remito."
-        )
+    detalle = (
+        solicitud.detalles_remito.filter(remito__estado__in=ESTADOS_REMITO_VIGENTES)
+        .select_related("remito", "ejemplar")
+        .first()
+    )
+    if detalle is not None:
+        remito = detalle.remito
+        if remito.estado != "EN_PREPARACION":
+            raise SolicitudEnRemitoVigenteError(
+                f"El libro ya está en el remito {remito.numero} "
+                f"({remito.get_estado_display().lower()}). "
+                "Reabrí el remito para quitarlo antes de cancelar."
+            )
+        # Patrón State: el remito en preparación admite quitar ejemplares.
+        remito.comportamiento.quitar(remito, detalle)
 
     if solicitud.ejemplar_id is not None:
         ejemplar = Ejemplar.objects.select_for_update().get(pk=solicitud.ejemplar_id)

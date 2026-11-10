@@ -44,7 +44,7 @@ def listar_ejemplares(
     if estado:
         ejemplares = ejemplares.filter(estado=estado)
 
-    return ejemplares
+    return ejemplares.defer("foto")
 
 
 def obtener_ejemplar(*, ejemplar_id: int) -> Ejemplar:

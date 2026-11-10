@@ -6,6 +6,7 @@ from .views import (
     EjemplarAsignarView,
     EjemplarDarDeBajaView,
     EjemplarDetailView,
+    EjemplarFotoView,
     EjemplarLiberarView,
     EjemplarListCreateView,
     LibroDetailView,
@@ -28,6 +29,11 @@ urlpatterns = [
         "ejemplares/<int:ejemplar_id>/",
         EjemplarDetailView.as_view(),
         name="ejemplar-detail",
+    ),
+    path(
+        "ejemplares/<int:ejemplar_id>/foto/",
+        EjemplarFotoView.as_view(),
+        name="ejemplar-foto",
     ),
     path(
         "ejemplares/<int:ejemplar_id>/asignar/",

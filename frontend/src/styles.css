@@ -521,6 +521,11 @@
     color: var(--ink-faint);
     font-size: 12px;
   }
+  .file-input {
+    height: auto;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
   .option-row {
     display: flex;
     align-items: flex-start;
@@ -1086,12 +1091,6 @@
     font-size: 12px;
   }
 
-  /* Acceso */
-  .access-form {
-    border: 1px solid var(--rule-strong);
-    border-radius: var(--radius);
-    background: var(--surface);
-  }
 
   /* ================================================================
      Paneles y lomo (motivo de identidad)
@@ -1749,8 +1748,117 @@
 }
 
 /* ------------------------------------------------------------------
-   Acceso (letras en movimiento)
+   Acceso: lienzo verde de marca con letras flotantes y una ficha
+   con el formulario. Sombra sólida corrida (como el libro que sale
+   del estante en el catálogo), sin difuminados.
    ------------------------------------------------------------------ */
+.access {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  overflow: hidden;
+  background: var(--bar);
+  color: #ebe5d6;
+}
+.access-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+}
+@media (min-width: 960px) {
+  .access-top {
+    padding: 32px 56px;
+  }
+}
+.access-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+.access-brand img {
+  width: 28px;
+  height: 28px;
+}
+.access-theme {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 50%;
+  color: #c9d6cd;
+  transition:
+    background 140ms,
+    color 140ms;
+}
+.access-theme:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: #ffffff;
+}
+.access-stage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: grid;
+  align-content: center;
+  gap: 40px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 28px 56px;
+}
+@media (min-width: 960px) {
+  .access-stage {
+    grid-template-columns: minmax(0, 1fr) 400px;
+    align-items: center;
+    gap: 72px;
+    padding: 0 56px 72px;
+  }
+}
+.access-title {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: clamp(46px, 7vw, 104px);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -2.4px;
+  color: #f4efe2;
+}
+.access-title span {
+  color: var(--terracotta);
+}
+.access-form {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  padding: 30px 30px 28px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 10px 10px 0 #0a1b14;
+  animation: ficha-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.access-form h2 {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  line-height: 1.05;
+}
+@keyframes ficha-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
 @keyframes letter-drift {
   from {
     transform: translate3d(0, 0, 0) rotate(-2deg);
@@ -1769,24 +1877,21 @@
   position: absolute;
   width: var(--size);
   height: auto;
-  filter: brightness(0);
-  opacity: 0.05;
+  /* Letras claras sobre el verde de marca */
+  filter: brightness(0) invert(1);
+  opacity: 0.07;
   animation: letter-drift var(--duration) ease-in-out var(--delay) infinite alternate;
-  animation-play-state: inherit;
   user-select: none;
   will-change: transform;
 }
-:root[data-theme="dark"] .login-letters img {
-  filter: none;
-  opacity: 0.06;
-}
-@media (max-width: 760px) {
+@media (max-width: 960px) {
   .login-letters img {
-    width: clamp(52px, calc(var(--size) * 0.7), 320px);
+    width: clamp(48px, calc(var(--size) * 0.6), 240px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .login-letters img {
+  .login-letters img,
+  .access-form {
     animation: none;
     will-change: auto;
   }
@@ -1864,5 +1969,5 @@
   box-shadow: 6px 8px 0 #0b100e;
 }
 :root[data-theme="dark"] .access-form {
-  border-color: var(--input);
+  box-shadow: 10px 10px 0 #07130e;
 }

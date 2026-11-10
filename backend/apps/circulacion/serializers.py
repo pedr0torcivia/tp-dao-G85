@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.catalogo.models import (
@@ -68,7 +69,22 @@ class SolicitudPrestamoSerializer(serializers.ModelSerializer):
     def get_acciones(self, solicitud) -> list[str]:
         from .services import acciones_solicitud
 
-        return acciones_solicitud(solicitud, en_remito_vigente=self._en_remito_vigente(solicitud))
+        if hasattr(solicitud, "remito_vigente_estado"):
+            estado_remito = solicitud.remito_vigente_estado
+        else:
+            detalle = (
+                solicitud.detalles_remito.filter(
+                    remito__estado__in=("EN_PREPARACION", "EMPAQUETADO", "EN_TRANSITO")
+                )
+                .select_related("remito")
+                .first()
+            )
+            estado_remito = detalle.remito.estado if detalle else None
+        return acciones_solicitud(
+            solicitud,
+            en_remito_vigente=self._en_remito_vigente(solicitud),
+            remito_estado=estado_remito,
+        )
 
     def get_remito_id(self, solicitud) -> int | None:
         if hasattr(solicitud, "ultimo_remito_id"):
@@ -116,6 +132,7 @@ class EntregarSolicitudSerializer(serializers.Serializer):
 class PrestamoSerializer(serializers.ModelSerializer):
     solicitud_id = serializers.IntegerField(read_only=True)
     dias_atraso = serializers.SerializerMethodField()
+    estado = serializers.SerializerMethodField(help_text="ACTIVO, VENCIDO o DEVUELTO.")
     multa = serializers.SerializerMethodField(help_text="Multa acumulada en pesos.")
 
     class Meta:
@@ -127,10 +144,16 @@ class PrestamoSerializer(serializers.ModelSerializer):
             "fecha_vencimiento",
             "fecha_devolucion",
             "condicion_devolucion",
+            "estado",
             "dias_atraso",
             "multa",
         ]
         read_only_fields = fields
+
+    def get_estado(self, prestamo) -> str:
+        if prestamo.fecha_devolucion is not None:
+            return "DEVUELTO"
+        return "VENCIDO" if prestamo.fecha_vencimiento < timezone.now() else "ACTIVO"
 
     def get_dias_atraso(self, prestamo) -> int:
         return prestamo.dias_atraso()

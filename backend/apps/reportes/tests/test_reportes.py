@@ -138,7 +138,7 @@ class DemandaTest(APITestCase, BaseReportesTest):
         )
 
         self.assertEqual(datos["reporte"], "RP02")
-        self.assertEqual(datos["resumen"], "5 solicitudes válidas")
+        self.assertEqual(datos["resumen"], "5 solicitudes interbibliotecarias · 2 libros")
         filas = datos["filas"]
         self.assertEqual(len(filas), 2)
         # 3 del principito, 2 del quijote; orden por cantidad descendente
@@ -146,6 +146,7 @@ class DemandaTest(APITestCase, BaseReportesTest):
         self.assertEqual(filas[0]["cantidad"], 3)
         self.assertEqual(filas[1]["libro"], "Don Quijote")
         self.assertEqual(filas[1]["cantidad"], 2)
+        self.assertEqual(filas[0]["sedes"], [{"sede": "Norte", "cantidad": 3}])
 
     def test_filtrar_por_sede_solicitante(self):
         self.preparar_fixture()
@@ -156,14 +157,14 @@ class DemandaTest(APITestCase, BaseReportesTest):
             hasta=datetime(2026, 10, 8).date(),
             sede_id=self.norte.pk,
         )
-        self.assertEqual(datos["resumen"], "6 solicitudes válidas")
+        self.assertEqual(datos["resumen"], "6 solicitudes interbibliotecarias · 2 libros")
 
         datos = demanda_interbibliotecaria(
             desde=datetime(2026, 10, 1).date(),
             hasta=datetime(2026, 10, 8).date(),
             sede_id=self.central.pk,
         )
-        self.assertEqual(datos["resumen"], "0 solicitudes válidas")
+        self.assertEqual(datos["resumen"], "0 solicitudes interbibliotecarias · 0 libros")
 
     def test_rango_incluye_bordes_del_dia_y_resultado_vacio(self):
         self.crear_solicitud(self.principito, self.central, self.norte, fecha=datetime(2026, 10, 5))
@@ -172,7 +173,7 @@ class DemandaTest(APITestCase, BaseReportesTest):
             desde=datetime(2026, 10, 5).date(),
             hasta=datetime(2026, 10, 5).date(),
         )
-        self.assertEqual(datos["resumen"], "1 solicitudes válidas")
+        self.assertEqual(datos["resumen"], "1 solicitud interbibliotecaria · 1 libro")
 
         datos = demanda_interbibliotecaria(
             desde=datetime(2026, 10, 6).date(),

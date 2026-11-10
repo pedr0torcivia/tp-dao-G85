@@ -36,7 +36,8 @@ class PrestamosVencidosView(APIView):
     def get(self, request):
         desde, hasta = _periodo(request)
         sede = _sede_opcional(request)
-        sedes = obtener_prestamos_vencidos(fecha_corte=hasta, desde=desde, sede_id=sede)
+        # Foto al cierre de `hasta`: todo préstamo vencido y sin devolver a esa fecha.
+        sedes = obtener_prestamos_vencidos(fecha_corte=hasta, sede_id=sede)
         return Response(
             {
                 "fecha_corte": hasta.isoformat(),

@@ -130,7 +130,11 @@ export function fieldsFor(resource: Resource, db: Database): FormField[] {
       return [
         field("titulo", "Título"),
         field("autor", "Autor o autores"),
-        field("isbn", "ISBN", "text", false),
+        {
+          ...field("isbn", "ISBN", "text", false),
+          hint: "13 números. Podés escribirlo con guiones.",
+          placeholder: "9789870000000",
+        },
         field("editorial", "Editorial"),
         field("edicion", "Edición"),
       ];
