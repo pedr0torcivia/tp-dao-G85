@@ -27,6 +27,7 @@ import {
 import { config, pathOf } from "./resources";
 
 export function Cover({
+  id,
   title,
   large = false,
   compact = false,
@@ -37,7 +38,9 @@ export function Cover({
   compact?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const src = portadaDe(title);
+  const { db } = useLibrary();
+  const cargada = id ? db?.libros.find((l) => l.id === id)?.portada_url : null;
+  const src = cargada ?? portadaDe(title);
   const size = large
     ? "h-[260px] w-[176px]"
     : compact
@@ -56,6 +59,27 @@ export function Cover({
       className={`${size} flex shrink-0 items-center justify-center rounded bg-[var(--muted)] text-[var(--muted-foreground)]`}
     >
       <BookOpen size={compact ? 16 : 28} />
+    </div>
+  );
+}
+
+/** Celda de libro para cualquier tabla: portada en miniatura, título y un dato secundario. */
+export function BookCell({
+  libroId,
+  title,
+  sub,
+}: {
+  libroId: number;
+  title: string;
+  sub?: ReactNode;
+}) {
+  return (
+    <div className="book-cell">
+      <Cover id={libroId} title={title} compact />
+      <div className="min-w-0">
+        <div className="cell-main">{title}</div>
+        {sub && <div className="cell-sub">{sub}</div>}
+      </div>
     </div>
   );
 }
@@ -124,7 +148,7 @@ export function EntityList({ resource }: { resource: Resource }) {
         state: e.estado,
         cells: [
           <span className="mono font-semibold">{e.codigo_inventario}</span>,
-          main(b?.titulo ?? "—", b?.autor),
+          <BookCell libroId={e.libro_id} title={b?.titulo ?? "—"} sub={b?.autor} />,
           fuera ? (
             <div>
               <div>{e.sede_actual_id === null ? "Viajando" : `En ${corto(e.sede_actual_id)}`}</div>
@@ -149,7 +173,7 @@ export function EntityList({ resource }: { resource: Resource }) {
         state: s.estado,
         cells: [
           main(<span className="mono">{code("SOL", s.id)}</span>, dateLabel(s.fecha_solicitud)),
-          main(bookName(s.libro_id, db!), socioName(s.socio_id, db!)),
+          <BookCell libroId={s.libro_id} title={bookName(s.libro_id, db!)} sub={socioName(s.socio_id, db!)} />,
           s.tipo === "LOCAL" ? (
             <span className="muted">Local · {sedeName(s.sede_destino_id, db!)}</span>
           ) : (
@@ -173,7 +197,7 @@ export function EntityList({ resource }: { resource: Resource }) {
         state: estado,
         cells: [
           <span className="mono">{code("PRE", p.id)}</span>,
-          main(bookName(s.libro_id, db!), socioName(s.socio_id, db!)),
+          <BookCell libroId={s.libro_id} title={bookName(s.libro_id, db!)} sub={socioName(s.socio_id, db!)} />,
           dateLabel(p.fecha_vencimiento),
           <div>
             <Badge value={estado} />
@@ -197,7 +221,7 @@ export function EntityList({ resource }: { resource: Resource }) {
         state: r.estado,
         cells: [
           main(<span className="mono">{code("RES", r.id)}</span>, dateLabel(r.fecha_reserva)),
-          main(bookName(r.libro_id, db!), socioName(r.socio_id, db!)),
+          <BookCell libroId={r.libro_id} title={bookName(r.libro_id, db!)} sub={socioName(r.socio_id, db!)} />,
           sedeName(r.sede_retiro_id, db!),
           <Badge value={r.estado} />,
         ],
@@ -347,7 +371,7 @@ export function EntityList({ resource }: { resource: Resource }) {
               return (
                 <Link key={b.id} to={`/catalogo/${b.id}`} className="book-card">
                   <div className="cover-box">
-                    <Cover title={b.titulo} />
+                    <Cover id={b.id} title={b.titulo} />
                   </div>
                   <div className="book-info">
                     <h2>{b.titulo}</h2>

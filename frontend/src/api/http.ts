@@ -93,33 +93,39 @@ export const httpApi: LibraryApi = {
       body: JSON.stringify(input),
     }),
   report: (type, filter) => report(type, filter),
-  async subirFoto(ejemplarId, archivo) {
-    const csrf = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("csrftoken="))
-      ?.split("=")[1];
-    const datos = new FormData();
-    datos.append("foto", archivo);
-    const res = await fetch(`${base}/ejemplares/${ejemplarId}/foto/`, {
-      method: "POST",
-      credentials: "include",
-      headers: csrf ? { "X-CSRFToken": decodeURIComponent(csrf) } : {},
-      body: datos,
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      const detalle = body?.error?.detail;
-      throw new ApiError(
-        detalle?.foto?.[0] ?? (typeof detalle === "string" ? detalle : "No pudimos subir la foto."),
-      );
-    }
-  },
+  eliminar: (resource, id) =>
+    request(`${resourcePaths[resource]}/${id}/`, { method: "DELETE" }),
+  subirPortada: (libroId, archivo) => subirImagen(`libros/${libroId}/portada/`, "portada", archivo),
   prepararRetorno: (ejemplarId) =>
     request("remitos/preparar-retorno/", {
       method: "POST",
       body: JSON.stringify({ ejemplar_id: ejemplarId }),
     }),
 };
+
+/** Envía una imagen como multipart (no JSON) con el token CSRF de la sesión. */
+async function subirImagen(ruta: string, campo: string, archivo: File): Promise<void> {
+  const csrf = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith("csrftoken="))
+    ?.split("=")[1];
+  const datos = new FormData();
+  datos.append(campo, archivo);
+  const res = await fetch(`${base}/${ruta}`, {
+    method: "POST",
+    credentials: "include",
+    headers: csrf ? { "X-CSRFToken": decodeURIComponent(csrf) } : {},
+    body: datos,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const detalle = body?.error?.detail;
+    throw new ApiError(
+      detalle?.[campo]?.[0] ??
+        (typeof detalle === "string" ? detalle : "No pudimos subir la imagen."),
+    );
+  }
+}
 
 const pesos = (n: number) =>
   new Intl.NumberFormat("es-AR", {

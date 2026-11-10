@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Pencil, Undo2 } from "lucide-react";
+import { Pencil, Trash2, Undo2 } from "lucide-react";
 import type {
   Database,
   EstadoRemito,
@@ -28,6 +28,8 @@ import {
   Back,
   Badge,
   Button,
+  ConfirmDialog,
+  Dialog,
   Heading,
   outlineClass,
   PatternNote,
@@ -36,7 +38,7 @@ import {
   Table,
 } from "../components/ui";
 import { config, pathOf } from "./resources";
-import { Cover } from "./Lists";
+import { BookCell, Cover } from "./Lists";
 import { actionLabels, CommandDialog } from "./Commands";
 
 const remitoOps: Record<OperacionRemito, Command> = {
@@ -120,7 +122,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
   const n = Number(id);
   const [action, setAction] = useState<{ resource: Resource; id: number; command: Command } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [fotoVersion, setFotoVersion] = useState(0);
+  const [borrar, setBorrar] = useState(false);
   const record = db![resource].find((r) => r.id === n);
   if (!record)
     return (
@@ -131,20 +133,6 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     );
   const run = (command: Command, target: Resource = resource, targetId = n) =>
     setAction({ resource: target, id: targetId, command });
-
-  async function subirFoto(ejemplarId: number, archivo: File) {
-    setBusy(true);
-    try {
-      await api.subirFoto(ejemplarId, archivo);
-      await refresh();
-      setFotoVersion((v) => v + 1);
-      notify("Foto guardada.");
-    } catch (err) {
-      notify(err instanceof Error ? err.message : "No pudimos subir la foto.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function retorno(ejemplarId: number) {
     setBusy(true);
@@ -324,7 +312,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
                 const e = db!.ejemplares.find((x) => x.id === d.ejemplar_id)!;
                 return [
                   <Link className="mono underline" to={`/ejemplares/${e.id}`}>{e.codigo_inventario}</Link>,
-                  bookName(e.libro_id, db!),
+                  <BookCell libroId={e.libro_id} title={bookName(e.libro_id, db!)} />,
                   d.solicitud_id ? (
                     <Link className="underline" to={`/solicitudes/${d.solicitud_id}`}>
                       Pedido {code("SOL", d.solicitud_id)}
@@ -550,15 +538,9 @@ export function EntityDetail({ resource }: { resource: Resource }) {
       <>
         <div className="detail-grid">
           <section className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            {e.tiene_foto ? (
-              <img
-                src={`/api/ejemplares/${e.id}/foto/?v=${fotoVersion}`}
-                alt={`Foto de la copia ${e.codigo_inventario}`}
-                className="cover-img h-[260px] w-[176px] shrink-0 object-cover"
-              />
-            ) : (
+            <div className="flex shrink-0 gap-3">
               <Cover id={e.libro_id} title={bookName(e.libro_id, db!)} large />
-            )}
+            </div>
             <Facts
               items={[
                 ["Libro", linkTo(`/catalogo/${e.libro_id}`, bookName(e.libro_id, db!))],
@@ -594,20 +576,6 @@ export function EntityDetail({ resource }: { resource: Resource }) {
                 <Undo2 size={14} /> Preparar retorno
               </Button>
             )}
-            <label className="btn btn-outline btn-sm">
-              {e.tiene_foto ? "Cambiar foto" : "Subir foto"}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                disabled={busy}
-                onChange={(ev) => {
-                  const archivo = ev.target.files?.[0];
-                  ev.target.value = "";
-                  if (archivo) void subirFoto(e.id, archivo);
-                }}
-              />
-            </label>
             {["DISPONIBLE", "EN_REVISION"].includes(e.estado) && (
               <Button size="sm" variant="danger" onClick={() => run("dar-de-baja")}>Dar de baja</Button>
             )}
@@ -640,6 +608,9 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     headerActions = (
       <>
         {headerActions}
+        <Button variant="danger" onClick={() => setBorrar(true)}>
+          <Trash2 size={15} /> Eliminar
+        </Button>
         <Link className={primaryClass} to={`/solicitudes/nuevo?libro_id=${n}`}>Pedir este libro</Link>
       </>
     );
@@ -700,7 +671,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
             const p = prestamos.find((pp) => pp.solicitud_id === x.id);
             return [
               <span className="mono">{code("SOL", x.id)}</span>,
-              bookName(x.libro_id, db!),
+              <BookCell libroId={x.libro_id} title={bookName(x.libro_id, db!)} />,
               <Badge value={x.estado} />,
               p ? <Badge value={loanState(p)} /> : "—",
             ];
@@ -757,7 +728,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
           onRowClick={(i) => navigate(`/ejemplares/${propios[i].id}`)}
           rows={propios.map((e) => [
             <span className="mono">{e.codigo_inventario}</span>,
-            bookName(e.libro_id, db!),
+            <BookCell libroId={e.libro_id} title={bookName(e.libro_id, db!)} />,
             e.sede_actual_id === n ? "En la sede" : sedeName(e.sede_actual_id, db!),
             <Badge value={e.estado} />,
           ])}
@@ -771,6 +742,18 @@ export function EntityDetail({ resource }: { resource: Resource }) {
       <Back to={`/${pathOf(resource)}`}>Volver a {config[resource]?.title.toLowerCase()}</Back>
       <Heading kicker={kicker} title={title} action={headerActions} />
       {body}
+      {borrar && resource === "libros" && (
+        <EliminarLibro
+          db={db!}
+          id={n}
+          onClose={() => setBorrar(false)}
+          onDone={async (titulo) => {
+            navigate("/catalogo");
+            await refresh();
+            notify(`Se eliminó «${titulo}».`);
+          }}
+        />
+      )}
       {action && (
         <CommandDialog
           resource={action.resource}
@@ -783,8 +766,89 @@ export function EntityDetail({ resource }: { resource: Resource }) {
   );
 }
 
+/** Motivo por el que un libro no se puede eliminar (misma regla que el backend). */
+function motivoNoEliminable(db: Database, id: number): string | null {
+  const pedidos = db.solicitudes.filter((s) => s.libro_id === id).length;
+  const reservas = db.reservas.filter((r) => r.libro_id === id).length;
+  if (pedidos || reservas)
+    return `Tiene historial de circulación (${pedidos} solicitudes y ${reservas} reservas). Se conserva para no dejar préstamos ni reportes sin su libro.`;
+  const copias = db.ejemplares.filter((e) => e.libro_id === id);
+  const activas = copias.filter((e) => e.estado !== "BAJA").length;
+  if (activas)
+    return `Tiene ${activas} ${activas === 1 ? "copia activa" : "copias activas"}. Dalas de baja antes de eliminar el libro.`;
+  if (db.detalle_remitos.some((d) => copias.some((e) => e.id === d.ejemplar_id)))
+    return "Alguna de sus copias viajó en un remito: se conserva por trazabilidad.";
+  return null;
+}
+
+function EliminarLibro({
+  db,
+  id,
+  onClose,
+  onDone,
+}: {
+  db: Database;
+  id: number;
+  onClose: () => void;
+  onDone: (titulo: string) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const libro = db.libros.find((l) => l.id === id)!;
+  const motivo = motivoNoEliminable(db, id);
+  const bajas = db.ejemplares.filter((e) => e.libro_id === id).length;
+  if (motivo)
+    return (
+      <Dialog title="No se puede eliminar" onClose={onClose}>
+        <p className="my-4 text-sm leading-relaxed">{motivo}</p>
+        <div className="flex justify-end">
+          <Button onClick={onClose}>Entendido</Button>
+        </div>
+      </Dialog>
+    );
+  return (
+    <ConfirmDialog
+      title="Eliminar libro"
+      danger
+      busy={busy}
+      confirmLabel="Eliminar"
+      description={
+        <>
+          Se eliminará «{libro.titulo}»
+          {bajas ? ` y ${bajas === 1 ? "su copia dada de baja" : `sus ${bajas} copias dadas de baja`}` : ""}. No se puede deshacer.
+          {error && <span className="mt-3 block text-[var(--bad)]">{error}</span>}
+        </>
+      }
+      onCancel={onClose}
+      onConfirm={() => {
+        setBusy(true);
+        setError("");
+        api
+          .eliminar("libros", id)
+          .then(() => onDone(libro.titulo))
+          .catch((e) => setError(e instanceof Error ? e.message : "No pudimos eliminar el libro."))
+          .finally(() => setBusy(false));
+      }}
+    />
+  );
+}
+
 function BookDetail({ db, id }: { db: Database; id: number }) {
   const navigate = useNavigate();
+  const { refresh, notify } = useLibrary();
+  const [subiendo, setSubiendo] = useState(false);
+  async function subirPortada(archivo: File) {
+    setSubiendo(true);
+    try {
+      await api.subirPortada(id, archivo);
+      await refresh();
+      notify("Portada guardada.");
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "No pudimos subir la portada.");
+    } finally {
+      setSubiendo(false);
+    }
+  }
   const b = db.libros.find((x) => x.id === id)!;
   const es = db.ejemplares.filter((e) => e.libro_id === id);
   const porSede = db.sedes
@@ -838,6 +902,20 @@ function BookDetail({ db, id }: { db: Database; id: number }) {
             <Link className="btn btn-outline btn-sm" to={`/ejemplares/nuevo?libro_id=${id}`}>
               Agregar copia
             </Link>
+            <label className="btn btn-outline btn-sm">
+              {subiendo ? "Subiendo…" : b.portada_url ? "Cambiar portada" : "Subir portada"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={subiendo}
+                onChange={(ev) => {
+                  const archivo = ev.target.files?.[0];
+                  ev.target.value = "";
+                  if (archivo) void subirPortada(archivo);
+                }}
+              />
+            </label>
           </div>
         </section>
       </div>

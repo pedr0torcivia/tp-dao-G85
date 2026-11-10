@@ -16,11 +16,13 @@ import {
 } from "../domain/selectors";
 import { api } from "../api";
 import { Button } from "../components/ui";
+import { Cover } from "./Lists";
 import { CommandDialog } from "./Commands";
 
 type Run = { resource: Resource; id: number; command: Command };
 interface Row {
   key: string;
+  libroId?: number;
   sig: string;
   title: string;
   detail: string;
@@ -54,6 +56,7 @@ const toneOfGroup: Record<string, string> = {
 };
 
 function Lane({ group, onRun }: { group: Group; onRun: (r: Run) => void }) {
+  const { db } = useLibrary();
   const [all, setAll] = useState(false);
   const rows = all ? group.rows : group.rows.slice(0, LIMIT);
   const tone = toneOfGroup[group.key];
@@ -72,7 +75,8 @@ function Lane({ group, onRun }: { group: Group; onRun: (r: Run) => void }) {
       </header>
       {rows.length ? (
         rows.map((r) => (
-          <div key={r.key} className="lane-row">
+          <div key={r.key} className={`lane-row ${r.libroId ? "with-cover" : ""}`}>
+            {r.libroId && <Cover id={r.libroId} title={bookName(r.libroId, db!)} compact />}
             <div className="min-w-0">
               <span className="sig">
                 {r.urgent && <span className="tag">{r.sig}</span>}
@@ -142,6 +146,7 @@ export function Home() {
           const s = sol(p.solicitud_id);
           return {
             key: `v${p.id}`,
+            libroId: s.libro_id,
             sig: `+${p.dias_atraso} días`,
             urgent: true,
             title: `${bookName(s.libro_id, db!)} · ${socioName(s.socio_id, db!)}`,
@@ -167,6 +172,7 @@ export function Home() {
       hint: "Listos para entregar al socio",
       rows: t.paraEntregar.map((s) => ({
         key: `e${s.id}`,
+        libroId: s.libro_id,
         sig: code("SOL", s.id),
         title: `${bookName(s.libro_id, db!)}`,
         detail: `${socioName(s.socio_id, db!)} · ${s.reserva_id ? "reserva" : s.tipo === "LOCAL" ? "préstamo local" : `llegó de ${sedeName(s.sede_origen_id, db!)}`}`,
@@ -181,6 +187,7 @@ export function Home() {
       rows: [
         ...t.porAsignar.map((s) => ({
           key: `a${s.id}`,
+          libroId: s.libro_id,
           sig: code("SOL", s.id),
           title: bookName(s.libro_id, db!),
           detail: `${socioName(s.socio_id, db!)} · ${s.tipo === "LOCAL" ? "retira acá" : `retira en ${sedeName(s.sede_destino_id, db!)}`}`,
@@ -189,6 +196,7 @@ export function Home() {
         })),
         ...t.porPreparar.map((s) => ({
           key: `p${s.id}`,
+          libroId: s.libro_id,
           sig: code("SOL", s.id),
           title: bookName(s.libro_id, db!),
           detail: `${socioName(s.socio_id, db!)} · copia asignada, falta prepararla`,
@@ -197,6 +205,7 @@ export function Home() {
         })),
         ...t.reservasPorAsignar.map((r) => ({
           key: `r${r.id}`,
+          libroId: r.libro_id,
           sig: code("RES", r.id),
           title: bookName(r.libro_id, db!),
           detail: `Reserva de ${socioName(r.socio_id, db!)}`,
@@ -232,6 +241,7 @@ export function Home() {
         const ajeno = e.sede_propietaria_id !== e.sede_actual_id;
         return {
           key: `x${e.id}`,
+          libroId: e.libro_id,
           sig: e.codigo_inventario,
           title: bookName(e.libro_id, db!),
           detail: ajeno

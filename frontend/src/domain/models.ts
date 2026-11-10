@@ -23,6 +23,8 @@ export interface Libro {
   autor: string;
   editorial: string;
   edicion: string;
+  /** calculado · URL de la portada cargada (null si no tiene) */
+  portada_url?: string | null;
 }
 export type EstadoEjemplar =
   | "DISPONIBLE"
@@ -41,8 +43,6 @@ export interface Ejemplar {
   sede_actual_id: number | null;
   estado: EstadoEjemplar;
   condicion_fisica: string;
-  /** calculado · la copia tiene foto cargada */
-  tiene_foto?: boolean;
 }
 export type EstadoSolicitud =
   | "PENDIENTE"

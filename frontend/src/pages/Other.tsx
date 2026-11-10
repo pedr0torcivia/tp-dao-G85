@@ -24,6 +24,7 @@ import {
   Table,
 } from "../components/ui";
 import { CommandDialog } from "./Commands";
+import { BookCell } from "./Lists";
 
 export function Appearance() {
   const { theme, setTheme } = useLibrary();
@@ -81,10 +82,11 @@ export function Returns() {
       <Table
         headers={["Libro y socio", "Ejemplar", "Vence", "Situación", ""]}
         rows={loans.map(({ p, s }) => [
-          <div>
-            <div className="cell-main">{bookName(s.libro_id, db!)}</div>
-            <div className="cell-sub">{socioName(s.socio_id, db!)} · {code("PRE", p.id)}</div>
-          </div>,
+          <BookCell
+            libroId={s.libro_id}
+            title={bookName(s.libro_id, db!)}
+            sub={`${socioName(s.socio_id, db!)} · ${code("PRE", p.id)}`}
+          />,
           <span className="mono">{db!.ejemplares.find((e) => e.id === s.ejemplar_id)?.codigo_inventario}</span>,
           dateLabel(p.fecha_vencimiento),
           isOverdue(p) ? (

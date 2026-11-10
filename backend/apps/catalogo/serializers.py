@@ -15,6 +15,15 @@ class LibroSerializer(serializers.ModelSerializer):
         max_length=20,
         help_text="13 números. Se admiten guiones o espacios, que se descartan.",
     )
+    portada_url = serializers.SerializerMethodField(
+        help_text="URL de la portada cargada; null si el libro no tiene."
+    )
+
+    def get_portada_url(self, libro) -> str | None:
+        if not libro.portada_tipo:
+            return None
+        version = int(libro.portada_fecha.timestamp()) if libro.portada_fecha else 0
+        return f"/api/libros/{libro.pk}/portada/?v={version}"
 
     class Meta:
         model = Libro
@@ -25,8 +34,9 @@ class LibroSerializer(serializers.ModelSerializer):
             "autor",
             "editorial",
             "edicion",
+            "portada_url",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "portada_url"]
 
     def validate_isbn(self, value):
         if value is None:
@@ -59,10 +69,6 @@ class EjemplarSerializer(serializers.ModelSerializer):
     sede_actual_id = serializers.IntegerField(
         read_only=True,
     )
-    tiene_foto = serializers.SerializerMethodField()
-
-    def get_tiene_foto(self, ejemplar) -> bool:
-        return bool(ejemplar.foto_tipo)
 
     class Meta:
         model = Ejemplar
@@ -75,7 +81,6 @@ class EjemplarSerializer(serializers.ModelSerializer):
             "sede_actual_id",
             "estado",
             "condicion_fisica",
-            "tiene_foto",
         ]
         read_only_fields = [
             "id",

@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from apps.sedes.exceptions import SedeInactivaError
 from apps.sedes.services import validar_sede_activa
@@ -13,6 +14,7 @@ from .exceptions import (
     EjemplarNoDisponibleError,
     EjemplarNoRevisadoError,
     FotoInvalidaError,
+    LibroNoEliminableError,
     SedePropietariaInactivaError,
 )
 from .models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
@@ -86,6 +88,40 @@ def crear_ejemplar(
         ) from error
 
     return ejemplar
+
+
+def motivo_no_eliminable(libro: Libro) -> str | None:
+    """Explica por qué no se puede eliminar el libro, o None si se puede."""
+    from apps.circulacion.models import Reserva, SolicitudPrestamo
+    from apps.logistica.models import DetalleRemito
+
+    pedidos = SolicitudPrestamo.objects.filter(libro=libro).count()
+    reservas = Reserva.objects.filter(libro=libro).count()
+    if pedidos or reservas:
+        return (
+            f"Tiene historial de circulación ({pedidos} solicitudes y {reservas} reservas). "
+            "Se conserva para no dejar préstamos ni reportes sin su libro."
+        )
+    activas = libro.ejemplares.exclude(estado=EstadoEjemplar.BAJA).count()
+    if activas:
+        return (
+            f"Tiene {activas} {'copia activa' if activas == 1 else 'copias activas'}. "
+            "Dalas de baja antes de eliminar el libro."
+        )
+    if DetalleRemito.objects.filter(ejemplar__libro=libro).exists():
+        return "Alguna de sus copias viajó en un remito: se conserva por trazabilidad."
+    return None
+
+
+@transaction.atomic
+def eliminar_libro(*, libro: Libro) -> None:
+    """Borra un libro que nunca circuló, junto con sus copias dadas de baja."""
+    libro = Libro.objects.select_for_update().get(pk=libro.pk)
+    motivo = motivo_no_eliminable(libro)
+    if motivo:
+        raise LibroNoEliminableError(f"No se puede eliminar «{libro.titulo}». {motivo}")
+    libro.ejemplares.all().delete()
+    libro.delete()
 
 
 @transaction.atomic
@@ -163,27 +199,34 @@ def tipo_de_imagen(contenido: bytes) -> str | None:
     return None
 
 
-@transaction.atomic
-def guardar_foto_ejemplar(*, ejemplar: Ejemplar, contenido: bytes) -> Ejemplar:
+def validar_imagen(contenido: bytes) -> str:
     if len(contenido) > FOTO_MAXIMA:
-        raise FotoInvalidaError("La foto no puede superar los 3 MB.")
+        raise FotoInvalidaError("La imagen no puede superar los 3 MB.")
     tipo = tipo_de_imagen(contenido)
     if tipo is None:
-        raise FotoInvalidaError("La foto debe ser una imagen JPG, PNG o WEBP.")
-    ejemplar = Ejemplar.objects.select_for_update().get(pk=ejemplar.pk)
-    ejemplar.foto = contenido
-    ejemplar.foto_tipo = tipo
-    ejemplar.save(update_fields=["foto", "foto_tipo"])
-    return ejemplar
+        raise FotoInvalidaError("La imagen debe ser JPG, PNG o WEBP.")
+    return tipo
 
 
 @transaction.atomic
-def quitar_foto_ejemplar(*, ejemplar: Ejemplar) -> Ejemplar:
-    ejemplar = Ejemplar.objects.select_for_update().get(pk=ejemplar.pk)
-    ejemplar.foto = None
-    ejemplar.foto_tipo = ""
-    ejemplar.save(update_fields=["foto", "foto_tipo"])
-    return ejemplar
+def guardar_portada_libro(*, libro: Libro, contenido: bytes) -> Libro:
+    tipo = validar_imagen(contenido)
+    libro = Libro.objects.select_for_update().get(pk=libro.pk)
+    libro.portada = contenido
+    libro.portada_tipo = tipo
+    libro.portada_fecha = timezone.now()
+    libro.save(update_fields=["portada", "portada_tipo", "portada_fecha"])
+    return libro
+
+
+@transaction.atomic
+def quitar_portada_libro(*, libro: Libro) -> Libro:
+    libro = Libro.objects.select_for_update().get(pk=libro.pk)
+    libro.portada = None
+    libro.portada_tipo = ""
+    libro.portada_fecha = timezone.now()
+    libro.save(update_fields=["portada", "portada_tipo", "portada_fecha"])
+    return libro
 
 
 @transaction.atomic

@@ -26,9 +26,10 @@ from .services import (
     crear_ejemplar,
     crear_libro,
     dar_de_baja_ejemplar,
-    guardar_foto_ejemplar,
+    eliminar_libro,
+    guardar_portada_libro,
     liberar_ejemplar,
-    quitar_foto_ejemplar,
+    quitar_portada_libro,
 )
 
 
@@ -68,6 +69,7 @@ class LibroListCreateView(APIView):
 @extend_schema_view(
     get=extend_schema(responses=LibroSerializer),
     patch=extend_schema(request=LibroSerializer, responses=LibroSerializer),
+    delete=extend_schema(responses={204: None}),
 )
 class LibroDetailView(APIView):
     def get(self, request, libro_id):
@@ -91,6 +93,14 @@ class LibroDetailView(APIView):
         )
 
         return Response(LibroSerializer(libro).data)
+
+    def delete(self, request, libro_id):
+        libro = get_object_or_404(Libro, id=libro_id)
+        try:
+            eliminar_libro(libro=libro)
+        except ErrorCatalogo as error:
+            return catalogo_error_response(error)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema_view(
@@ -164,38 +174,38 @@ class EjemplarDetailView(APIView):
         request={
             "multipart/form-data": {
                 "type": "object",
-                "properties": {"foto": {"type": "string", "format": "binary"}},
+                "properties": {"portada": {"type": "string", "format": "binary"}},
             }
         },
-        responses=EjemplarSerializer,
+        responses=LibroSerializer,
     ),
-    delete=extend_schema(responses=EjemplarSerializer),
+    delete=extend_schema(responses=LibroSerializer),
 )
-class EjemplarFotoView(APIView):
+class LibroPortadaView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
-    def get(self, request, ejemplar_id):
-        ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
-        if not ejemplar.foto_tipo:
-            return Response({"error": {"detail": "El ejemplar no tiene foto."}}, status=404)
-        respuesta = HttpResponse(bytes(ejemplar.foto), content_type=ejemplar.foto_tipo)
-        respuesta["Cache-Control"] = "private, max-age=300"
+    def get(self, request, libro_id):
+        libro = get_object_or_404(Libro, id=libro_id)
+        if not libro.portada_tipo:
+            return Response({"error": {"detail": "El libro no tiene portada."}}, status=404)
+        respuesta = HttpResponse(bytes(libro.portada), content_type=libro.portada_tipo)
+        respuesta["Cache-Control"] = "private, max-age=86400"
         return respuesta
 
-    def post(self, request, ejemplar_id):
-        ejemplar = get_object_or_404(Ejemplar, id=ejemplar_id)
-        archivo = request.FILES.get("foto")
+    def post(self, request, libro_id):
+        libro = get_object_or_404(Libro, id=libro_id)
+        archivo = request.FILES.get("portada")
         if archivo is None:
-            return Response({"error": {"detail": {"foto": ["Elegí una imagen."]}}}, status=400)
+            return Response({"error": {"detail": {"portada": ["Elegí una imagen."]}}}, status=400)
         try:
-            ejemplar = guardar_foto_ejemplar(ejemplar=ejemplar, contenido=archivo.read())
+            libro = guardar_portada_libro(libro=libro, contenido=archivo.read())
         except ErrorCatalogo as error:
-            return Response({"error": {"detail": {"foto": [str(error)]}}}, status=400)
-        return Response(EjemplarSerializer(ejemplar).data)
+            return Response({"error": {"detail": {"portada": [str(error)]}}}, status=400)
+        return Response(LibroSerializer(libro).data)
 
-    def delete(self, request, ejemplar_id):
-        ejemplar = quitar_foto_ejemplar(ejemplar=get_object_or_404(Ejemplar, id=ejemplar_id))
-        return Response(EjemplarSerializer(ejemplar).data)
+    def delete(self, request, libro_id):
+        libro = quitar_portada_libro(libro=get_object_or_404(Libro, id=libro_id))
+        return Response(LibroSerializer(libro).data)
 
 
 @extend_schema_view(

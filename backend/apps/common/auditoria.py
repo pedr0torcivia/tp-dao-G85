@@ -67,14 +67,14 @@ def registrar(*, entidad, registro_id, accion, usuario, antes, despues, descripc
     )
 
 
-# Campos binarios (fotos) no se copian a la bitácora: sólo se registra que cambiaron.
-CAMPOS_BINARIOS = {"foto"}
+# Campos binarios (imágenes) no se copian a la bitácora: sólo se registra que cambiaron.
+CAMPOS_BINARIOS = {"portada"}
 
 
 def _instantanea(modelo, pk) -> dict:
     fila = modelo.objects.filter(pk=pk).values().first() or {}
     for campo in CAMPOS_BINARIOS & fila.keys():
-        fila[campo] = "con foto" if fila[campo] else "sin foto"
+        fila[campo] = "cargada" if fila[campo] else "sin imagen"
     return fila
 
 

@@ -343,26 +343,66 @@ class IsbnYFotoApiTest(APITestCase):
         self.assertEqual(respuesta.status_code, 201)
         self.assertEqual(respuesta.data["isbn"], "9780000000009")
 
-    def test_foto_del_ejemplar(self):
+    def test_portada_del_libro(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        from apps.catalogo.models import Ejemplar, Libro
+        from apps.catalogo.models import Libro
+
+        libro = Libro.objects.create(titulo="Nuevo", autor="A", editorial="E", edicion="1")
+        url = reverse("libro-portada", args=[libro.id])
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+        jpg = b"\xff\xd8\xff\xe0" + b"1" * 40
+        respuesta = self.client.post(url, {"portada": SimpleUploadedFile("tapa.jpg", jpg)})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(
+            respuesta.data["portada_url"].startswith(f"/api/libros/{libro.id}/portada/")
+        )
+        self.assertEqual(self.client.get(url).content, jpg)
+
+        malo = SimpleUploadedFile("tapa.gif", b"GIF89a....")
+        self.assertEqual(self.client.post(url, {"portada": malo}).status_code, 400)
+
+
+class EliminarLibroApiTest(APITestCase):
+    def setUp(self):
+        from apps.common.testing import autenticar_personal
         from apps.sedes.models import Sede
 
-        sede = Sede.objects.create(nombre="Central", direccion="D", contacto="C", horarios="H")
-        libro = Libro.objects.create(titulo="T", autor="A", editorial="E", edicion="1")
-        ejemplar = Ejemplar.objects.create(
-            codigo_inventario="F-1", libro=libro, sede_propietaria=sede, sede_actual=sede
-        )
-        url = reverse("ejemplar-foto", args=[ejemplar.id])
-        texto = SimpleUploadedFile("x.png", b"no soy una imagen", content_type="image/png")
-        self.assertEqual(self.client.post(url, {"foto": texto}).status_code, 400)
+        autenticar_personal(self.client)
+        self.sede = Sede.objects.create(nombre="Central", direccion="D", contacto="C", horarios="H")
 
-        png = b"\x89PNG\r\n\x1a\n" + b"0" * 32
-        imagen = SimpleUploadedFile("tapa.png", png, content_type="image/png")
-        respuesta = self.client.post(url, {"foto": imagen})
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertTrue(respuesta.data["tiene_foto"])
-        descarga = self.client.get(url)
-        self.assertEqual(descarga["Content-Type"], "image/png")
-        self.assertEqual(descarga.content, png)
+    def test_elimina_un_libro_sin_historial(self):
+        from apps.catalogo.models import Ejemplar, Libro
+
+        libro = Libro.objects.create(titulo="Borrable", autor="A", editorial="E", edicion="1")
+        Ejemplar.objects.create(
+            codigo_inventario="B-1", libro=libro, sede_propietaria=self.sede, estado="BAJA"
+        )
+        respuesta = self.client.delete(reverse("libro-detail", args=[libro.id]))
+        self.assertEqual(respuesta.status_code, 204)
+        self.assertFalse(Libro.objects.filter(pk=libro.pk).exists())
+        self.assertFalse(Ejemplar.objects.filter(codigo_inventario="B-1").exists())
+
+    def test_no_elimina_con_copias_activas_ni_con_historial(self):
+        from apps.catalogo.models import Ejemplar, Libro
+        from apps.circulacion.models import Reserva
+        from apps.socios.models import Socio
+
+        con_copias = Libro.objects.create(
+            titulo="Con copias", autor="A", editorial="E", edicion="1"
+        )
+        Ejemplar.objects.create(
+            codigo_inventario="C-1", libro=con_copias, sede_propietaria=self.sede
+        )
+        respuesta = self.client.delete(reverse("libro-detail", args=[con_copias.id]))
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("copia activa", str(respuesta.data))
+
+        reservado = Libro.objects.create(titulo="Reservado", autor="A", editorial="E", edicion="2")
+        socio = Socio.objects.create(numero_socio="S", documento="D", nombre="N", contacto="C")
+        Reserva.objects.create(socio=socio, libro=reservado, sede_retiro=self.sede)
+        respuesta = self.client.delete(reverse("libro-detail", args=[reservado.id]))
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertTrue(Libro.objects.filter(pk=reservado.pk).exists())
+        self.assertIn("historial", str(respuesta.data))

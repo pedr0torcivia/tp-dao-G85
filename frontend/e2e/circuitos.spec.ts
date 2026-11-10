@@ -279,3 +279,51 @@ test("ABMC de ejemplar queda evidenciado en bitácora y disponibilidad", async (
   expect(fila.disponibles).toBe(1);
   expect(fila.por_estado.BAJA).toBe(1);
 });
+
+test("alta de libro con portada: se ve en el catálogo y en sus ejemplares", async ({ page, request }) => {
+  // PNG de 1×1 válido.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  const titulo = `Con portada ${Date.now()}`;
+  await page.goto("/catalogo/nuevo");
+  await page.getByLabel("Título", { exact: true }).fill(titulo);
+  await page.getByLabel("Autor o autores", { exact: true }).fill("Autora");
+  await page.getByLabel("Editorial", { exact: true }).fill("Editorial");
+  await page.getByLabel("Edición", { exact: true }).fill("1");
+  await page.getByLabel("Portada (opcional)").setInputFiles({ name: "tapa.png", mimeType: "image/png", buffer: png });
+  await page.getByRole("button", { name: "Guardar libro", exact: true }).click();
+  await expect(page).toHaveURL(/\/catalogo\/\d+$/);
+  const libroId = Number(page.url().split("/").pop());
+  const libro = await get(request, `libros/${libroId}`);
+  expect(libro.portada_url).toContain(`/api/libros/${libroId}/portada/`);
+  await expect(page.getByRole("img", { name: `Portada de ${titulo}` })).toBeVisible();
+
+  const d = await datos(request);
+  await post(request, "ejemplares", {
+    codigo_inventario: `CP-${Date.now()}`,
+    libro_id: libroId,
+    sede_propietaria_id: d.origen.id,
+    condicion_fisica: "APTO",
+  });
+  await page.goto(`/ejemplares?libro_id=${libroId}`);
+  await expect(page.getByRole("img", { name: `Portada de ${titulo}` }).first()).toBeVisible();
+});
+
+test("eliminar un libro sin historial desde su ficha", async ({ page, request }) => {
+  const libro = await post(request, "libros", {
+    titulo: `Para borrar ${Date.now()}`,
+    autor: "Autor",
+    editorial: "Editorial",
+    edicion: "1",
+  });
+  await page.goto(`/catalogo/${libro.id}`);
+  await page.getByRole("button", { name: "Eliminar", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(libro.titulo, { exact: false })).toBeVisible();
+  await dialog.getByRole("button", { name: "Eliminar", exact: true }).click();
+  await expect(page).toHaveURL(/\/catalogo$/);
+  const res = await request.get(`${api}/libros/${libro.id}/`);
+  expect(res.status()).toBe(404);
+});

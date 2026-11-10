@@ -620,6 +620,16 @@
   .cell-main {
     font-weight: 600;
   }
+  .book-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .book-cell .cover-img,
+  .book-cell > div:first-child[aria-label] {
+    border-radius: 2px;
+  }
   .cell-sub {
     margin-top: 1px;
     color: var(--ink-faint);
@@ -921,8 +931,20 @@
   }
   @media (min-width: 1100px) {
     .form-layout {
-      grid-template-columns: minmax(0, 760px) 300px;
+      grid-template-columns: minmax(0, 1fr) 280px;
       align-items: start;
+      gap: 32px;
+    }
+    .form-layout.with-media {
+      grid-template-columns: 220px minmax(0, 1fr) 280px;
+    }
+  }
+  @media (min-width: 700px) and (max-width: 1099px) {
+    .form-layout.with-media {
+      grid-template-columns: 200px minmax(0, 1fr);
+    }
+    .form-layout.with-media .side-help {
+      grid-column: 1 / -1;
     }
   }
   .form-grid {
@@ -931,11 +953,55 @@
   }
   @media (min-width: 640px) {
     .form-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
     }
     .form-grid .span-2 {
-      grid-column: span 2;
+      grid-column: 1 / -1;
     }
+  }
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+  }
+  .media-picker {
+    display: flex;
+    flex-direction: column;
+  }
+  .media-frame {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 2 / 3;
+    width: 100%;
+    max-width: 220px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-lg);
+    background: var(--surface-sunken);
+  }
+  .media-frame.empty {
+    border-style: dashed;
+    border-color: var(--input);
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+  .media-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .media-button {
+    position: relative;
+    overflow: hidden;
+  }
+  .media-button input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
   }
   .side-help {
     padding: 0 0 0 14px;
@@ -1426,6 +1492,9 @@
     gap: 12px;
     padding: 9px 16px 9px 20px;
     border-bottom: 1px solid var(--rule);
+  }
+  .lane-row.with-cover {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
   }
   .lane-row:last-child {
     border-bottom: 0;

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { NewEntity, Resource } from "../domain/models";
 import { api } from "../api";
@@ -59,6 +59,60 @@ const help: Partial<Record<Resource, { title: string; steps: string[] }>> = {
   },
 };
 
+/** Columna de imagen con vista previa: portada del libro o foto de la copia. */
+function ImagePicker({
+  label,
+  hint,
+  actual,
+  archivo,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  actual: string | null;
+  archivo: File | null;
+  onChange: (f: File | null) => void;
+}) {
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!archivo) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(archivo);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [archivo]);
+  const src = preview ?? actual;
+  return (
+    <div className="media-picker">
+      <label htmlFor="portada-libro" className="field-label">
+        {label}
+      </label>
+      <div className={`media-frame ${src ? "" : "empty"}`}>
+        {src ? <img src={src} alt="Vista previa" /> : <span>Sin imagen</span>}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <span className="btn btn-outline btn-sm media-button">
+          {src ? "Cambiar imagen" : "Elegir imagen"}
+          <input
+            id="portada-libro"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+          />
+        </span>
+        {archivo && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(null)}>
+            Quitar
+          </button>
+        )}
+      </div>
+      <span className="field-hint">{archivo ? `${archivo.name} · se guarda al confirmar` : hint}</span>
+    </div>
+  );
+}
+
 export function EntityForm({ resource }: { resource: Resource }) {
   if (resource === "solicitudes") return <NuevaSolicitud />;
   return <GenericForm resource={resource} />;
@@ -116,11 +170,11 @@ function GenericForm({ resource }: { resource: Resource }) {
         for (const [k, v] of Object.entries(record)) if (data[k] === undefined) data[k] = v;
       const saved = await api.save(resource, data as NewEntity<typeof resource>, id ? Number(id) : undefined);
       let aviso = "Los datos se guardaron correctamente.";
-      if (resource === "ejemplares" && foto) {
+      if (foto && resource === "libros") {
         try {
-          await api.subirFoto(saved.id, foto);
+          await api.subirPortada(saved.id, foto);
         } catch (e) {
-          aviso = `Ejemplar guardado, pero la foto no se subió: ${(e as Error).message}`;
+          aviso = `Se guardaron los datos, pero la imagen no se subió: ${(e as Error).message}`;
         }
       }
       await refresh();
@@ -133,6 +187,9 @@ function GenericForm({ resource }: { resource: Resource }) {
     }
   }
   const h = help[resource];
+  const conImagen = resource === "libros";
+  const actualLibro = resource === "libros" && record ? (record as { portada_url?: string | null }).portada_url : null;
+  const imagenActual = actualLibro ?? null;
   return (
     <>
       <Back to={`/${pathOf(resource)}`} />
@@ -140,8 +197,17 @@ function GenericForm({ resource }: { resource: Resource }) {
         kicker={id ? "Edición" : "Alta"}
         title={id ? `Editar ${conf.singular}` : conf.create}
       />
-      <div className="form-layout">
-        <form onSubmit={submit}>
+      <form onSubmit={submit} className={`form-layout ${conImagen ? "with-media" : ""}`}>
+        {conImagen && (
+          <ImagePicker
+            label="Portada (opcional)"
+            hint="Se muestra en el catálogo y en sus ejemplares. JPG, PNG o WEBP, hasta 3 MB."
+            actual={imagenActual}
+            archivo={foto}
+            onChange={setFoto}
+          />
+        )}
+        <div className="min-w-0">
           {error && <Alert error>{error.message}</Alert>}
           <div className="form-grid">
             {fields.map((f) => (
@@ -188,22 +254,8 @@ function GenericForm({ resource }: { resource: Resource }) {
                 )}
               </Field>
             ))}
-            {resource === "ejemplares" && (
-              <Field
-                label="Foto de la copia (opcional)"
-                hint="JPG, PNG o WEBP de hasta 3 MB. Sirve para registrar el estado físico."
-                className="span-2"
-              >
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="input file-input"
-                  onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
-                />
-              </Field>
-            )}
           </div>
-          <div className="mt-6 flex justify-end gap-2">
+          <div className="form-actions">
             <Link className={outlineClass} to={`/${pathOf(resource)}`}>
               Cancelar
             </Link>
@@ -211,7 +263,7 @@ function GenericForm({ resource }: { resource: Resource }) {
               {busy ? "Guardando…" : `Guardar ${conf.singular}`}
             </Button>
           </div>
-        </form>
+        </div>
         {h && (
           <aside className="side-help">
             <p className="kicker">Antes de guardar</p>
@@ -223,7 +275,7 @@ function GenericForm({ resource }: { resource: Resource }) {
             </ol>
           </aside>
         )}
-      </div>
+      </form>
     </>
   );
 }

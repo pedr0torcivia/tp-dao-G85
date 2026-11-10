@@ -50,8 +50,10 @@ export interface LibraryApi {
   report(type: ReportType, filter: ReportFilter): Promise<ReportResult>;
   /** Arma (o completa) el remito que devuelve un ejemplar a su sede propietaria. */
   prepararRetorno(ejemplarId: number): Promise<{ id: number }>;
-  /** Sube (o reemplaza) la foto de una copia física. */
-  subirFoto(ejemplarId: number, archivo: File): Promise<void>;
+  /** Elimina un registro. El backend valida si está permitido. */
+  eliminar(resource: Resource, id: number): Promise<void>;
+  /** Sube (o reemplaza) la portada de un libro. */
+  subirPortada(libroId: number, archivo: File): Promise<void>;
 }
 
 export const resourcePaths: Record<Resource, string> = {

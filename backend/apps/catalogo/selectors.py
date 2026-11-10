@@ -4,7 +4,7 @@ from .models import Ejemplar, Libro
 
 
 def listar_libros(*, search: str | None = None) -> QuerySet[Libro]:
-    libros = Libro.objects.all().order_by("titulo", "id")
+    libros = Libro.objects.defer("portada").order_by("titulo", "id")
 
     if search:
         termino = search.strip()
@@ -44,7 +44,7 @@ def listar_ejemplares(
     if estado:
         ejemplares = ejemplares.filter(estado=estado)
 
-    return ejemplares.defer("foto")
+    return ejemplares
 
 
 def obtener_ejemplar(*, ejemplar_id: int) -> Ejemplar:

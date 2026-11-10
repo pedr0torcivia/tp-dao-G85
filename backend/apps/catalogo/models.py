@@ -33,6 +33,11 @@ class Libro(models.Model):
     autor = models.CharField(max_length=255)
     editorial = models.CharField(max_length=255)
     edicion = models.CharField(max_length=100)
+    # Portada cargada por el personal (opcional). Se guarda en la base de datos;
+    # `portada_fecha` versiona la URL para el navegador.
+    portada = models.BinaryField(null=True, blank=True, editable=False)
+    portada_tipo = models.CharField(max_length=40, blank=True, default="", editable=False)
+    portada_fecha = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         constraints = [
@@ -88,10 +93,6 @@ class Ejemplar(models.Model):
         choices=CondicionFisica.choices,
         default=CondicionFisica.APTO,
     )
-    # Foto de la copia física. Se guarda en la base para que persista con
-    # el volumen de PostgreSQL sin configurar almacenamiento de archivos.
-    foto = models.BinaryField(null=True, blank=True, editable=False)
-    foto_tipo = models.CharField(max_length=40, blank=True, default="", editable=False)
 
     class Meta:
         constraints = [

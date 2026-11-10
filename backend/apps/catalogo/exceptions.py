@@ -40,3 +40,7 @@ class EjemplarInconsistenteError(ErrorCatalogo):
 
 class FotoInvalidaError(ErrorCatalogo):
     """El archivo no es una imagen admitida o supera el tamaño máximo."""
+
+
+class LibroNoEliminableError(ErrorCatalogo):
+    """El libro tiene copias activas o historial de circulación."""
