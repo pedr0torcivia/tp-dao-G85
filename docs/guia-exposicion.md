@@ -71,7 +71,7 @@ Este recorrido muestra por qué una solicitud y un préstamo son objetos diferen
 
 ## Pasos en pantalla
 
-1. En **Solicitudes → Nueva solicitud**, elegí Ana Rojas, Skywalker Strikes, origen Central y retiro Central. Guardá. El sistema determina que el trámite es local porque ambas sedes coinciden.
+1. En **Solicitudes → Nueva solicitud**, elegí a Maretto Agustin, Skywalker Strikes, origen Central y retiro Central. Guardá. El sistema determina que el trámite es local porque ambas sedes coinciden.
 2. En la ficha de solicitud, elegí **Asignar ejemplar** y seleccioná EXPO-001. Se compromete esa copia y deja de estar disponible para otros pedidos.
 3. Elegí **Preparar entrega local**. La solicitud y la copia quedan listas para entregar; todavía no hay un nuevo préstamo.
 4. Elegí **Registrar entrega**. Usá la fecha del día y un vencimiento posterior, por ejemplo dentro de 14 días. Guardá. Se crea un préstamo y el ejemplar queda PRESTADO.
@@ -86,7 +86,7 @@ RP05 muestra las operaciones de solicitud, entrega, devolución y aprobación, c
 
 ## Rechazos que conviene poder mostrar
 
-Intentá iniciar una solicitud con **Tomás Vera**: el socio está inhabilitado. Intentá operar desde o hacia **Biblioteca Sur**: está de baja. Intentá asignar **EXPO-002**: ya está prestado. Intentá aprobar **EXPO-014** sin reparar su condición: está NO_APTO. La API debe rechazar el cambio y conservar el estado anterior.
+Inhabilitá a **Dalmazzo Francisco Gaston** desde su ficha e intentá iniciarle una solicitud: el sistema la rechaza (después volvé a habilitarlo). Intentá operar desde o hacia **Biblioteca Sur**: está de baja. Intentá asignar **EXPO-002**: ya está prestado. Intentá aprobar **EXPO-014** sin reparar su condición: está NO_APTO. La API debe rechazar el cambio y conservar el estado anterior.
 
 Frase útil: “Las validaciones viven en el backend. Aunque otra pantalla o cliente llame a la API, se siguen aplicando las mismas reglas y restricciones de base de datos”.
 

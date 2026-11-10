@@ -88,17 +88,14 @@ class Command(BaseCommand):
                 numero_socio=f"SOC-{i:03}",
                 documento=f"EXPO-{i:03}",
                 nombre=nombre,
-                contacto=f"lector{i}@example.test",
-                estado="INHABILITADO" if i == 6 else "HABILITADO",
+                contacto=f"socio{i}@example.test",
             )
             for i, nombre in enumerate(
                 [
-                    "Ana Rojas",
-                    "Bruno Medina",
-                    "Carla Suárez",
-                    "Diego Paz",
-                    "Lucía Campos",
-                    "Tomás Vera",
+                    "Torcivia Pedro",
+                    "Maretto Agustin",
+                    "Fanfliet Juan Ignacio",
+                    "Dalmazzo Francisco Gaston",
                 ],
                 1,
             )
@@ -169,7 +166,7 @@ class Command(BaseCommand):
         solicitud(1, 3, norte, central, 25, "PENDIENTE")
         solicitud(3, 3, norte, central, 15, "CANCELADA")
         Reserva.objects.create(
-            socio=socios[4], libro=libros[2], sede_retiro=central, fecha_reserva=fecha(26)
+            socio=socios[3], libro=libros[2], sede_retiro=central, fecha_reserva=fecha(26)
         )
         estado(14, "EN_REVISION", condicion="NO_APTO")
         estado(20, "BAJA")
@@ -216,13 +213,13 @@ class Command(BaseCommand):
             registro_id=1,
             accion="OPERACION",
             usuario="preparacion",
-            descripcion="Carga inicial: 30 obras reales, 90 copias, 3 sedes y 6 socios ficticios. "
+            descripcion="Carga inicial: 30 obras reales, 90 copias, 3 sedes y 4 socios. "
             "La bitácora de ABMC comienza a partir de esta preparación.",
         )
         self.stdout.write(
             self.style.SUCCESS(
                 "Exposición preparada: 30 libros, 90 ejemplares (83 disponibles), "
-                "3 sedes, 6 socios, "
+                "3 sedes, 4 socios, "
                 "7 solicitudes, 3 préstamos, 1 reserva y 3 remitos. Referencia: 01–31/10/2026."
             )
         )

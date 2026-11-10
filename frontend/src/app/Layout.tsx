@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { ChevronDown, LogOut, Menu, Moon, Plus, Sun, SunMoon, UserRound, X } from "lucide-react";
+import { LogOut, Menu, Moon, Plus, Sun, SunMoon, UserRound, X } from "lucide-react";
 import { useLibrary } from "./context";
 import { tasksFor } from "../domain/tasks";
 import { Alert, Button } from "../components/ui";
@@ -81,13 +81,11 @@ export function Layout() {
     useLibrary();
   const [mobile, setMobile] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
-  const [openMod, setOpenMod] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   useEffect(() => {
     setMobile(false);
     setUserMenu(false);
-    setOpenMod(null);
   }, [location.pathname]);
   useEffect(() => {
     if (!userMenu) return;
@@ -138,53 +136,22 @@ export function Layout() {
             <img src="/brand/isotipo-dark.svg" alt="" />
             EntreLibros
           </Link>
-          <nav className="modules hidden lg:flex" aria-label="Módulos" onMouseLeave={() => setOpenMod(null)}>
-            {MODULES.map((m) => {
-              const active = current?.key === m.key;
-              const isOpen = openMod === m.key && m.sections.length > 1;
-              return (
-                <div
-                  key={m.key}
-                  className={`module-wrap ${isOpen ? "open" : ""}`}
-                  onMouseEnter={() => setOpenMod(m.key)}
-                  onKeyDown={(e) => e.key === "Escape" && setOpenMod(null)}
-                >
-                  <Link
-                    to={m.to}
-                    className={`module ${active ? "active" : ""}`}
-                    aria-current={active ? "page" : undefined}
-                    aria-haspopup={m.sections.length > 1 ? "true" : undefined}
-                    aria-expanded={m.sections.length > 1 ? isOpen : undefined}
-                    onFocus={() => setOpenMod(m.key)}
-                  >
-                    {m.label}
-                    {!!pending[m.key] && (
-                      <span className="count" title="Tareas pendientes en tu sede">
-                        {pending[m.key]}
-                      </span>
-                    )}
-                    {m.sections.length > 1 && <ChevronDown size={13} />}
-                  </Link>
-                  {isOpen && (
-                    <div className="dropdown" role="menu" aria-label={m.label}>
-                      {m.sections.map((sec) => (
-                        <NavLink
-                          key={sec.to}
-                          to={sec.to}
-                          end={sec.end}
-                          role="menuitem"
-                          className={({ isActive }) => (isActive ? "active" : "")}
-                          onClick={() => setOpenMod(null)}
-                        >
-                          <b>{sec.label}</b>
-                          {sec.hint && <small>{sec.hint}</small>}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <nav className="modules hidden lg:flex" aria-label="Módulos">
+            {MODULES.map((m) => (
+              <Link
+                key={m.key}
+                to={m.to}
+                className={`module ${current?.key === m.key ? "active" : ""}`}
+                aria-current={current?.key === m.key ? "page" : undefined}
+              >
+                {m.label}
+                {!!pending[m.key] && (
+                  <span className="count" title="Tareas pendientes en tu sede">
+                    {pending[m.key]}
+                  </span>
+                )}
+              </Link>
+            ))}
           </nav>
           <div className="appbar-tools">
             <label className="sede-picker">
@@ -237,12 +204,12 @@ export function Layout() {
         {current && current.sections.length > 0 && (
           <nav className="subnav hidden lg:block" aria-label={`Secciones de ${current.label}`}>
             <div className="subnav-row">
-              <span className="where">{current.label}</span>
               {current.sections.map((s) => (
                 <NavLink
                   key={s.to}
                   to={s.to}
                   end={s.end}
+                  title={s.hint}
                   className={({ isActive }) => `sublink ${isActive ? "active" : ""}`}
                 >
                   {s.label}

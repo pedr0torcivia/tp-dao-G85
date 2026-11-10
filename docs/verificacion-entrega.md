@@ -70,6 +70,6 @@ Quedan la revisión entre integrantes, la publicación y fusión de la rama a `m
 
 ## Escenario final para exposición
 
-Se respaldó la base anterior antes de reemplazar los datos de biblioteca. Las cuentas se conservaron. El escenario final contiene 30 títulos con portadas locales, 90 ejemplares, 3 sedes, 6 socios, 7 solicitudes, 3 préstamos, una reserva y 3 remitos. No se conservan registros generados por las pruebas de navegador. Ms. Marvel fue retirado del catálogo.
+Se respaldó la base anterior antes de reemplazar los datos de biblioteca. Las cuentas se conservaron. El escenario final contiene 30 títulos con portadas locales, 90 ejemplares, 3 sedes, 4 socios, 7 solicitudes, 3 préstamos, una reserva y 3 remitos. No se conservan registros generados por las pruebas de navegador. Ms. Marvel fue retirado del catálogo.
 
 Se verificó el ABMC de un ejemplar desde Chrome y su aparición como ALTA, MODIFICACION y BAJA en RP05, además de su efecto en RP04. Los cinco reportes requieren y aplican rango Desde/Hasta. Se exportaron y revisaron documentos PDF desde la aplicación. La guía PDF contiene siete páginas con pasos, cálculos, criterios y resultados esperados. Los datos y documentos son de demostración; las obras y portadas corresponden a títulos reales.
