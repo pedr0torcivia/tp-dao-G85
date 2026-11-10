@@ -60,4 +60,4 @@ La aplicación y la documentación están preparadas para la revisión del grupo
 
 Los procesos opcionales de la consigna —notificaciones, historial de lecturas, recomendaciones, códigos de barras y tratamiento especial de extravíos o destrucción— no son requisitos pendientes de esta entrega. Se registra la condición física obligatoria en la devolución.
 
-El escenario de exposición contiene 41 obras y 123 copias, con un caso preparado para cada estado de solicitud, reserva, préstamo y remito (ver `catalogo-exposicion.md`). La guía PDF detalla ABMC, casos y cálculos. `apps/common/tests/test_exposicion.py` verifica la bitácora, los límites de fechas, la carga y el efecto de las bajas en los reportes.
+El escenario de exposición contiene 44 obras y 132 copias con portadas locales, con un caso preparado para cada estado de solicitud, reserva, préstamo y remito (ver `catalogo-exposicion.md`). La guía PDF detalla ABMC, casos y cálculos. `apps/common/tests/test_exposicion.py` verifica la bitácora, los límites de fechas, la carga y el efecto de las bajas en los reportes.

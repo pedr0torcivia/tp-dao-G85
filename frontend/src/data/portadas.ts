@@ -41,6 +41,9 @@ const portadas: Record<string, string> = {
   "batman: arkham asylum": "arkham-asylum",
   "bone vol. 1: out from boneville": "bone-vol-1",
   "the complete calvin and hobbes": "calvin-and-hobbes",
+  "invincible compendium one": "invincible-compendium-one",
+  "naruto vol. 1": "naruto-vol-1",
+  "jujutsu kaisen vol. 1": "jujutsu-kaisen-vol-1",
 };
 export function portadaDe(titulo: string): string | undefined {
   const clave = portadas[titulo.trim().toLocaleLowerCase("es")];

@@ -16,8 +16,8 @@ Abrí http://localhost:5173/ y entrá con **biblioteca / demo**. El acceso se va
 
 | Elemento | Preparado para mostrar |
 |---|---|
-| Catálogo | 41 títulos de Star Wars, Marvel, DC, Image, Dark Horse, Vertigo, Kodansha y otros; 123 ejemplares |
-| Disponibilidad | 107 disponibles, 4 prestados, 4 asignados, 1 en tránsito, 2 listos para entrega, 4 en revisión y 1 de baja |
+| Catálogo | 44 títulos de Star Wars, Marvel, DC, Image, Dark Horse, Vertigo, Kodansha, VIZ y otros; 132 ejemplares |
+| Disponibilidad | 116 disponibles, 4 prestados, 4 asignados, 1 en tránsito, 2 listos para entrega, 4 en revisión y 1 de baja |
 | Sedes | Biblioteca Central y Norte activas; Biblioteca Sur de baja |
 | Socios | Torcivia Pedro (moroso: dos préstamos vencidos), Maretto Agustin, Fanfliet Juan Ignacio y Dalmazzo Francisco Gaston |
 | Préstamos | Dos vencidos, dos vigentes y dos devueltos (uno con la copia dañada) |
@@ -44,15 +44,15 @@ ABMC significa alta, baja, modificación y consulta. La baja es lógica: el regi
 
 Entrá a **Ejemplares → Nuevo ejemplar**. Completá Código de inventario **DEFENSA-001**, Libro **Batman: Year One**, Sede propietaria **Biblioteca Central**, Condición física **Apto para préstamo**. Guardá y anotá el número de la ficha. Si ya usaste ese código en un ensayo, elegí DEFENSA-002.
 
-Recargá la página. Mostrá que la copia sigue existiendo: el dato está en PostgreSQL. Abrí **Reportes → Disponibilidad por sede**, con Desde **01/10/2026**, Hasta **el día de la exposición** y sin filtro de sede. En un escenario intacto de octubre, el total sube de **123 a 124** y los disponibles de **107 a 108**. La fila Batman + Central pasa de 2 a 3 copias.
+Recargá la página. Mostrá que la copia sigue existiendo: el dato está en PostgreSQL. Abrí **Reportes → Disponibilidad por sede**, con Desde **01/10/2026**, Hasta **el día de la exposición** y sin filtro de sede. En un escenario intacto de octubre, el total sube de **132 a 133** y los disponibles de **116 a 117**. La fila Batman + Central pasa de 2 a 3 copias.
 
 ## 2 Modificación
 
-Volvé a la ficha nueva y elegí **Editar**. Cambiá la condición a **No apto para préstamo** y guardá. La copia pasa a **EN_REVISION**. El total sigue en 124; los disponibles vuelven a **107**. En RP04, Batman + Central conserva 3 copias y aumenta la cantidad en revisión. Mostrá la ficha y el reporte: son dos vistas del mismo cambio.
+Volvé a la ficha nueva y elegí **Editar**. Cambiá la condición a **No apto para préstamo** y guardá. La copia pasa a **EN_REVISION**. El total sigue en 133; los disponibles vuelven a **116**. En RP04, Batman + Central conserva 3 copias y aumenta la cantidad en revisión. Mostrá la ficha y el reporte: son dos vistas del mismo cambio.
 
 ## 3 Baja
 
-En esa ficha, pulsá **Dar de baja** y confirmá. La copia queda **BAJA**. No desaparece de la consulta ni del total: eso es deliberado. RP04 sigue mostrando **124 copias, 107 disponibles**, pero cambia la distribución de estados: una copia sale de revisión y entra a BAJA. No prometas que todo indicador debe cambiar: lo que cambia aquí es el estado, no la existencia.
+En esa ficha, pulsá **Dar de baja** y confirmá. La copia queda **BAJA**. No desaparece de la consulta ni del total: eso es deliberado. RP04 sigue mostrando **133 copias, 116 disponibles**, pero cambia la distribución de estados: una copia sale de revisión y entra a BAJA. No prometas que todo indicador debe cambiar: lo que cambia aquí es el estado, no la existencia.
 
 ## 4 Comprobación documental
 
@@ -62,7 +62,7 @@ Buscá la entidad **ejemplares** y el mismo número de ficha. Aparecerán **ALTA
 
 Elegí **Imprimir / Guardar PDF**, guardá el documento y abrilo por pantalla. También podés usar **Exportar CSV**. Explicá: “Este reporte comprueba las operaciones realizadas; no es un listado sin relación con el ABMC”.
 
-Los números 123/107 son la base de referencia. Si ya hiciste préstamos u otros cambios, compará contra el valor previo de tu ensayo y comprobá las mismas diferencias: +1 copia, +1 disponible, luego −1 disponible y finalmente cambio a BAJA.
+Los números 132/116 son la base de referencia. Si ya hiciste préstamos u otros cambios, compará contra el valor previo de tu ensayo y comprobá las mismas diferencias: +1 copia, +1 disponible, luego −1 disponible y finalmente cambio a BAJA.
 
 <!-- page -->
 
@@ -165,7 +165,7 @@ Todos los reportes piden **Desde y Hasta**, inclusive. La pantalla envía estos 
 
 **Cómo se realiza:** filtra Ejemplar por **fecha de alta** entre Desde y Hasta y lo relaciona con Libro y Sede. Agrupa por libro y propietaria; cuenta total, disponibles y estados. Disponible exige estado DISPONIBLE, condición APTO, ubicación en su propietaria y sede activa. Proporción = disponibles / total × 100, redondeada para mostrarla.
 
-**Qué muestra:** en el escenario inicial, las altas del 01/10/2026 reúnen **123 copias y 107 disponibles**. Si usás Desde 02/10 y Hasta 31/10, no aparecen: no hubo altas en ese período.
+**Qué muestra:** en el escenario inicial, las altas del 01/10/2026 reúnen **132 copias y 116 disponibles**. Si usás Desde 02/10 y Hasta 31/10, no aparecen: no hubo altas en ese período.
 
 **Advertencia que debés explicar:** el rango selecciona las copias ingresadas; su estado es **actual**. No es una reconstrucción del stock en una fecha pasada. Por eso una baja realizada hoy afecta la disponibilidad de una copia ingresada en octubre. La fecha exacta de ese cambio se prueba en RP05.
 

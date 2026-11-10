@@ -395,9 +395,9 @@
     "autor": "Jeff Smith",
     "editorial": "Graphix",
     "edicion": "Edición recopilatoria en inglés",
-    "isbn": "9780439706407",
-    "portada_isbn": "9780439706407",
-    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9780439706407"
+    "isbn": "9780439706230",
+    "portada_isbn": "9780439706230",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9780439706230"
   },
   {
     "slug": "calvin-and-hobbes",
@@ -408,5 +408,35 @@
     "isbn": "9780740748479",
     "portada_isbn": "9780740748479",
     "fuente": "https://www.penguinrandomhouse.com/search/site?q=9780740748479"
+  },
+  {
+    "slug": "invincible-compendium-one",
+    "titulo": "Invincible Compendium One",
+    "autor": "Robert Kirkman; Cory Walker; Ryan Ottley",
+    "editorial": "Image Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781607064114",
+    "portada_isbn": "9781607064114",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781607064114"
+  },
+  {
+    "slug": "naruto-vol-1",
+    "titulo": "Naruto Vol. 1",
+    "autor": "Masashi Kishimoto",
+    "editorial": "VIZ Media",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781569319000",
+    "portada_isbn": "9781569319000",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781569319000"
+  },
+  {
+    "slug": "jujutsu-kaisen-vol-1",
+    "titulo": "Jujutsu Kaisen Vol. 1",
+    "autor": "Gege Akutami",
+    "editorial": "VIZ Media",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781974710027",
+    "portada_isbn": "9781974710027",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781974710027"
   }
 ]

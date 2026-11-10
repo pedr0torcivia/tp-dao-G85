@@ -103,9 +103,9 @@ class ExposicionTest(APITestCase):
 
     def test_escenario_y_resultados_independientes(self):
         self.preparar()
-        self.assertEqual(Libro.objects.count(), 41)
-        self.assertEqual(Ejemplar.objects.count(), 123)
-        self.assertEqual(Ejemplar.objects.filter(estado="DISPONIBLE").count(), 107)
+        self.assertEqual(Libro.objects.count(), 44)
+        self.assertEqual(Ejemplar.objects.count(), 132)
+        self.assertEqual(Ejemplar.objects.filter(estado="DISPONIBLE").count(), 116)
         self.assertEqual(
             len(
                 obtener_prestamos_vencidos(desde=date(2026, 10, 1), fecha_corte=date(2026, 10, 31))
@@ -121,7 +121,7 @@ class ExposicionTest(APITestCase):
         )
         self.assertEqual([len(g["prestamos"]) for g in recientes], [1])
         datos = disponibilidad_catalogo(desde=date(2026, 10, 1), hasta=date(2026, 10, 31))
-        self.assertEqual(datos["resumen"], "107 de 123 ejemplares disponibles")
+        self.assertEqual(datos["resumen"], "116 de 132 ejemplares disponibles")
         self.assertEqual(
             disponibilidad_catalogo(desde=date(2026, 9, 1), hasta=date(2026, 9, 30))["filas"], []
         )
@@ -132,9 +132,9 @@ class ExposicionTest(APITestCase):
         )
         self.preparar()
         call_command("cargar_demo", stdout=StringIO())
-        self.assertEqual(Libro.objects.count(), 41)
+        self.assertEqual(Libro.objects.count(), 44)
         self.preparar()
-        self.assertEqual(Ejemplar.objects.count(), 123)
+        self.assertEqual(Ejemplar.objects.count(), 132)
         self.assertEqual(Operacion.objects.count(), 1)
         user.refresh_from_db()
         self.assertTrue(user.check_password("Clave-propia-85"))
@@ -147,7 +147,7 @@ class ExposicionTest(APITestCase):
             self.client.post(f"/api/ejemplares/{copia.pk}/dar-de-baja/").status_code, 200
         )
         datos = self.client.get("/api/reportes/disponibilidad/", rango).data
-        self.assertEqual(datos["resumen"], "106 de 123 ejemplares disponibles")
+        self.assertEqual(datos["resumen"], "115 de 132 ejemplares disponibles")
         fila = next(
             f
             for f in datos["filas"]

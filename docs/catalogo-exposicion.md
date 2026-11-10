@@ -1,6 +1,6 @@
 # Catálogo de la exposición
 
-El escenario contiene 41 obras reales: novelas de Star Wars y cómics y novelas gráficas de Marvel, DC, Image, Dark Horse, Vertigo, Kodansha, Fantagraphics y Pantheon, incluido El Eternauta. Los títulos conservan sus nombres en inglés. Los socios, sedes, copias y movimientos son ficticios para la defensa.
+El escenario contiene 44 obras reales: novelas de Star Wars y cómics y novelas gráficas de Marvel, DC, Image, Dark Horse, Vertigo, Kodansha, VIZ Media, Fantagraphics y Pantheon, incluido El Eternauta. Los títulos conservan sus nombres en inglés. Los socios, sedes, copias y movimientos son ficticios para la defensa.
 
 Las portadas se almacenan localmente para funcionar sin conexión a sitios externos durante la exposición. Identifican la obra y pueden corresponder a otra reimpresión; los ISBN del catálogo solo se informan para ediciones verificadas. Fuentes: catálogos editoriales y distribuidor Penguin Random House, y DC.
 
@@ -45,10 +45,13 @@ Las portadas se almacenan localmente para funcionar sin conexión a sitios exter
 | The Eternaut | Héctor Germán Oesterheld; Francisco Solano López | Fantagraphics · ISBN 9781606998502 |
 | Y: The Last Man Vol. 1: Unmanned | Brian K. Vaughan; Pia Guerra | Vertigo · ISBN 9781563899805 |
 | Batman: Arkham Asylum | Grant Morrison; Dave McKean | DC Comics · ISBN 9781401204259 |
-| Bone Vol. 1: Out from Boneville | Jeff Smith | Graphix · ISBN 9780439706407 |
+| Bone Vol. 1: Out from Boneville | Jeff Smith | Graphix · ISBN 9780439706230 |
 | The Complete Calvin and Hobbes | Bill Watterson | Andrews McMeel · ISBN 9780740748479 |
+| Invincible Compendium One | Robert Kirkman; Cory Walker; Ryan Ottley | Image Comics · ISBN 9781607064114 |
+| Naruto Vol. 1 | Masashi Kishimoto | VIZ Media · ISBN 9781569319000 |
+| Jujutsu Kaisen Vol. 1 | Gege Akutami | VIZ Media · ISBN 9781974710027 |
 
-Cada título tiene tres copias: dos de Central y una de Norte. Los códigos **EXPO-001 a EXPO-123** son inventarios ficticios, no ISBN. Las altas del escenario están fechadas el **01/10/2026**.
+Cada título tiene tres copias: dos de Central y una de Norte. Los códigos **EXPO-001 a EXPO-132** son inventarios ficticios, no ISBN. Las altas del escenario están fechadas el **01/10/2026**.
 
 ## Casos preparados
 
@@ -67,7 +70,7 @@ Cada título tiene tres copias: dos de Central y una de Norte. Los códigos **EX
 
 ## Casos para probar cada funcionalidad
 
-Los cómics 31 a 41 se generan con los mismos servicios que usa la aplicación, con fecha del día en que se prepara el escenario. Así cada estado de la consigna tiene un ejemplo listo para abrir.
+Invincible, Naruto y Jujutsu Kaisen (42 a 44) quedan disponibles para préstamos y reservas nuevos. Los cómics 31 a 41 se generan con los mismos servicios que usa la aplicación, con fecha del día en que se prepara el escenario. Así cada estado de la consigna tiene un ejemplo listo para abrir.
 
 | Caso | Dónde verlo | Qué permite probar |
 |---|---|---|
@@ -91,6 +94,6 @@ Los cómics 31 a 41 se generan con los mismos servicios que usa la aplicación, 
 
 `AAAA` es el año en curso: la numeración automática de remitos es correlativa por año.
 
-Con 01/10/2026–31/10/2026: RP01 dos vencidos (Skywalker Strikes en Central, 19 días; Y: The Last Man en Norte, 7 días); RP02 cuatro pedidos válidos; RP03 tres despachos y dos recepciones, promedio de dos días por trayecto recibido; RP04 **107 de 123** disponibles. RP05 comienza con el evento de preparación en su fecha real y registra las escrituras posteriores de la API.
+Con 01/10/2026–31/10/2026: RP01 dos vencidos (Skywalker Strikes en Central, 19 días; Y: The Last Man en Norte, 7 días); RP02 cuatro pedidos válidos; RP03 tres despachos y dos recepciones, promedio de dos días por trayecto recibido; RP04 **116 de 132** disponibles. RP05 comienza con el evento de preparación en su fecha real y registra las escrituras posteriores de la API.
 
-Las imágenes de las portadas pertenecen a sus editoriales y autores. Las fuentes de descarga se identifican por portada_isbn en backend/apps/common/data/catalogo_exposicion.json, mediante el servicio público images.penguinrandomhouse.com/cover/, excepto Superman Vol. 1, obtenido de la ficha oficial de DC. Los cómics agregados (31 a 41) muestran el ícono de libro hasta que se cargue su portada desde la ficha del libro o se agregue la imagen en frontend/public/assets/portadas/exposicion con el nombre de su slug.
+Las imágenes de las portadas pertenecen a sus editoriales y autores. Se descargaron del servicio público images.penguinrandomhouse.com/cover/ según `portada_isbn` en backend/apps/common/data/catalogo_exposicion.json, excepto Superman Vol. 1, obtenido de la ficha oficial de DC. La edición de The Eternaut es apaisada: en las listas se recorta al formato vertical.
