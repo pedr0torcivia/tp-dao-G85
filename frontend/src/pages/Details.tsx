@@ -83,7 +83,7 @@ const solicitudHint: Record<string, string> = {
 
 function Facts({ items }: { items: [string, ReactNode][] }) {
   return (
-    <dl className="facts">
+    <dl className="facts facts-panel flex-1">
       {items.map(([k, v]) => (
         <div key={k}>
           <dt>{k}</dt>
@@ -175,7 +175,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
           <span className="arrow">para</span>
           {socioName(s.socio_id, db!)}
         </p>
-        <section className="mb-6">
+        <section className="stepper-panel">
           {cerrada ? (
             <Alert tone="neutral">{solicitudHint[s.estado]}</Alert>
           ) : (
@@ -280,7 +280,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
           <span className="arrow">——→</span>
           {sedeName(r.sede_destino_id, db!)}
         </p>
-        <section className="mb-6">
+        <section className="stepper-panel">
           {r.estado === "CANCELADO" ? (
             <Alert tone="neutral">Este envío fue cancelado antes de salir.</Alert>
           ) : (
@@ -458,7 +458,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     );
     body = (
       <>
-        <section className="mb-6">
+        <section className="stepper-panel">
           {["CANCELADA", "EXPIRADA"].includes(r.estado) ? (
             <Alert tone="neutral">La reserva está {statusLabels[r.estado].toLowerCase()}.</Alert>
           ) : (
@@ -534,7 +534,7 @@ export function EntityDetail({ resource }: { resource: Resource }) {
     body = (
       <>
         <div className="detail-grid">
-          <section className="flex flex-col gap-6 sm:flex-row">
+          <section className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <Cover id={e.libro_id} title={bookName(e.libro_id, db!)} large />
             <Facts
               items={[
@@ -760,7 +760,7 @@ function BookDetail({ db, id }: { db: Database; id: number }) {
   return (
     <>
       <div className="detail-grid">
-        <section className="flex flex-col gap-6 sm:flex-row">
+        <section className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <Cover id={id} title={b.titulo} large />
           <Facts
             items={[
@@ -773,7 +773,7 @@ function BookDetail({ db, id }: { db: Database; id: number }) {
             ]}
           />
         </section>
-        <section>
+        <section className="panel card-pad">
           <h3 className="label mb-2">Disponibilidad por sede</h3>
           <div className="sede-avail">
             {porSede.map(({ sede, total, disponibles }) => (

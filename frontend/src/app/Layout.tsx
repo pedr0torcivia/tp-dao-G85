@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { LogOut, Menu, Moon, Plus, Sun, SunMoon, UserRound, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Moon, Plus, Sun, SunMoon, UserRound, X } from "lucide-react";
 import { useLibrary } from "./context";
 import { tasksFor } from "../domain/tasks";
 import { Alert, Button } from "../components/ui";
@@ -13,6 +13,7 @@ import { Alert, Button } from "../components/ui";
 interface Section {
   to: string;
   label: string;
+  hint?: string;
   end?: boolean;
 }
 interface Module {
@@ -30,10 +31,10 @@ const MODULES: Module[] = [
     to: "/solicitudes",
     match: ["/solicitudes", "/prestamos", "/reservas"],
     sections: [
-      { to: "/solicitudes", label: "Solicitudes" },
-      { to: "/prestamos", label: "Préstamos", end: true },
-      { to: "/prestamos/devolucion", label: "Devoluciones" },
-      { to: "/reservas", label: "Reservas" },
+      { to: "/solicitudes", label: "Solicitudes", hint: "Pedidos de socios, de la asignación a la entrega" },
+      { to: "/prestamos", label: "Préstamos", hint: "Libros en manos de socios, vencimientos y multas", end: true },
+      { to: "/prestamos/devolucion", label: "Devoluciones", hint: "Recibir un libro y registrar su estado" },
+      { to: "/reservas", label: "Reservas", hint: "Socios esperando una copia libre" },
     ],
   },
   {
@@ -41,7 +42,7 @@ const MODULES: Module[] = [
     label: "Logística",
     to: "/remitos",
     match: ["/remitos"],
-    sections: [{ to: "/remitos", label: "Remitos" }],
+    sections: [{ to: "/remitos", label: "Remitos", hint: "Envíos entre sedes y su trazabilidad" }],
   },
   {
     key: "coleccion",
@@ -49,8 +50,8 @@ const MODULES: Module[] = [
     to: "/catalogo",
     match: ["/catalogo", "/ejemplares"],
     sections: [
-      { to: "/catalogo", label: "Catálogo" },
-      { to: "/ejemplares", label: "Ejemplares" },
+      { to: "/catalogo", label: "Catálogo", hint: "Los títulos de la red y su disponibilidad" },
+      { to: "/ejemplares", label: "Ejemplares", hint: "Cada copia física, dónde está y cómo está" },
     ],
   },
   {
@@ -59,8 +60,8 @@ const MODULES: Module[] = [
     to: "/socios",
     match: ["/socios", "/sedes"],
     sections: [
-      { to: "/socios", label: "Socios" },
-      { to: "/sedes", label: "Sedes" },
+      { to: "/socios", label: "Socios", hint: "Lectores, habilitación e historial" },
+      { to: "/sedes", label: "Sedes", hint: "Bibliotecas de la red, horarios y estado" },
     ],
   },
   {
@@ -69,8 +70,8 @@ const MODULES: Module[] = [
     to: "/reportes",
     match: ["/reportes", "/guia"],
     sections: [
-      { to: "/reportes", label: "Reportes" },
-      { to: "/guia", label: "Cómo funciona" },
+      { to: "/reportes", label: "Reportes", hint: "Siete informes con filtros, PDF y CSV" },
+      { to: "/guia", label: "Cómo funciona", hint: "Circuitos y patrones State / Strategy" },
     ],
   },
 ];
@@ -80,11 +81,13 @@ export function Layout() {
     useLibrary();
   const [mobile, setMobile] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
+  const [openMod, setOpenMod] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   useEffect(() => {
     setMobile(false);
     setUserMenu(false);
+    setOpenMod(null);
   }, [location.pathname]);
   useEffect(() => {
     if (!userMenu) return;
@@ -135,22 +138,53 @@ export function Layout() {
             <img src="/brand/isotipo-dark.svg" alt="" />
             EntreLibros
           </Link>
-          <nav className="modules hidden lg:flex" aria-label="Módulos">
-            {MODULES.map((m) => (
-              <Link
-                key={m.key}
-                to={m.to}
-                className={`module ${current?.key === m.key ? "active" : ""}`}
-                aria-current={current?.key === m.key ? "page" : undefined}
-              >
-                {m.label}
-                {!!pending[m.key] && (
-                  <span className="count" title="Tareas pendientes en tu sede">
-                    {pending[m.key]}
-                  </span>
-                )}
-              </Link>
-            ))}
+          <nav className="modules hidden lg:flex" aria-label="Módulos" onMouseLeave={() => setOpenMod(null)}>
+            {MODULES.map((m) => {
+              const active = current?.key === m.key;
+              const isOpen = openMod === m.key && m.sections.length > 1;
+              return (
+                <div
+                  key={m.key}
+                  className={`module-wrap ${isOpen ? "open" : ""}`}
+                  onMouseEnter={() => setOpenMod(m.key)}
+                  onKeyDown={(e) => e.key === "Escape" && setOpenMod(null)}
+                >
+                  <Link
+                    to={m.to}
+                    className={`module ${active ? "active" : ""}`}
+                    aria-current={active ? "page" : undefined}
+                    aria-haspopup={m.sections.length > 1 ? "true" : undefined}
+                    aria-expanded={m.sections.length > 1 ? isOpen : undefined}
+                    onFocus={() => setOpenMod(m.key)}
+                  >
+                    {m.label}
+                    {!!pending[m.key] && (
+                      <span className="count" title="Tareas pendientes en tu sede">
+                        {pending[m.key]}
+                      </span>
+                    )}
+                    {m.sections.length > 1 && <ChevronDown size={13} />}
+                  </Link>
+                  {isOpen && (
+                    <div className="dropdown" role="menu" aria-label={m.label}>
+                      {m.sections.map((sec) => (
+                        <NavLink
+                          key={sec.to}
+                          to={sec.to}
+                          end={sec.end}
+                          role="menuitem"
+                          className={({ isActive }) => (isActive ? "active" : "")}
+                          onClick={() => setOpenMod(null)}
+                        >
+                          <b>{sec.label}</b>
+                          {sec.hint && <small>{sec.hint}</small>}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
           <div className="appbar-tools">
             <label className="sede-picker">

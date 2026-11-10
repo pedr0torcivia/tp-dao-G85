@@ -45,38 +45,64 @@ const shortDate = (iso: string) =>
     timeZone: "America/Argentina/Buenos_Aires",
   }).format(new Date(iso));
 const LIMIT = 5;
+const toneOfGroup: Record<string, string> = {
+  urgente: "bad",
+  mostrador: "ok",
+  pedidos: "warn",
+  envios: "move",
+  revision: "neutral",
+};
 
-function QueueGroup({ group, onRun }: { group: Group; onRun: (r: Run) => void }) {
+function Lane({ group, onRun }: { group: Group; onRun: (r: Run) => void }) {
   const [all, setAll] = useState(false);
-  if (!group.rows.length) return null;
   const rows = all ? group.rows : group.rows.slice(0, LIMIT);
+  const tone = toneOfGroup[group.key];
   return (
-    <section className={`queue-group ${group.urgent ? "urgent" : ""}`} aria-label={group.title}>
-      <header>
-        <h2>{group.title}</h2>
-        <span className="count">{group.rows.length}</span>
-        <p className="hidden sm:block">{group.hint}</p>
-      </header>
-      {rows.map((r) => (
-        <div key={r.key} className={`queue-row ${r.urgent ? "urgent" : ""}`}>
-          <span className="sig">{r.sig}</span>
-          <div className="what">
-            <Link to={r.to}>{r.title}</Link>
-            <small>{r.detail}</small>
-          </div>
-          {r.custom ??
-            (r.action ? (
-              <Button size="sm" variant={r.urgent ? "primary" : "outline"} onClick={() => onRun(r.action!)}>
-                {r.action.label}
-              </Button>
-            ) : (
-              <span />
-            ))}
+    <section
+      className={`panel spine lane ${group.urgent ? "urgent" : ""}`}
+      style={{ "--tone": `var(--${tone})` } as React.CSSProperties}
+      aria-label={group.title}
+    >
+      <header className="lane-head">
+        <span className="n">{group.rows.length}</span>
+        <div className="min-w-0">
+          <h2>{group.title}</h2>
+          <p>{group.hint}</p>
         </div>
-      ))}
+      </header>
+      {rows.length ? (
+        rows.map((r) => (
+          <div key={r.key} className="lane-row">
+            <div className="min-w-0">
+              <span className="sig">
+                {r.urgent && <span className="tag">{r.sig}</span>}
+                {!r.urgent && r.sig}
+              </span>
+              <Link className="t" to={r.to}>
+                {r.title}
+              </Link>
+              <small>{r.detail}</small>
+            </div>
+            {r.custom ??
+              (r.action ? (
+                <Button
+                  size="sm"
+                  variant={group.urgent || group.key === "mostrador" ? "primary" : "outline"}
+                  onClick={() => onRun(r.action!)}
+                >
+                  {r.action.label}
+                </Button>
+              ) : (
+                <span />
+              ))}
+          </div>
+        ))
+      ) : (
+        <p className="lane-empty">Nada pendiente.</p>
+      )}
       {group.rows.length > LIMIT && (
-        <button type="button" className="queue-more" onClick={() => setAll((v) => !v)}>
-          {all ? "Mostrar menos" : `Ver las ${group.rows.length}`}
+        <button type="button" className="lane-foot" onClick={() => setAll((v) => !v)}>
+          {all ? "Mostrar menos" : `Ver las ${group.rows.length} →`}
         </button>
       )}
     </section>
@@ -116,7 +142,7 @@ export function Home() {
           const s = sol(p.solicitud_id);
           return {
             key: `v${p.id}`,
-            sig: `VENCE −${p.dias_atraso}d`,
+            sig: `+${p.dias_atraso} días`,
             urgent: true,
             title: `${bookName(s.libro_id, db!)} · ${socioName(s.socio_id, db!)}`,
             detail: `${code("PRE", p.id)} · venció el ${shortDate(p.fecha_vencimiento)} · multa ${pesos(p.multa)}`,
@@ -127,6 +153,7 @@ export function Home() {
         ...t.remitosPorRecibir.map((r) => ({
           key: `in${r.id}`,
           sig: r.numero,
+          urgent: true,
           title: `Llega de ${sedeName(r.sede_origen_id, db!)}`,
           detail: `${plural(nDetalles(r.id), "ejemplar", "ejemplares")} en tránsito desde el ${r.fecha_despacho ? shortDate(r.fecha_despacho) : "—"}`,
           to: `/remitos/${r.id}`,
@@ -246,6 +273,11 @@ export function Home() {
             {sedeName(sedeId, db!)} · {hoy}
           </p>
           <h1>Mesa de trabajo</h1>
+          <p className="mt-1 text-[13.5px] text-[var(--ink-soft)]">
+            {total
+              ? `${plural(total, "tarea pendiente", "tareas pendientes")}, ordenadas por prioridad.`
+              : "La sede está al día: no hay tareas pendientes."}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link className="btn btn-primary" to="/solicitudes/nuevo">
@@ -261,19 +293,17 @@ export function Home() {
       </div>
 
       <div className="desk">
-        <div className="min-w-0">
-          <p className="mt-3 text-[13px] text-[var(--ink-soft)]">
-            {total
-              ? `${plural(total, "tarea pendiente", "tareas pendientes")} en esta sede, ordenadas por prioridad.`
-              : "La sede está al día: no hay tareas pendientes."}
-          </p>
-          {groups.map((g) => (
-            <QueueGroup key={g.key} group={g} onRun={setRun} />
-          ))}
+        <div className="desk-main">
+          {groups[0].rows.length > 0 && <Lane group={groups[0]} onRun={setRun} />}
+          <div className="lanes-grid">
+            {groups.slice(1).map((g) => (
+              <Lane key={g.key} group={g} onRun={setRun} />
+            ))}
+          </div>
         </div>
 
         <aside className="side-col">
-          <section className="ledger" aria-label="Estado de la sede">
+          <section className="panel ledger" aria-label="Estado de la sede">
             <h3 className="label">La sede hoy</h3>
             <Link to="/prestamos">
               Préstamos activos <b>{t.prestamosSede.length}</b>
@@ -288,7 +318,7 @@ export function Home() {
               Copias disponibles <b>{disponibles}</b>
             </Link>
           </section>
-          <section className="ledger" aria-label="Próximos vencimientos">
+          <section className="panel ledger" aria-label="Próximos vencimientos">
             <h3 className="label">Próximos vencimientos</h3>
             {proximos.length ? (
               proximos.map((p) => {
@@ -307,7 +337,7 @@ export function Home() {
               <div className="row muted">Sin préstamos por vencer.</div>
             )}
           </section>
-          <p className="text-[12.5px] text-[var(--ink-faint)]">
+          <p className="px-1 text-[12.5px] text-[var(--ink-faint)]">
             ¿Dudas con el circuito?{" "}
             <Link to="/guia" className="text-[var(--green)] underline underline-offset-2">
               Cómo funciona
