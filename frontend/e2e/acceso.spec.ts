@@ -20,9 +20,13 @@ test("protege rutas, rechaza clave incorrecta, restaura sesión y la cierra", as
   await page.getByLabel("Contraseña", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Ingresar", exact: true }).click();
   await expect(page).toHaveURL(/\/catalogo$/);
-  await expect(page.getByRole("button", { name: "Menú de usuario" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Menú de usuario" }),
+  ).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("button", { name: "Menú de usuario" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Menú de usuario" }),
+  ).toBeVisible();
   expect((await page.request.get("/api/libros/")).status()).toBe(200);
   await page.getByRole("button", { name: "Menú de usuario" }).click();
   await page.getByRole("menuitem", { name: "Cerrar sesión" }).click();
@@ -40,14 +44,20 @@ test("una sesión vencida vuelve al acceso sin mostrar datos anteriores", async 
   await page.getByLabel("Contraseña", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Ingresar", exact: true }).click();
   await expect(page).toHaveURL(/\/inicio$/);
+  // La sesión vence recién cuando la mesa terminó de cargar sus datos.
+  await expect(
+    page.getByRole("heading", { name: "Mesa de trabajo", level: 1 }),
+  ).toBeVisible();
   await page.context().clearCookies();
-  await page.getByRole("link", { name: "Informes", exact: true }).click();
-  // Informes ya consulta la API al abrirse: según quién llegue primero, la
-  // sesión vencida redirige antes o después de elegir un reporte.
-  await page
-    .getByRole("link", { name: /Préstamos vencidos/ })
-    .click({ timeout: 3_000 })
-    .catch(() => undefined);
+  // Cualquier consulta posterior detecta el vencimiento: según quién llegue
+  // primero, la redirección ocurre al abrir Informes o al elegir un reporte.
+  const siSigueVisible = (nombre: string | RegExp) =>
+    page
+      .getByRole("link", { name: nombre, exact: typeof nombre === "string" })
+      .click({ timeout: 3_000 })
+      .catch(() => undefined);
+  await siSigueVisible("Informes");
+  await siSigueVisible(/Préstamos vencidos/);
   await expect(page).toHaveURL(/\/acceso$/);
   await expect(
     page.getByRole("heading", { name: "Ingresá a tu biblioteca" }),
