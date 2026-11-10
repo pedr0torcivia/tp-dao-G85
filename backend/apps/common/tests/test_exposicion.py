@@ -103,22 +103,25 @@ class ExposicionTest(APITestCase):
 
     def test_escenario_y_resultados_independientes(self):
         self.preparar()
-        self.assertEqual(Libro.objects.count(), 30)
-        self.assertEqual(Ejemplar.objects.count(), 90)
-        self.assertEqual(Ejemplar.objects.filter(estado="DISPONIBLE").count(), 83)
+        self.assertEqual(Libro.objects.count(), 41)
+        self.assertEqual(Ejemplar.objects.count(), 123)
+        self.assertEqual(Ejemplar.objects.filter(estado="DISPONIBLE").count(), 107)
         self.assertEqual(
             len(
                 obtener_prestamos_vencidos(desde=date(2026, 10, 1), fecha_corte=date(2026, 10, 31))
             ),
-            1,
+            2,
         )
         vencidos = obtener_prestamos_vencidos(fecha_corte=date(2026, 10, 31))
-        self.assertEqual(vencidos[0]["prestamos"][0]["dias_atraso"], 19)
-        self.assertEqual(
-            obtener_prestamos_vencidos(desde=date(2026, 10, 6), fecha_corte=date(2026, 10, 31)), []
+        atrasos = sorted(p["dias_atraso"] for grupo in vencidos for p in grupo["prestamos"])
+        self.assertEqual(atrasos, [7, 19])
+        # Desde el 06/10 queda fuera Skywalker (entregado el 05/10); sólo Y: The Last Man.
+        recientes = obtener_prestamos_vencidos(
+            desde=date(2026, 10, 6), fecha_corte=date(2026, 10, 31)
         )
+        self.assertEqual([len(g["prestamos"]) for g in recientes], [1])
         datos = disponibilidad_catalogo(desde=date(2026, 10, 1), hasta=date(2026, 10, 31))
-        self.assertEqual(datos["resumen"], "83 de 90 ejemplares disponibles")
+        self.assertEqual(datos["resumen"], "107 de 123 ejemplares disponibles")
         self.assertEqual(
             disponibilidad_catalogo(desde=date(2026, 9, 1), hasta=date(2026, 9, 30))["filas"], []
         )
@@ -129,9 +132,9 @@ class ExposicionTest(APITestCase):
         )
         self.preparar()
         call_command("cargar_demo", stdout=StringIO())
-        self.assertEqual(Libro.objects.count(), 30)
+        self.assertEqual(Libro.objects.count(), 41)
         self.preparar()
-        self.assertEqual(Ejemplar.objects.count(), 90)
+        self.assertEqual(Ejemplar.objects.count(), 123)
         self.assertEqual(Operacion.objects.count(), 1)
         user.refresh_from_db()
         self.assertTrue(user.check_password("Clave-propia-85"))
@@ -144,7 +147,7 @@ class ExposicionTest(APITestCase):
             self.client.post(f"/api/ejemplares/{copia.pk}/dar-de-baja/").status_code, 200
         )
         datos = self.client.get("/api/reportes/disponibilidad/", rango).data
-        self.assertEqual(datos["resumen"], "82 de 90 ejemplares disponibles")
+        self.assertEqual(datos["resumen"], "106 de 123 ejemplares disponibles")
         fila = next(
             f
             for f in datos["filas"]

@@ -42,7 +42,12 @@ test("una sesión vencida vuelve al acceso sin mostrar datos anteriores", async 
   await expect(page).toHaveURL(/\/inicio$/);
   await page.context().clearCookies();
   await page.getByRole("link", { name: "Informes", exact: true }).click();
-  await page.getByRole("link", { name: /Préstamos vencidos/ }).click();
+  // Informes ya consulta la API al abrirse: según quién llegue primero, la
+  // sesión vencida redirige antes o después de elegir un reporte.
+  await page
+    .getByRole("link", { name: /Préstamos vencidos/ })
+    .click({ timeout: 3_000 })
+    .catch(() => undefined);
   await expect(page).toHaveURL(/\/acceso$/);
   await expect(
     page.getByRole("heading", { name: "Ingresá a tu biblioteca" }),

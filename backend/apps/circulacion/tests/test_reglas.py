@@ -16,6 +16,7 @@ from apps.circulacion.models import EstadoSolicitud, TipoSolicitud
 from apps.circulacion.services import (
     asignar_ejemplar,
     cancelar_solicitud,
+    crear_reserva,
     crear_solicitud,
     entregar_solicitud,
     preparar_entrega,
@@ -52,6 +53,31 @@ class ReglasCirculacionTest(TestCase):
         self.socio.save(update_fields=["estado"])
         with self.assertRaises(SocioInhabilitadoError):
             self.crear_local()
+
+    def dejar_prestamo_vencido(self):
+        solicitud = preparar_entrega(
+            solicitud=asignar_ejemplar(solicitud=self.crear_local(), ejemplar=self.ejemplar)
+        )
+        ahora = timezone.now()
+        return entregar_solicitud(
+            solicitud=solicitud,
+            fecha_entrega=ahora - timedelta(days=20),
+            fecha_vencimiento=ahora - timedelta(days=5),
+        )
+
+    def test_socio_con_prestamo_vencido_no_inicia_solicitud_ni_reserva(self):
+        self.dejar_prestamo_vencido()
+        with self.assertRaisesMessage(SocioInhabilitadoError, "un préstamo vencido"):
+            self.crear_local()
+        with self.assertRaises(SocioInhabilitadoError):
+            crear_reserva(socio=self.socio, libro=self.libro, sede_retiro=self.sede)
+
+    def test_no_asigna_a_socio_que_quedo_moroso_despues_de_pedir(self):
+        pendiente = self.crear_local()
+        otra_copia = crear_ejemplar(libro=self.libro, sede=self.sede, codigo="OTRA-1")
+        self.dejar_prestamo_vencido()
+        with self.assertRaises(SocioInhabilitadoError):
+            asignar_ejemplar(solicitud=pendiente, ejemplar=otra_copia)
 
     def test_no_asigna_ejemplar_no_disponible(self):
         solicitud = self.crear_local()

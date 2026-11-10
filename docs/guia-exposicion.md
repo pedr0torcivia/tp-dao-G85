@@ -16,12 +16,13 @@ Abrí http://localhost:5173/ y entrá con **biblioteca / demo**. El acceso se va
 
 | Elemento | Preparado para mostrar |
 |---|---|
-| Catálogo | 30 títulos de Star Wars, Marvel y DC; 90 ejemplares |
-| Disponibilidad | 83 disponibles, 2 prestados, 1 en tránsito, 1 listo para entrega, 2 en revisión y 1 de baja |
+| Catálogo | 41 títulos de Star Wars, Marvel, DC, Image, Dark Horse, Vertigo, Kodansha y otros; 123 ejemplares |
+| Disponibilidad | 107 disponibles, 4 prestados, 4 asignados, 1 en tránsito, 2 listos para entrega, 4 en revisión y 1 de baja |
 | Sedes | Biblioteca Central y Norte activas; Biblioteca Sur de baja |
-| Socios | Ana, Bruno, Carla, Diego y Lucía habilitados; Tomás inhabilitado |
-| Préstamos | Uno vencido, uno vigente y uno devuelto |
-| Logística | ENV-2026-001 en tránsito; ENV-2026-002 y 003 recibidos |
+| Socios | Torcivia Pedro (moroso: dos préstamos vencidos), Maretto Agustin, Fanfliet Juan Ignacio y Dalmazzo Francisco Gaston |
+| Préstamos | Dos vencidos, dos vigentes y dos devueltos (uno con la copia dañada) |
+| Logística | Un remito en cada estado: en preparación, empaquetado, en tránsito, recibido, recibido con incidencias y cancelado |
+| Casos por funcionalidad | Ver la tabla de [Catálogo y casos](catalogo-exposicion.md) |
 
 ## Orden recomendado para una exposición de 15 minutos
 
@@ -43,15 +44,15 @@ ABMC significa alta, baja, modificación y consulta. La baja es lógica: el regi
 
 Entrá a **Ejemplares → Nuevo ejemplar**. Completá Código de inventario **DEFENSA-001**, Libro **Batman: Year One**, Sede propietaria **Biblioteca Central**, Condición física **Apto para préstamo**. Guardá y anotá el número de la ficha. Si ya usaste ese código en un ensayo, elegí DEFENSA-002.
 
-Recargá la página. Mostrá que la copia sigue existiendo: el dato está en PostgreSQL. Abrí **Reportes → Disponibilidad por sede**, con Desde **01/10/2026**, Hasta **el día de la exposición** y sin filtro de sede. En un escenario intacto de octubre, el total sube de **90 a 91** y los disponibles de **83 a 84**. La fila Batman + Central pasa de 2 a 3 copias.
+Recargá la página. Mostrá que la copia sigue existiendo: el dato está en PostgreSQL. Abrí **Reportes → Disponibilidad por sede**, con Desde **01/10/2026**, Hasta **el día de la exposición** y sin filtro de sede. En un escenario intacto de octubre, el total sube de **123 a 124** y los disponibles de **107 a 108**. La fila Batman + Central pasa de 2 a 3 copias.
 
 ## 2 Modificación
 
-Volvé a la ficha nueva y elegí **Editar**. Cambiá la condición a **No apto para préstamo** y guardá. La copia pasa a **EN_REVISION**. El total sigue en 91; los disponibles vuelven a **83**. En RP04, Batman + Central conserva 3 copias y aumenta la cantidad en revisión. Mostrá la ficha y el reporte: son dos vistas del mismo cambio.
+Volvé a la ficha nueva y elegí **Editar**. Cambiá la condición a **No apto para préstamo** y guardá. La copia pasa a **EN_REVISION**. El total sigue en 124; los disponibles vuelven a **107**. En RP04, Batman + Central conserva 3 copias y aumenta la cantidad en revisión. Mostrá la ficha y el reporte: son dos vistas del mismo cambio.
 
 ## 3 Baja
 
-En esa ficha, pulsá **Dar de baja** y confirmá. La copia queda **BAJA**. No desaparece de la consulta ni del total: eso es deliberado. RP04 sigue mostrando **91 copias, 83 disponibles**, pero cambia la distribución de estados: una copia sale de revisión y entra a BAJA. No prometas que todo indicador debe cambiar: lo que cambia aquí es el estado, no la existencia.
+En esa ficha, pulsá **Dar de baja** y confirmá. La copia queda **BAJA**. No desaparece de la consulta ni del total: eso es deliberado. RP04 sigue mostrando **124 copias, 107 disponibles**, pero cambia la distribución de estados: una copia sale de revisión y entra a BAJA. No prometas que todo indicador debe cambiar: lo que cambia aquí es el estado, no la existencia.
 
 ## 4 Comprobación documental
 
@@ -61,7 +62,7 @@ Buscá la entidad **ejemplares** y el mismo número de ficha. Aparecerán **ALTA
 
 Elegí **Imprimir / Guardar PDF**, guardá el documento y abrilo por pantalla. También podés usar **Exportar CSV**. Explicá: “Este reporte comprueba las operaciones realizadas; no es un listado sin relación con el ABMC”.
 
-Los números 90/83 son la base de referencia. Si ya hiciste préstamos u otros cambios, compará contra el valor previo de tu ensayo y comprobá las mismas diferencias: +1 copia, +1 disponible, luego −1 disponible y finalmente cambio a BAJA.
+Los números 123/107 son la base de referencia. Si ya hiciste préstamos u otros cambios, compará contra el valor previo de tu ensayo y comprobá las mismas diferencias: +1 copia, +1 disponible, luego −1 disponible y finalmente cambio a BAJA.
 
 <!-- page -->
 
@@ -96,7 +97,7 @@ Frase útil: “Las validaciones viven en el backend. Aunque otra pantalla o cli
 
 ## Traslado completo entre sedes
 
-Usá la solicitud pendiente de **Carla Suárez por Skywalker Strikes**, origen Norte y retiro Central. Asigná **EXPO-003**, que pertenece a Norte. Desde la solicitud, prepará un remito con número nuevo, por ejemplo **DEF-ENV-001**, y agregá esa copia.
+Usá la solicitud pendiente de **Fanfliet Juan Ignacio por Skywalker Strikes**, origen Norte y retiro Central. Asigná **EXPO-003**, que pertenece a Norte. Desde la solicitud, prepará un remito con número nuevo, por ejemplo **DEF-ENV-001**, y agregá esa copia.
 
 Seguí **Empaquetar → Despachar → Recibir envío**. En la recepción marcá el resultado de cada copia (llegó bien, dañada o no llegó) e indicá responsable. La solicitud queda lista para entrega en Central. Recién al registrar la entrega al lector nace el préstamo.
 
@@ -108,7 +109,7 @@ Para una exposición más breve, abrí **ENV-2026-002**, ya recibido, y **ENV-20
 
 ## Reserva preparada
 
-Abrí la reserva pendiente de **Lucía Campos por Civil War** con retiro en Central. Elegí **Asignar ejemplar**, usá **EXPO-007** y una fecha límite futura. La asignación genera una solicitud local lista para entrega. Registrá la entrega desde esa solicitud y volvé a la reserva: debe estar **CUMPLIDA**.
+Abrí la reserva pendiente de **Dalmazzo Francisco Gaston por Civil War** con retiro en Central. Elegí **Asignar ejemplar**, usá **EXPO-007** y una fecha límite futura. La asignación genera una solicitud local lista para entrega. Registrá la entrega desde esa solicitud y volvé a la reserva: debe estar **CUMPLIDA**.
 
 También se puede cancelar una reserva antes de cumplirla. Cancelar o expirar libera la copia y cancela su solicitud pendiente. La expiración se procesa con el comando expirar_reservas; no se promete prioridad automática ni notificaciones.
 
@@ -130,9 +131,9 @@ Todos los reportes piden **Desde y Hasta**, inclusive. La pantalla envía estos 
 
 **Cómo se realiza:** se consultan Prestamo y sus relaciones con SolicitudPrestamo, Socio, Libro y Sede. Se seleccionan entregas entre Desde y Hasta, vencidas antes de Hasta y todavía abiertas al cierre de Hasta. Una devolución posterior al corte no elimina un atraso que existía ese día.
 
-**Qué muestra:** detalle del préstamo, socio/libro, sede de entrega y días de atraso. Atraso = fecha Hasta − fecha de vencimiento, en días calendario. Con **01/10/2026–31/10/2026**, el escenario inicial muestra **1 préstamo**, de Ana por Skywalker Strikes, vencido el 12/10: **19 días** de atraso. Con Hasta 01/11 son 20; no es un error.
+**Qué muestra:** detalle del préstamo, socio/libro, sede de entrega y días de atraso. Atraso = fecha Hasta − fecha de vencimiento, en días calendario. Con **01/10/2026–31/10/2026**, el escenario inicial muestra **2 préstamos** de Torcivia Pedro: Skywalker Strikes en Central, vencido el 12/10 con **19 días** de atraso, y Y: The Last Man en Norte, vencido el 24/10 con **7 días**. Cada día suma $ 150 de multa. Con Hasta 01/11 son 20; no es un error.
 
-**Comprobación:** registrar su devolución después del corte mantiene el informe histórico. Para verificar el estado luego de devolver, usar un Hasta que incluya esa devolución. Mover Desde al 06/10 excluye ese préstamo porque se entregó el 05/10.
+**Comprobación:** registrar su devolución después del corte mantiene el informe histórico. Para verificar el estado luego de devolver, usar un Hasta que incluya esa devolución. Mover Desde al 06/10 excluye Skywalker Strikes porque se entregó el 05/10; queda sólo Y: The Last Man.
 
 ## RP02 Demanda interbibliotecaria
 
@@ -164,7 +165,7 @@ Todos los reportes piden **Desde y Hasta**, inclusive. La pantalla envía estos 
 
 **Cómo se realiza:** filtra Ejemplar por **fecha de alta** entre Desde y Hasta y lo relaciona con Libro y Sede. Agrupa por libro y propietaria; cuenta total, disponibles y estados. Disponible exige estado DISPONIBLE, condición APTO, ubicación en su propietaria y sede activa. Proporción = disponibles / total × 100, redondeada para mostrarla.
 
-**Qué muestra:** en el escenario inicial, las altas del 01/10/2026 reúnen **90 copias y 83 disponibles**. Si usás Desde 02/10 y Hasta 31/10, no aparecen: no hubo altas en ese período.
+**Qué muestra:** en el escenario inicial, las altas del 01/10/2026 reúnen **123 copias y 107 disponibles**. Si usás Desde 02/10 y Hasta 31/10, no aparecen: no hubo altas en ese período.
 
 **Advertencia que debés explicar:** el rango selecciona las copias ingresadas; su estado es **actual**. No es una reconstrucción del stock en una fecha pasada. Por eso una baja realizada hoy afecta la disponibilidad de una copia ingresada en octubre. La fecha exacta de ese cambio se prueba en RP05.
 
@@ -202,7 +203,7 @@ Para la defensa priorizá un documento generado después de tu propia operación
 
 **¿Se puede prestar dos veces la misma copia al mismo tiempo?** Los servicios validan estado y toman bloqueos de fila dentro de una transacción. Hay pruebas específicas con PostgreSQL para esa concurrencia.
 
-**¿Cuáles son las limitaciones?** Los socios no tienen cuentas públicas; el personal opera toda la red. No hay multas, notificaciones, prioridad automática de reservas ni tratamiento especial de extravío/destrucción. Sí se registra condición física en la devolución. RP04 no reconstruye estados históricos.
+**¿Cuáles son las limitaciones?** Los socios no tienen cuentas públicas; el personal opera toda la red. No hay notificaciones ni recomendaciones. Sí hay multas por atraso, prioridad de la reserva más antigua sobre la copia, condición física en la devolución y revisión de la recepción (conforme, dañado o extraviado). RP04 no reconstruye estados históricos.
 
 ## Antes de exponer
 

@@ -298,5 +298,115 @@
     "isbn": null,
     "portada_isbn": "9781302956387",
     "fuente": "https://prhcomics.com/book/?isbn=9781302956387"
+  },
+  {
+    "slug": "saga-vol-1",
+    "titulo": "Saga Vol. 1",
+    "autor": "Brian K. Vaughan; Fiona Staples",
+    "editorial": "Image Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781607066019",
+    "portada_isbn": "9781607066019",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781607066019"
+  },
+  {
+    "slug": "persepolis",
+    "titulo": "Persepolis: The Story of a Childhood",
+    "autor": "Marjane Satrapi",
+    "editorial": "Pantheon",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9780375714573",
+    "portada_isbn": "9780375714573",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9780375714573"
+  },
+  {
+    "slug": "walking-dead-vol-1",
+    "titulo": "The Walking Dead Vol. 1: Days Gone Bye",
+    "autor": "Robert Kirkman; Tony Moore",
+    "editorial": "Image Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781582406725",
+    "portada_isbn": "9781582406725",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781582406725"
+  },
+  {
+    "slug": "hellboy-vol-1",
+    "titulo": "Hellboy Vol. 1: Seed of Destruction",
+    "autor": "Mike Mignola; John Byrne",
+    "editorial": "Dark Horse",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781593070946",
+    "portada_isbn": "9781593070946",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781593070946"
+  },
+  {
+    "slug": "sin-city-vol-1",
+    "titulo": "Sin City Vol. 1: The Hard Goodbye",
+    "autor": "Frank Miller",
+    "editorial": "Dark Horse",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781593072933",
+    "portada_isbn": "9781593072933",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781593072933"
+  },
+  {
+    "slug": "akira-vol-1",
+    "titulo": "Akira Vol. 1",
+    "autor": "Katsuhiro Otomo",
+    "editorial": "Kodansha Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781935429005",
+    "portada_isbn": "9781935429005",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781935429005"
+  },
+  {
+    "slug": "the-eternaut",
+    "titulo": "The Eternaut",
+    "autor": "Héctor Germán Oesterheld; Francisco Solano López",
+    "editorial": "Fantagraphics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781606998502",
+    "portada_isbn": "9781606998502",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781606998502"
+  },
+  {
+    "slug": "y-the-last-man-vol-1",
+    "titulo": "Y: The Last Man Vol. 1: Unmanned",
+    "autor": "Brian K. Vaughan; Pia Guerra",
+    "editorial": "Vertigo",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781563899805",
+    "portada_isbn": "9781563899805",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781563899805"
+  },
+  {
+    "slug": "arkham-asylum",
+    "titulo": "Batman: Arkham Asylum",
+    "autor": "Grant Morrison; Dave McKean",
+    "editorial": "DC Comics",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9781401204259",
+    "portada_isbn": "9781401204259",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9781401204259"
+  },
+  {
+    "slug": "bone-vol-1",
+    "titulo": "Bone Vol. 1: Out from Boneville",
+    "autor": "Jeff Smith",
+    "editorial": "Graphix",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9780439706407",
+    "portada_isbn": "9780439706407",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9780439706407"
+  },
+  {
+    "slug": "calvin-and-hobbes",
+    "titulo": "The Complete Calvin and Hobbes",
+    "autor": "Bill Watterson",
+    "editorial": "Andrews McMeel",
+    "edicion": "Edición recopilatoria en inglés",
+    "isbn": "9780740748479",
+    "portada_isbn": "9780740748479",
+    "fuente": "https://www.penguinrandomhouse.com/search/site?q=9780740748479"
   }
 ]

@@ -3,6 +3,7 @@ from unittest import skipIf
 
 from django.db import connection
 from django.test import TestCase, TransactionTestCase
+from django.utils import timezone
 
 from apps.catalogo.models import CondicionFisica, Ejemplar, EstadoEjemplar, Libro
 from apps.circulacion.models import (
@@ -101,6 +102,17 @@ class CrearRemitoTest(BaseLogisticaTest):
         self.assertEqual(evento.estado_nuevo, EstadoRemito.EN_PREPARACION)
         self.assertIsNone(evento.estado_anterior)
         self.assertEqual(evento.observacion, "Remito registrado.")
+
+    def test_numeracion_automatica_correlativa_sin_depender_del_id(self):
+        anio = timezone.localdate().year
+        for _ in range(3):
+            borrado = crear_remito(sede_origen_id=self.central.id, sede_destino_id=self.norte.id)
+            EventoRemito.objects.filter(remito=borrado).delete()
+            borrado.delete()
+        remito = crear_remito(sede_origen_id=self.central.id, sede_destino_id=self.norte.id)
+        self.assertEqual(remito.numero, f"REM-{anio}-00001")
+        siguiente = crear_remito(sede_origen_id=self.central.id, sede_destino_id=self.norte.id)
+        self.assertEqual(siguiente.numero, f"REM-{anio}-00002")
 
     def test_normaliza_el_numero(self):
         remito = crear_remito(

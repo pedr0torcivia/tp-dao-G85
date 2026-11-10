@@ -30,6 +30,17 @@ const portadas: Record<string, string> = {
   "iron man: extremis": "iron-man-extremis",
   "thor: god of thunder vol. 1: the god butcher": "thor-god-butcher",
   "captain america: winter soldier": "winter-soldier",
+  "saga vol. 1": "saga-vol-1",
+  "persepolis: the story of a childhood": "persepolis",
+  "the walking dead vol. 1: days gone bye": "walking-dead-vol-1",
+  "hellboy vol. 1: seed of destruction": "hellboy-vol-1",
+  "sin city vol. 1: the hard goodbye": "sin-city-vol-1",
+  "akira vol. 1": "akira-vol-1",
+  "the eternaut": "the-eternaut",
+  "y: the last man vol. 1: unmanned": "y-the-last-man-vol-1",
+  "batman: arkham asylum": "arkham-asylum",
+  "bone vol. 1: out from boneville": "bone-vol-1",
+  "the complete calvin and hobbes": "calvin-and-hobbes",
 };
 export function portadaDe(titulo: string): string | undefined {
   const clave = portadas[titulo.trim().toLocaleLowerCase("es")];

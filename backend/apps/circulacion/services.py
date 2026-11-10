@@ -74,9 +74,10 @@ def validar_sin_prestamos_vencidos(*, socio: Socio, al=None) -> None:
         fecha_vencimiento__lt=al,
     ).count()
     if vencidos:
+        cantidad = "un préstamo vencido" if vencidos == 1 else f"{vencidos} préstamos vencidos"
         raise SocioInhabilitadoError(
-            f"El socio tiene {vencidos} préstamo(s) vencido(s) sin devolver. "
-            "Registrá la devolución antes de entregarle material nuevo."
+            f"{socio.nombre} tiene {cantidad} sin devolver. "
+            "Registrá la devolución antes de iniciarle un préstamo o una reserva nueva."
         )
 
 
@@ -90,6 +91,7 @@ def crear_solicitud(
     tipo: str,
 ) -> SolicitudPrestamo:
     validar_socio_habilitado(socio=socio)
+    validar_sin_prestamos_vencidos(socio=socio)
     validar_sede_activa(sede=sede_origen)
     validar_sede_activa(sede=sede_destino)
 
@@ -157,6 +159,7 @@ def asignar_ejemplar(
         raise EstadoSolicitudInvalidoError("Solo se puede asignar una solicitud pendiente.")
 
     validar_socio_habilitado(socio=solicitud.socio)
+    validar_sin_prestamos_vencidos(socio=solicitud.socio)
     validar_sede_activa(sede=solicitud.sede_origen)
     validar_sede_activa(sede=solicitud.sede_destino)
 
@@ -418,6 +421,7 @@ def rechazar_solicitud(*, solicitud: SolicitudPrestamo) -> SolicitudPrestamo:
 @transaction.atomic
 def crear_reserva(*, socio: Socio, libro, sede_retiro) -> Reserva:
     validar_socio_habilitado(socio=socio)
+    validar_sin_prestamos_vencidos(socio=socio)
     validar_sede_activa(sede=sede_retiro)
 
     try:

@@ -41,7 +41,7 @@ const ops = ["agregar", "quitar", "empaquetar", "reabrir", "despachar", "recibir
 const reglas: [string, string][] = [
   ["No prestar ejemplares no disponibles", "Asignar exige estado Disponible y condición Apto."],
   ["No prestar a socios inhabilitados", "Se controla al crear, asignar, despachar y entregar."],
-  ["Controlar vencimientos", "Plazo máximo de 60 días; un socio con préstamos vencidos no retira material nuevo; multa por día de atraso."],
+  ["Controlar vencimientos", "Plazo máximo de 60 días; un socio con préstamos vencidos no inicia solicitudes ni reservas ni retira material nuevo; multa por día de atraso."],
   ["Trazabilidad del remito", "Cada transición deja un evento con fecha, responsable y observación."],
   ["Evitar duplicados", "Socio (número y documento), libro (ISBN o edición), ejemplar (código) y remito (número) son únicos."],
   ["Ejemplar de la sede de origen", "La copia asignada debe pertenecer y estar en la sede de origen de la solicitud."],

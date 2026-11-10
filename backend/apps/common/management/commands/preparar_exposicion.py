@@ -1,7 +1,7 @@
 """Escenario estable: obras reales, personas e inventario ficticios para la defensa."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -10,9 +10,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.catalogo.models import Ejemplar, Libro
+from apps.circulacion import services as circulacion
 from apps.circulacion.models import Prestamo, Reserva, SolicitudPrestamo
 from apps.common.models import Operacion
-from apps.logistica.models import DetalleRemito, EventoRemito, Remito
+from apps.logistica import services as logistica
+from apps.logistica.models import DetalleRemito, EventoRemito, Remito, ResultadoRecepcion
 from apps.sedes.models import Sede
 from apps.socios.models import Socio
 
@@ -146,7 +148,10 @@ class Command(BaseCommand):
         )
         vigente = solicitud(6, 2, central, central, 28, "CUMPLIDA", estado(17, "PRESTADO"))
         Prestamo.objects.create(
-            solicitud=vigente, fecha_entrega=fecha(28), fecha_vencimiento=fecha(11, 11)
+            solicitud=vigente,
+            fecha_entrega=fecha(28),
+            # Relativo a hoy: el caso vigente no debe vencer antes de la defensa.
+            fecha_vencimiento=max(fecha(11, 11), timezone.now() + timedelta(days=14)),
         )
         transito = estado(9, "EN_TRANSITO")
         transito.sede_actual = None
@@ -191,6 +196,7 @@ class Command(BaseCommand):
                 solicitud=pedido,
                 condicion_salida="APTO",
                 condicion_recepcion="APTO" if recepcion else None,
+                resultado_recepcion=ResultadoRecepcion.CONFORME if recepcion else None,
             )
             previo = None
             for nuevo, dia in [
@@ -208,18 +214,170 @@ class Command(BaseCommand):
                     observacion="Escenario de exposición; operaciones ficticias.",
                 )
                 previo = nuevo
+        self.casos_de_prueba(libros, copias, socios, central, norte)
         Operacion.objects.create(
             entidad="escenario",
             registro_id=1,
             accion="OPERACION",
             usuario="preparacion",
-            descripcion="Carga inicial: 30 obras reales, 90 copias, 3 sedes y 4 socios. "
-            "La bitácora de ABMC comienza a partir de esta preparación.",
+            descripcion=f"Carga inicial: {len(libros)} obras reales, {len(copias)} copias, "
+            "3 sedes y 4 socios. La bitácora de ABMC comienza a partir de esta preparación.",
         )
         self.stdout.write(
             self.style.SUCCESS(
-                "Exposición preparada: 30 libros, 90 ejemplares (83 disponibles), "
-                "3 sedes, 4 socios, "
-                "7 solicitudes, 3 préstamos, 1 reserva y 3 remitos. Referencia: 01–31/10/2026."
+                f"Exposición preparada: {len(libros)} libros, {len(copias)} ejemplares "
+                f"({Ejemplar.objects.filter(estado='DISPONIBLE').count()} disponibles), "
+                f"3 sedes, 4 socios, {SolicitudPrestamo.objects.count()} solicitudes, "
+                f"{Prestamo.objects.count()} préstamos, {Reserva.objects.count()} reservas y "
+                f"{Remito.objects.count()} remitos."
             )
         )
+
+    def casos_de_prueba(self, libros, copias, socios, central, norte):
+        """Un caso por estado relevante, generado con los servicios reales.
+
+        Usa los libros 31 a 41 (cómics agregados). Cada uno tiene las copias
+        3n-2 y 3n-1 en Central y 3n en Norte. Torcivia (socio 1) es el socio
+        moroso: con préstamos vencidos no puede iniciar circuitos nuevos, por eso
+        no participa de los casos generados con servicios.
+        """
+        libro = {n: libros[n - 1] for n in range(31, len(libros) + 1)}
+
+        def copia(n, sede):
+            return copias[3 * n - 3] if sede == "central" else copias[3 * n - 1]
+
+        def pedido(n, socio, origen, destino):
+            return circulacion.crear_solicitud(
+                socio=socios[socio - 1],
+                libro=libro.get(n) or libros[n - 1],
+                sede_origen=origen,
+                sede_destino=destino,
+                tipo="LOCAL" if origen == destino else "INTERBIBLIOTECARIO",
+            )
+
+        def asignado(n, socio, origen, destino):
+            solicitud = pedido(n, socio, origen, destino)
+            sede = "central" if origen == central else "norte"
+            return circulacion.asignar_ejemplar(solicitud=solicitud, ejemplar=copia(n, sede))
+
+        def preparado(n, socio, origen, destino):
+            solicitud = circulacion.preparar_entrega(solicitud=asignado(n, socio, origen, destino))
+            remito = None
+            if origen != destino:
+                remito = Remito.objects.get(detalles__solicitud=solicitud)
+            return solicitud, remito
+
+        ahora = timezone.now()
+        responsable = "Personal de biblioteca"
+
+        # Sin City: viaja Central → Norte y llega dañado (RECIBIDO_CON_INCIDENCIAS).
+        # La solicitud vuelve a PENDIENTE para asignar otra copia.
+        _, incidencia = preparado(35, 3, central, norte)
+        logistica.empaquetar_remito(remito=incidencia, responsable=responsable)
+        logistica.despachar_remito(remito=incidencia, responsable=responsable)
+        logistica.recibir_remito(
+            remito=incidencia,
+            responsable=responsable,
+            resultados={copia(35, "central").pk: ResultadoRecepcion.DANADO},
+            observacion="La tapa llegó doblada y con humedad.",
+        )
+        self.fechar(incidencia, ahora - timedelta(days=6), ahora - timedelta(days=3))
+
+        # The Eternaut: envío Norte → Central anulado antes de salir (CANCELADO).
+        eternauta, cancelado = preparado(37, 4, norte, central)
+        logistica.empaquetar_remito(remito=cancelado, responsable=responsable)
+        logistica.cancelar_remito(
+            remito=cancelado, responsable=responsable, observacion="El socio desistió del pedido."
+        )
+        circulacion.cancelar_solicitud(solicitud=eternauta)
+
+        # The Walking Dead: paquete cerrado Norte → Central esperando transporte.
+        _, empaquetado = preparado(33, 2, norte, central)
+        logistica.empaquetar_remito(remito=empaquetado, responsable=responsable)
+
+        # Hellboy: envío Central → Norte todavía abierto (EN_PREPARACION).
+        preparado(34, 4, central, norte)
+
+        # Saga (local) y Persepolis (interbibliotecaria): asignadas, para mostrar
+        # que el mismo botón «Preparar entrega» actúa distinto según la estrategia.
+        asignado(31, 2, central, central)
+        asignado(32, 3, norte, central)
+
+        # Demanda inter-sedes repetida para que RP02 muestre un ranking real:
+        # Saga y Persepolis quedan con más pedidos que el resto.
+        pedido(31, 4, central, norte)
+        pedido(31, 3, central, norte)
+        pedido(32, 4, norte, central)
+
+        # Akira: pedido local pendiente en Norte. Maus: pedido rechazado.
+        pedido(36, 4, norte, norte)
+        circulacion.rechazar_solicitud(solicitud=pedido(18, 2, norte, norte))
+
+        # Bone: préstamo vigente en Norte.
+        bone, _ = preparado(40, 3, norte, norte)
+        circulacion.entregar_solicitud(
+            solicitud=bone,
+            fecha_entrega=ahora - timedelta(days=3),
+            fecha_vencimiento=ahora + timedelta(days=11),
+        )
+
+        # Arkham Asylum: devuelto dañado; la copia queda NO_APTO en revisión.
+        arkham, _ = preparado(39, 4, central, central)
+        prestamo = circulacion.entregar_solicitud(
+            solicitud=arkham,
+            fecha_entrega=ahora - timedelta(days=12),
+            fecha_vencimiento=ahora + timedelta(days=2),
+        )
+        circulacion.registrar_devolucion(
+            prestamo=prestamo,
+            fecha_devolucion=ahora - timedelta(days=1),
+            condicion_devolucion="NO_APTO",
+        )
+
+        # Calvin and Hobbes: reserva con copia separada, lista para retirar.
+        reserva = circulacion.crear_reserva(socio=socios[1], libro=libro[41], sede_retiro=central)
+        circulacion.asignar_reserva(
+            reserva=reserva,
+            ejemplar=copia(41, "central"),
+            fecha_limite_retiro=ahora + timedelta(days=5),
+        )
+        # Akira en Central: reserva cancelada por el socio.
+        circulacion.cancelar_reserva(
+            reserva=circulacion.crear_reserva(socio=socios[2], libro=libro[36], sede_retiro=central)
+        )
+
+        # Y: The Last Man: segundo préstamo vencido de Torcivia, en Norte (multa).
+        y_copia = copia(38, "norte")
+        y_copia.estado = "PRESTADO"
+        y_copia.save(update_fields=["estado"])
+        vencida = SolicitudPrestamo.objects.create(
+            libro=libro[38],
+            socio=socios[0],
+            sede_origen=norte,
+            sede_destino=norte,
+            fecha_solicitud=fecha(10),
+            estado="CUMPLIDA",
+            ejemplar=y_copia,
+            tipo="LOCAL",
+        )
+        Prestamo.objects.create(
+            solicitud=vencida, fecha_entrega=fecha(10), fecha_vencimiento=fecha(24)
+        )
+
+    @staticmethod
+    def fechar(remito, despacho, recepcion):
+        """Ubica el viaje en días distintos para que RP03 muestre tránsito real."""
+        Remito.objects.filter(pk=remito.pk).update(
+            fecha_creacion=despacho - timedelta(days=1),
+            fecha_despacho=despacho,
+            fecha_recepcion=recepcion,
+        )
+        momentos = {
+            "EN_PREPARACION": despacho - timedelta(days=1),
+            "EMPAQUETADO": despacho,
+            "EN_TRANSITO": despacho,
+        }
+        for evento in EventoRemito.objects.filter(remito=remito):
+            EventoRemito.objects.filter(pk=evento.pk).update(
+                fecha_hora=momentos.get(evento.estado_nuevo, recepcion)
+            )

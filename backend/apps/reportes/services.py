@@ -60,7 +60,7 @@ def movimientos_entre_sedes(*, desde: date, hasta: date, sede_id: int | None = N
     return {
         "reporte": "RP03",
         "criterio": CRITERIO,
-        "resumen": f"{despachados} envíos despachados",
+        "resumen": f"{_cantidad(despachados, 'envío despachado', 'envíos despachados')}",
         "filas": filas,
     }
 
@@ -243,7 +243,7 @@ def operaciones_abmc(*, desde: date, hasta: date, sede_id: int | None = None) ->
         "reporte": "RP05",
         "filas": filas,
         "totales": totales,
-        "resumen": f"{len(filas)} operaciones: {detalle}",
+        "resumen": f"{_cantidad(len(filas), 'operación', 'operaciones')}: {detalle}",
         "criterio": "Operaciones exitosas registradas entre Desde y Hasta, ambos inclusive, "
         "con usuario y cambios antes/después. Las consultas y los intentos fallidos "
         "no se cuentan como cambios. La baja es lógica y conserva el historial. "
@@ -332,6 +332,10 @@ def activos_y_en_transito(*, desde: date, hasta: date, sede_id: int | None = Non
     }
 
 
+def _cantidad(n: int, singular: str, plural: str) -> str:
+    return f"{n} {singular if n == 1 else plural}"
+
+
 def _tasa(grupo: dict) -> int | None:
     recibidos = grupo["exitosos"] + grupo["con_incidencias"]
     return round(grupo["exitosos"] / recibidos * 100) if recibidos else None
@@ -391,8 +395,9 @@ def efectividad_logistica(*, desde: date, hasta: date, sede_id: int | None = Non
             "se muestran aparte. Incidencias: ejemplares dañados o extraviados al recibir."
         ),
         "resumen": (
-            f"{total['despachados']} envíos · {total['danados']} dañados · "
-            f"{total['extraviados']} extraviados · tasa de éxito "
+            f"{_cantidad(total['despachados'], 'envío', 'envíos')} · "
+            f"{_cantidad(total['danados'], 'dañado', 'dañados')} · "
+            f"{_cantidad(total['extraviados'], 'extraviado', 'extraviados')} · tasa de éxito "
             + (f"{tasa_total} %" if tasa_total is not None else "sin recepciones")
         ),
         "totales": {**total, "tasa_exito": tasa_total},

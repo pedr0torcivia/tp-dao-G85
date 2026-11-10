@@ -43,7 +43,19 @@ def _bloquear(remito: Remito) -> Remito:
 
 def _numero_siguiente() -> str:
     anio = timezone.localdate().year
-    ultimo = Remito.objects.order_by("-id").values_list("id", flat=True).first() or 0
+    # Correlativo anual a partir del mayor número automático existente, no del id:
+    # así la numeración no salta después de reiniciar el escenario.
+    prefijo = f"REM-{anio}-"
+    ultimo = max(
+        (
+            int(numero[len(prefijo) :])
+            for numero in Remito.objects.filter(numero__istartswith=prefijo).values_list(
+                "numero", flat=True
+            )
+            if numero[len(prefijo) :].isdigit()
+        ),
+        default=0,
+    )
     for n in range(ultimo + 1, ultimo + 1000):
         numero = f"REM-{anio}-{n:05d}"
         if not Remito.objects.filter(numero__iexact=numero).exists():
