@@ -40,8 +40,10 @@ services:
     environment:
       POSTGRES_HOST: database
       POSTGRES_PORT: 5432
+    # Con la base vacía carga el escenario de exposición; si ya existe, lo conserva.
     command: >
       sh -c "python manage.py migrate --noinput &&
+             (python manage.py preparar_exposicion || true) &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000"
     ports:
       - "8000:8000"

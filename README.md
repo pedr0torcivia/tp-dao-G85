@@ -60,7 +60,7 @@ Una vez iniciados:
 
 Los comandos para ejecutar y comprobar el backend sin contenedores se encuentran en [`backend/README.md`](backend/README.md).
 
-Las migraciones del backend se aplican automáticamente al iniciar su contenedor. El frontend usa la API real por defecto y guarda las operaciones en PostgreSQL. Para cargar ejemplos reproducibles, ejecutar `docker compose exec backend python manage.py preparar_exposicion`. El comando no borra ni restablece cambios existentes. También crea la cuenta de personal **biblioteca / demo** si no existe; usarla en el formulario de acceso. Para otras cuentas y cambio de clave, consultar [Acceso](docs/acceso.md).
+Las migraciones del backend se aplican automáticamente al iniciar su contenedor. El frontend usa la API real por defecto y guarda las operaciones en PostgreSQL. Con la base vacía, el backend carga solo el escenario de exposición al iniciar; reiniciar los contenedores conserva los cambios. Para volver al estado original, ejecutar `docker compose exec backend python manage.py preparar_exposicion --reiniciar`. También crea la cuenta de personal **biblioteca / demo** si no existe; usarla en el formulario de acceso. Para otras cuentas y cambio de clave, consultar [Acceso](docs/acceso.md).
 
 Para detener los servicios, presionar `Ctrl+C`. Para retirar los contenedores, ejecutar desde la raíz del repositorio:
 
