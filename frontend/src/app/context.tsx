@@ -120,7 +120,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("entrelibros:sesion-vencida", expired);
   }, []);
   useEffect(() => {
-    if (usuario) void refresh();
+    if (!usuario) return;
+    void refresh();
+    const desactualizados = () => void refresh();
+    window.addEventListener("entrelibros:datos-desactualizados", desactualizados);
+    return () =>
+      window.removeEventListener(
+        "entrelibros:datos-desactualizados",
+        desactualizados,
+      );
   }, [usuario]);
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");

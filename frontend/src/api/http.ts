@@ -4,6 +4,15 @@ import type { Database, Entity, Resource } from "../domain/models";
 import { statusLabels } from "../domain/selectors";
 
 const base = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
+export const DATOS_DESACTUALIZADOS =
+  "Los datos cambiaron desde que se abrió esta pantalla. Ya los actualizamos: revisá la selección y volvé a intentar.";
+/** Campos cuyo valor apunta a un registro que ya no existe (código DRF does_not_exist). */
+function camposObsoletos(codes: unknown): string[] {
+  if (!codes || typeof codes !== "object" || Array.isArray(codes)) return [];
+  return Object.entries(codes as Record<string, unknown>)
+    .filter(([, v]) => [v].flat().includes("does_not_exist"))
+    .map(([campo]) => campo);
+}
 export async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -42,6 +51,21 @@ export async function request<T>(
       typeof window !== "undefined"
     ) {
       window.dispatchEvent(new Event("entrelibros:sesion-vencida"));
+    }
+    const codes = body?.error?.code;
+    const obsoletos = camposObsoletos(codes);
+    if (codes === "not_found" || obsoletos.length) {
+      // La base cambió (p. ej. se restableció el escenario) y la pantalla tiene
+      // identificadores viejos: se recargan los datos y se avisa con claridad.
+      if (typeof window !== "undefined")
+        window.dispatchEvent(new Event("entrelibros:datos-desactualizados"));
+      throw new ApiError(
+        DATOS_DESACTUALIZADOS,
+        Object.fromEntries(
+          obsoletos.map((campo) => [campo, ["Esta opción ya no existe. Elegila de nuevo."]]),
+        ),
+        response.status,
+      );
     }
     const detail = body?.error?.detail ?? body;
     throw new ApiError(

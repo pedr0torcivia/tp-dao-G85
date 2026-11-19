@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { NewEntity, Resource } from "../domain/models";
 import { api } from "../api";
@@ -75,6 +75,17 @@ export function EntityForm({ resource }: { resource: Resource }) {
   return <GenericForm resource={resource} />;
 }
 
+/** Ejecuta `alRecargar` cada vez que llegan datos nuevos, salvo en el primer render. */
+function useAlRecargarDatos(alRecargar: () => void) {
+  const { db, sedeId } = useLibrary();
+  const anterior = useRef(db);
+  useEffect(() => {
+    if (!db || anterior.current === db) return;
+    anterior.current = db;
+    alRecargar();
+  }, [db, sedeId]);
+}
+
 function GenericForm({ resource }: { resource: Resource }) {
   const { db, sedeId, refresh, notify } = useLibrary();
   const { id } = useParams();
@@ -99,6 +110,20 @@ function GenericForm({ resource }: { resource: Resource }) {
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
   const [foto, setFoto] = useState<File | null>(null);
+  useAlRecargarDatos(() =>
+    setValues((v) => {
+      // Tras recargar, descarta selecciones que ya no figuran entre las opciones.
+      let cambio = false;
+      const next = { ...v };
+      for (const f of fieldsFor(resource, db!)) {
+        if (f.type !== "select" || !next[f.key]) continue;
+        if (f.options?.some(([valor]) => valor === next[f.key])) continue;
+        next[f.key] = !id && f.key.startsWith("sede_") ? String(sedeId) : "";
+        cambio = true;
+      }
+      return cambio ? next : v;
+    }),
+  );
   if (id && !record)
     return (
       <>
@@ -238,6 +263,13 @@ function NuevaSolicitud() {
   const [busy, setBusy] = useState(false);
 
   const sedes = db!.sedes.filter((s) => s.estado === "ACTIVA");
+  useAlRecargarDatos(() => {
+    // Tras recargar, descarta selecciones que ya no existen en la base.
+    if (socio && !db!.socios.some((s) => String(s.id) === socio)) setSocio("");
+    if (libro && !db!.libros.some((l) => String(l.id) === libro)) setLibro("");
+    if (!sedes.some((s) => String(s.id) === retiro)) setRetiro(String(sedeId));
+    if (origen && !sedes.some((s) => String(s.id) === origen)) setOrigen("");
+  });
   const disponibilidad = useMemo(
     () =>
       sedes.map((s) => ({
@@ -303,7 +335,15 @@ function NuevaSolicitud() {
           {error && <Alert error>{error.message}</Alert>}
           <div className="form-grid">
             <Field label="1. Socio" error={error?.fields.socio_id}>
-              <select className="input" required value={socio} onChange={(e) => setSocio(e.target.value)}>
+              <select
+                className="input"
+                required
+                value={socio}
+                onChange={(e) => {
+                  setSocio(e.target.value);
+                  setError(null);
+                }}
+              >
                 <option value="">Elegí un socio</option>
                 {db!.socios.map((s) => (
                   <option key={s.id} value={s.id} disabled={s.estado !== "HABILITADO"}>
@@ -321,6 +361,7 @@ function NuevaSolicitud() {
                 onChange={(e) => {
                   setLibro(e.target.value);
                   setOrigen("");
+                  setError(null);
                 }}
               >
                 <option value="">Elegí un libro</option>
@@ -340,6 +381,7 @@ function NuevaSolicitud() {
                 onChange={(e) => {
                   setRetiro(e.target.value);
                   setOrigen("");
+                  setError(null);
                 }}
               >
                 {sedes.map((s) => (

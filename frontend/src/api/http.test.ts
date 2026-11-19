@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { httpApi } from "./http";
+import { DATOS_DESACTUALIZADOS, httpApi } from "./http";
 
 beforeEach(() => {
   vi.stubGlobal("document", { cookie: "" });
@@ -92,5 +92,47 @@ describe("Contrato HTTP con Django", () => {
     });
     expect(result.rows).toEqual([[1, "Rayuela", 3, "Norte (2) · Central (1)"]]);
     expect(fetch.mock.calls[0]).toBeDefined();
+  });
+  it("ante identificadores que ya no existen recarga los datos y avisa con claridad", async () => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json(
+          {
+            error: {
+              detail: { socio: ['Clave primaria "83" inválida - objeto no existe.'] },
+              code: { socio: ["does_not_exist"], libro: ["does_not_exist"] },
+            },
+          },
+          400,
+        ),
+      ),
+    );
+    await expect(
+      httpApi.save("solicitudes", { socio: 83, libro: 310 } as never),
+    ).rejects.toMatchObject({
+      message: DATOS_DESACTUALIZADOS,
+      fields: {
+        socio: ["Esta opción ya no existe. Elegila de nuevo."],
+        libro: ["Esta opción ya no existe. Elegila de nuevo."],
+      },
+    });
+    expect(dispatchEvent.mock.calls[0][0].type).toBe(
+      "entrelibros:datos-desactualizados",
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json({ error: { detail: { detail: "No encontrado." }, code: "not_found" } }, 404),
+      ),
+    );
+    await expect(httpApi.command("remitos", 999, "despachar")).rejects.toMatchObject({
+      status: 404,
+      message: DATOS_DESACTUALIZADOS,
+    });
+    expect(dispatchEvent).toHaveBeenCalledTimes(2);
   });
 });

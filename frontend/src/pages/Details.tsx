@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Pencil, Trash2, Undo2 } from "lucide-react";
 import type {
@@ -116,13 +116,30 @@ function NextStep({
 
 export function EntityDetail({ resource }: { resource: Resource }) {
   const { id } = useParams();
-  const { db, refresh, notify } = useLibrary();
+  const { db, refresh, notify, loading } = useLibrary();
   const navigate = useNavigate();
   const n = Number(id);
   const [action, setAction] = useState<{ resource: Resource; id: number; command: Command } | null>(null);
   const [busy, setBusy] = useState(false);
   const [borrar, setBorrar] = useState(false);
   const record = db![resource].find((r) => r.id === n);
+  // Un registro creado desde otra pestaña o sesión todavía no está en los datos
+  // cargados: se recargan una vez antes de informar que no existe.
+  const clave = `${resource}/${id}`;
+  const [recargado, setRecargado] = useState<string | null>(null);
+  const buscando = !record && (recargado !== clave || loading);
+  useEffect(() => {
+    if (record || recargado === clave) return;
+    setRecargado(clave);
+    void refresh();
+  }, [record, recargado, clave]);
+  if (buscando)
+    return (
+      <>
+        <Back to={`/${pathOf(resource)}`} />
+        <p className="text-sm">Buscando el registro…</p>
+      </>
+    );
   if (!record)
     return (
       <>
