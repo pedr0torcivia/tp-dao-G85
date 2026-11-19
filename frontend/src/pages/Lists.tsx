@@ -290,7 +290,7 @@ export function EntityList({ resource }: { resource: Resource }) {
 
   return (
     <>
-      <Heading title={conf.title} description={conf.description} action={createAction} />
+      <Heading title={conf.title} action={createAction} />
       {resource !== "libros" && (
         <div className="chips" role="group" aria-label="Filtrar por estado">
           {["", ...states].map((value) => (

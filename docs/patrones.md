@@ -1,6 +1,6 @@
 # Patrones de diseño
 
-El sistema aplica dos patrones GoF que se conectan entre sí: **Strategy** decide cómo se tramita una solicitud y, en el caso interbibliotecario, entrega el ejemplar a la logística, donde **State** gobierna el ciclo de vida del remito. Ambos son visibles en la interfaz: las fichas de solicitud y de remito muestran qué clase está actuando y qué operaciones admite.
+El sistema aplica dos patrones GoF que se conectan entre sí: **Strategy** decide cómo se tramita una solicitud y, en el caso interbibliotecario, entrega el ejemplar a la logística, donde **State** gobierna el ciclo de vida del remito. Su comportamiento se ve en la interfaz: las mismas acciones producen recorridos distintos según el tipo de solicitud, y las acciones de cada remito cambian según su estado.
 
 ## State · ciclo de vida del remito
 
@@ -32,7 +32,7 @@ Los servicios (`services.py`) sólo bloquean filas, validan reglas transversales
 
 `EstadoRemitoBase.operaciones_admitidas()` calcula, por introspección, qué operaciones redefine cada clase. La API lo expone como `acciones` junto a `estado_clase`, y la interfaz muestra únicamente esos botones: la regla vive en un solo lugar.
 
-**Cómo demostrarlo:** abrir un remito en preparación, ver la nota «Patrón State» (`EnPreparacion`, operaciones en verde). Empaquetar → la nota pasa a `Empaquetado` y aparece *Reabrir*. Despachar → `EnTransito` sólo admite `recibir()`; cancelar ya no se ofrece y la API lo rechaza. Recibir marcando un ejemplar como dañado → `RecibidoConIncidencias`. La trazabilidad muestra cada transición con fecha y responsable.
+**Cómo demostrarlo:** abrir el remito de X-Men: Days of Future Past en preparación. Empaquetar → aparece *Reabrir* y *Despachar*. Despachar → sólo se ofrece *Recibir*; cancelar ya no se ofrece y la API lo rechaza. Recibir marcando un ejemplar como dañado → el remito queda recibido con incidencias. La trazabilidad muestra cada transición con fecha y responsable. Wolverine ya trae un ejemplo de recepción dañada.
 
 ## Strategy · tramitación de la solicitud
 
@@ -50,7 +50,7 @@ El mismo botón *Preparar entrega* produce resultados distintos según la estrat
 
 Agregar un circuito nuevo (por ejemplo, envío a domicilio) requiere una clase y una entrada en la fábrica, sin modificar los servicios.
 
-**Cómo demostrarlo:** crear dos solicitudes del mismo libro, una local y otra interbibliotecaria, desde *Nueva solicitud* (la pantalla muestra la disponibilidad por sede y anticipa la estrategia). Asignar y preparar: la local queda *Lista para entrega*; la interbibliotecaria aparece dentro de un remito en preparación. A partir de ahí manda el patrón State.
+**Cómo demostrarlo:** abrir las solicitudes asignadas de Naruto (local) y Jujutsu Kaisen (interbibliotecaria). Ejecutar *Preparar entrega* en ambas: la local queda *Lista para entrega*; la interbibliotecaria aparece dentro de un remito en preparación. A partir de ahí manda el patrón State.
 
 ## Evidencia automatizada
 

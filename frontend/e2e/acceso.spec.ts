@@ -50,13 +50,13 @@ test("una sesión vencida vuelve al acceso sin mostrar datos anteriores", async 
   ).toBeVisible();
   await page.context().clearCookies();
   // Cualquier consulta posterior detecta el vencimiento: según quién llegue
-  // primero, la redirección ocurre al abrir Informes o al elegir un reporte.
+  // La redirección ocurre al abrir Reportería o al elegir un reporte.
   const siSigueVisible = (nombre: string | RegExp) =>
     page
       .getByRole("link", { name: nombre, exact: typeof nombre === "string" })
       .click({ timeout: 3_000 })
       .catch(() => undefined);
-  await siSigueVisible("Informes");
+  await siSigueVisible("Reportería");
   await siSigueVisible(/Préstamos vencidos/);
   await expect(page).toHaveURL(/\/acceso$/);
   await expect(

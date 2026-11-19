@@ -138,7 +138,6 @@ test("préstamo local: asignar y preparar en un paso, entregar, devolver y habil
     tipo: "LOCAL",
   });
   await page.goto(`/solicitudes/${s.id}`);
-  await expect(page.getByText("TramitacionLocal")).toBeVisible();
   await comando(page, "Asignar ejemplar", elegirEjemplar(page, d.ejemplar.id));
   expect((await get(request, `solicitudes/${s.id}`)).estado).toBe("LISTA_PARA_ENTREGA");
   await comando(page, "Entregar al socio");
@@ -161,10 +160,9 @@ test("interbibliotecario: la estrategia arma el remito, viaja, se entrega y reto
     tipo: "INTERBIBLIOTECARIO",
   });
   await page.goto(`/solicitudes/${s.id}`);
-  await expect(page.getByText("TramitacionInterbibliotecaria")).toBeVisible();
   await comando(page, "Asignar ejemplar", elegirEjemplar(page, d.ejemplar.id));
   await page.getByRole("link", { name: /Ir al remito/ }).click();
-  await expect(page.getByText("EnPreparacion")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Empaquetar", exact: true })).toBeVisible();
   await recorrerRemito(page);
 
   await page.goto(`/solicitudes/${s.id}`);

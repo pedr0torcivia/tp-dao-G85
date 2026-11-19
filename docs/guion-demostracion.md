@@ -1,25 +1,25 @@
-# Guion de demostración del grupo 85
+# Guion breve de demostración · Grupo 85
 
-La guía principal, con pasos de pantalla y respuestas para la defensa, está en [Guía de exposición](guia-exposicion.md) y [PDF de siete páginas](Guia-exposicion-grupo-85.pdf).
+La [guía completa](guia-exposicion.md) y su [PDF](Guia-exposicion-grupo-85.pdf) contienen los casos, reglas y respuestas para la defensa.
 
-## Preparación
+## Antes de comenzar
 
-Con Docker Desktop abierto, ejecutar `docker compose up -d --build --wait` y `docker compose exec backend python manage.py preparar_exposicion`. El comando conserva un escenario ya preparado. Para reemplazarlo de forma explícita después de un ensayo, agregar `--reiniciar`; se borran los datos de biblioteca y bitácora, conservando las cuentas.
+Con Docker Desktop abierto, desde la raíz ejecutar:
 
-Ingresar en http://localhost:5173 con **biblioteca / demo**. El catálogo contiene 44 títulos y 132 copias, con sus portadas. Ver [Catálogo y casos](catalogo-exposicion.md).
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+docker compose up -d --build --wait
+docker compose exec backend python manage.py preparar_exposicion --reiniciar
+```
 
-## Demostración de 15 minutos
+Abrir `http://localhost:5173` e ingresar con **biblioteca / demo**. La carga limpia contiene **20 títulos, 60 copias y 44 disponibles**. `--reiniciar` borra datos de biblioteca y bitácora para volver al escenario inicial; conserva las cuentas.
 
-1. Distinguir obra de ejemplar y explicar el problema de la red.
-2. Alta de DEFENSA-001 sobre Batman: Year One en Central; consultar y recargar.
-3. Editar su condición a NO_APTO y darlo de baja. Explicar la baja lógica.
-4. Mostrar las diferencias en disponibilidad y los tres eventos de la bitácora ABMC.
-5. Aplicar Desde y Hasta, imprimir/guardar PDF del reporte y abrirlo por pantalla.
-6. Recorrer un préstamo, una devolución y el historial de un remito.
-7. Explicar State y Strategy con las operaciones permitidas y el circuito local/interbibliotecario.
+## Secuencia de 15 minutos
 
-## Referencia previa a los cambios
+1. **Dominio:** mostrar una obra y sus copias. EXPO-001, EXPO-002 y EXPO-003 son tres situaciones de *Skywalker Strikes*.
+2. **Strategy:** abrir Naruto local y Jujutsu Kaisen entre sedes, ambas asignadas. Ejecutar **Preparar entrega** y comparar el resultado.
+3. **State:** abrir el remito de X-Men: Days of Future Past, empaquetar, despachar y recibir; observar acciones e historial. Abrir Wolverine para ver una recepción con daño.
+4. **Circulación:** entregar la solicitud local de Naruto y devolver el préstamo vigente de Spider-Man. Mostrar revisión antes de volver a disponibilidad.
+5. **Tema 1 / Reportería:** alta, modificación a NO_APTO y baja de DEFENSA-001; comprobar disponibilidad y los tres eventos en Bitácora de operaciones. Exportar CSV o imprimir.
 
-Rango 01/10/2026–31/10/2026, todas las sedes: RP01 dos vencidos (19 y 7 días de atraso); RP02 cuatro pedidos válidos; RP03 tres despachos y dos recibidos, con promedio de dos días por trayecto; RP04 116 de 132 copias disponibles. RP05 filtra fecha real de operación: para el ensayo usar el día actual, no solamente octubre.
-
-Los documentos en [Reportes de referencia](reportes-referencia/) son fotografías de los datos al generarlos. RP05 incluye un ejemplo real de alta, modificación y baja de una copia adicional. El escenario se restableció después de generar ese ejemplo para entregar una base limpia.
+En una base restablecida, Disponibilidad por sede parte de **44/60**. Después del alta apta, **45/61**; tras cambiar a NO_APTO, **44/61**; tras la baja, el total sigue en 61 y la copia figura BAJA. Para las operaciones nuevas, filtrar la bitácora por el día de la demostración.

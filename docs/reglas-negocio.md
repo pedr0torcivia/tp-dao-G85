@@ -2,7 +2,7 @@
 
 ## Alcance
 
-El sistema administra sedes, socios, libros, copias físicas, solicitudes locales e interbibliotecarias, reservas, préstamos, devoluciones y remitos. Incluye cinco reportes y despliegue con Docker Compose. Notificaciones, recomendaciones, multas y códigos de barras quedan fuera de esta entrega.
+El sistema administra sedes, socios, libros, copias físicas, solicitudes locales e interbibliotecarias, reservas, préstamos, devoluciones y remitos. Incluye multas por atraso, siete informes en Reportería y despliegue con Docker Compose. Notificaciones, recomendaciones y códigos de barras quedan fuera de esta entrega.
 
 ## Catálogo y disponibilidad
 
@@ -38,9 +38,9 @@ La recepción o devolución de operaciones iniciadas sigue permitida si una sede
 
 ## Reportes
 
-Todos los endpoints de reportes exigen Desde y Hasta inclusivos, válidos y en orden. RP01 selecciona entregas del período y muestra préstamos abiertos al cierre de la fecha de corte y vencidos antes de ese día, con días calendario de atraso y filtro por sede de entrega. Una devolución posterior al corte no elimina el préstamo de un informe histórico.
+Todos los endpoints de reportes exigen Desde y Hasta inclusivos, válidos y en orden. Préstamos activos y material en tránsito muestra el estado de circulación al corte. Préstamos vencidos y multas selecciona entregas del período y muestra préstamos abiertos al cierre de la fecha de corte y vencidos antes de ese día, con días calendario de atraso y filtro por sede de entrega. Una devolución posterior al corte no elimina el préstamo de un informe histórico.
 
-RP02 cuenta solicitudes interbibliotecarias por libro y sede solicitante dentro de un rango; excluye rechazadas y canceladas. RP03 cuenta despachos por trayecto y calcula el promedio despacho-recepción solo para recibidos. RP04 selecciona los ejemplares por fecha de alta dentro del rango y refleja su estado actual por libro y sede propietaria; no reconstruye el stock histórico; solo cuenta como disponible una copia apta, en su propietaria activa y con estado DISPONIBLE.
+Libros más pedidos entre sedes cuenta solicitudes interbibliotecarias por libro y sede solicitante dentro de un rango; excluye rechazadas y canceladas. Envíos exitosos e incidencias resume los resultados de recepción. Movimiento entre sedes cuenta despachos por trayecto y calcula el promedio despacho-recepción solo para recibidos. Disponibilidad por sede selecciona los ejemplares por fecha de alta dentro del rango y refleja su estado actual por libro y sede propietaria; no reconstruye el stock histórico; solo cuenta como disponible una copia apta, en su propietaria activa y con estado DISPONIBLE.
 
 ## Acceso de la entrega
 
@@ -49,6 +49,6 @@ El formulario valida usuario y contraseña en Django. Solo ingresa personal acti
 La sede de trabajo organiza la atención y no restringe permisos sobre la red. No hay cuentas públicas de socios ni roles separados para biblioteca y logística. Un superusuario administra las cuentas desde Django Admin. La carga de demostración crea biblioteca / demo si esa cuenta no existe, sin restablecer claves ni permisos existentes. Consultar `acceso.md` para la administración y configuración.
 
 
-RP05 comprueba las escrituras exitosas de la API: fecha real de operación, usuario, entidad, identificador y cambios antes/después. Su registro y la operación de negocio se confirman en la misma transacción. Lecturas e intentos fallidos no se cuentan como cambios. Los cambios directos por SQL o Django Admin no se auditan por este mecanismo. El filtro de sede aplica a registros asociados a esa sede; libros y socios globales se consultan sin ese filtro.
+Bitácora de operaciones comprueba las escrituras exitosas de la API: fecha real de operación, usuario, entidad, identificador y cambios antes/después. Su registro y la operación de negocio se confirman en la misma transacción. Lecturas e intentos fallidos no se cuentan como cambios. Los cambios directos por SQL o Django Admin no se auditan por este mecanismo. El filtro de sede aplica a registros asociados a esa sede; libros y socios globales se consultan sin ese filtro.
 
 El catálogo de exposición se prepara con `preparar_exposicion`. Repetirlo conserva el escenario existente. `--reiniciar` reemplaza los datos de biblioteca y bitácora y conserva cuentas y sesiones; es una acción explícita para volver a los casos iniciales.

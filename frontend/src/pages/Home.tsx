@@ -347,12 +347,6 @@ export function Home() {
               <div className="row muted">Sin préstamos por vencer.</div>
             )}
           </section>
-          <p className="px-1 text-[12.5px] text-[var(--ink-faint)]">
-            ¿Dudas con el circuito?{" "}
-            <Link to="/guia" className="text-[var(--green)] underline underline-offset-2">
-              Cómo funciona
-            </Link>
-          </p>
         </aside>
       </div>
 

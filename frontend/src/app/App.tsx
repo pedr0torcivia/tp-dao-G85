@@ -14,7 +14,6 @@ import { EntityDetail } from "../pages/Details";
 import { EntityForm } from "../pages/EntityForm";
 import { Access, Appearance, NotFound, Returns } from "../pages/Other";
 import { Home } from "../pages/Home";
-import { Guide } from "../pages/Guide";
 import { ReportCenter, ReportPage } from "../pages/Reports";
 import type { Resource } from "../domain/models";
 import { pathOf } from "../pages/resources";
@@ -68,7 +67,6 @@ export function App() {
             <Route element={<Layout />}>
               <Route path="inicio" element={<Home />} />
               <Route path="apariencia" element={<Appearance />} />
-              <Route path="guia" element={<Guide />} />
               <Route path="prestamos/devolucion" element={<Returns />} />
               {resources.map((r) => (
                 <Route key={r} path={pathOf(r)}>

@@ -30,7 +30,7 @@ export function Appearance() {
   const { theme, setTheme } = useLibrary();
   return (
     <>
-      <Heading title="Apariencia" description="Elegí el tema con el que querés trabajar." />
+      <Heading title="Apariencia" />
       <div className="max-w-[640px]">
         <div role="group" aria-label="Tema de la aplicación" className="flex flex-wrap gap-2">
           {(["light", "dark", "system"] as const).map((t, i) => (
@@ -44,9 +44,6 @@ export function Appearance() {
             </Button>
           ))}
         </div>
-        <p className="mt-4 text-sm text-[var(--muted-foreground)]">
-          La elección se conserva para tus próximas visitas.
-        </p>
       </div>
     </>
   );
@@ -68,10 +65,7 @@ export function Returns() {
     .sort((a, b) => a.p.fecha_vencimiento.localeCompare(b.p.fecha_vencimiento));
   return (
     <>
-      <Heading
-        title="Registrar devolución"
-        description="Buscá por socio, libro o código del ejemplar. Al devolver, el material queda en revisión hasta que lo habilites (o vuelva a su sede)."
-      />
+      <Heading title="Registrar devolución" />
       <div className="toolbar">
         <SearchBox value={query} onChange={setQuery} placeholder="Socio, libro o código de ejemplar" />
         <label className="flex items-center gap-2 text-sm" style={{ flex: "0 0 auto" }}>
@@ -216,11 +210,7 @@ export function Access() {
         </button>
       </header>
       <div className="access-stage">
-        <h1 className="access-title">
-          Una red<span>.</span>
-          <br />
-          Muchas historias<span>.</span>
-        </h1>
+        <h1 className="access-title">EntreLibros</h1>
         <form onSubmit={submit} className="access-form">
           <h2>Ingresá a tu biblioteca</h2>
           {(error || authError) && <Alert error>{error || authError}</Alert>}

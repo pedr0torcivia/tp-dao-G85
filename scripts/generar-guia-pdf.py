@@ -20,18 +20,19 @@ for name, filename in [("Arial", "arial.ttf"), ("Arial-Bold", "arialbd.ttf")]:
     pdfmetrics.registerFont(TTFont(name, str(FONT_DIR / filename)))
 pdfmetrics.registerFontFamily("Arial", normal="Arial", bold="Arial-Bold")
 
-BODY = ParagraphStyle("body", fontName="Arial", fontSize=10.5, leading=15,
-                      spaceAfter=8, textColor=colors.HexColor("#26312e"))
+BODY = ParagraphStyle("body", fontName="Arial", fontSize=10.5, leading=14,
+                      spaceAfter=6, textColor=colors.HexColor("#26312e"))
 TITLE = ParagraphStyle("title", parent=BODY, fontName="Arial-Bold", fontSize=22,
                        leading=27, spaceAfter=17, textColor=colors.HexColor("#234c40"))
 H2 = ParagraphStyle("heading", parent=BODY, fontName="Arial-Bold", fontSize=13,
-                    leading=17, spaceBefore=9, spaceAfter=8, keepWithNext=True)
-CELL = ParagraphStyle("cell", parent=BODY, fontSize=9.5, leading=13, spaceAfter=0)
+                    leading=17, spaceBefore=7, spaceAfter=6, keepWithNext=True)
+CELL = ParagraphStyle("cell", parent=BODY, fontSize=9.5, leading=12, spaceAfter=0)
 
 
 def rich(text):
     text = escape(text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
     text = re.sub(r"`([^`]+)`", r'<font name="Courier" size="9">\1</font>', text)
     return text
 
@@ -74,8 +75,8 @@ def build():
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 7),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
                 ("LINEBELOW", (0, 0), (-1, -1), .3, colors.HexColor("#c9d3cd")),
             ]))
             story.extend([table, Spacer(1, 10)])

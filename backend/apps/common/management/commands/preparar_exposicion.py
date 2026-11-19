@@ -18,14 +18,25 @@ from apps.logistica.models import DetalleRemito, EventoRemito, Remito, Resultado
 from apps.sedes.models import Sede
 from apps.socios.models import Socio
 
-# Títulos y créditos contrastados con editoriales; referencias en docs/catalogo-exposicion.md.
-CATALOGO = [
-    (fila["titulo"], fila["autor"], fila["editorial"], fila["edicion"], fila["isbn"])
-    for fila in json.loads(
-        (Path(__file__).resolve().parents[2] / "data/catalogo_exposicion.json").read_text(
-            encoding="utf-8"
-        )
+# Cada caso conserva su identificador interno y sus tres códigos de inventario.
+# El valor indica qué obra del catálogo fuente ilustra ese caso en la defensa.
+OBRAS_POR_CASO = {
+    1: 1, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7,
+    8: 9, 18: 10,
+    31: 43, 32: 44, 33: 23, 34: 24, 35: 25, 36: 27,
+    37: 28, 38: 29, 39: 30, 40: 21, 41: 12, 42: 26,
+}
+CATALOGO_FUENTE = json.loads(
+    (Path(__file__).resolve().parents[2] / "data/catalogo_exposicion.json").read_text(
+        encoding="utf-8"
     )
+)
+CATALOGO = [
+    (
+        caso, fila["titulo"], fila["autor"], fila["editorial"], fila["edicion"], fila["isbn"]
+    )
+    for caso, fuente in OBRAS_POR_CASO.items()
+    for fila in [CATALOGO_FUENTE[fuente - 1]]
 ]
 
 
@@ -102,28 +113,25 @@ class Command(BaseCommand):
                 1,
             )
         ]
-        libros, copias = [], []
-        for titulo, autor, editorial, edicion, isbn in CATALOGO:
+        libros, copias = {}, {}
+        for indice, titulo, autor, editorial, edicion, isbn in CATALOGO:
             libro = Libro.objects.create(
                 titulo=titulo, autor=autor, editorial=editorial, edicion=edicion, isbn=isbn
             )
-            libros.append(libro)
-            for sede in (central, central, norte):
-                numero = len(copias) + 1
-                copias.append(
-                    Ejemplar.objects.create(
-                        codigo_inventario=f"EXPO-{numero:03}",
-                        libro=libro,
-                        sede_propietaria=sede,
-                        sede_actual=sede,
-                        fecha_alta=fecha(1),
-                        estado="DISPONIBLE",
-                        condicion_fisica="APTO",
-                    )
+            libros[indice] = libro
+            for posicion, sede in enumerate((central, central, norte), 1):
+                copias[3 * indice - 3 + posicion] = Ejemplar.objects.create(
+                    codigo_inventario=f"EXPO-{len(copias) + 1:03}",
+                    libro=libro,
+                    sede_propietaria=sede,
+                    sede_actual=sede,
+                    fecha_alta=fecha(1),
+                    estado="DISPONIBLE",
+                    condicion_fisica="APTO",
                 )
 
         def estado(numero, valor, actual=None, condicion="APTO"):
-            copia = copias[numero - 1]
+            copia = copias[numero]
             copia.estado, copia.condicion_fisica = valor, condicion
             if actual is not None:
                 copia.sede_actual = actual
@@ -132,7 +140,7 @@ class Command(BaseCommand):
 
         def solicitud(libro, socio, origen, destino, dia, valor, copia=None):
             return SolicitudPrestamo.objects.create(
-                libro=libros[libro - 1],
+                libro=libros[libro],
                 socio=socios[socio - 1],
                 sede_origen=origen,
                 sede_destino=destino,
@@ -169,9 +177,8 @@ class Command(BaseCommand):
             condicion_devolucion="APTO",
         )
         solicitud(1, 3, norte, central, 25, "PENDIENTE")
-        solicitud(3, 3, norte, central, 15, "CANCELADA")
         Reserva.objects.create(
-            socio=socios[3], libro=libros[2], sede_retiro=central, fecha_reserva=fecha(26)
+            socio=socios[3], libro=libros[3], sede_retiro=central, fecha_reserva=fecha(26)
         )
         estado(14, "EN_REVISION", condicion="NO_APTO")
         estado(20, "BAJA")
@@ -236,20 +243,20 @@ class Command(BaseCommand):
     def casos_de_prueba(self, libros, copias, socios, central, norte):
         """Un caso por estado relevante, generado con los servicios reales.
 
-        Usa los libros 31 a 41 (cómics agregados). Cada uno tiene las copias
+        Usa los libros 31 a 42 (cómics agregados). Cada uno tiene las copias
         3n-2 y 3n-1 en Central y 3n en Norte. Torcivia (socio 1) es el socio
         moroso: con préstamos vencidos no puede iniciar circuitos nuevos, por eso
         no participa de los casos generados con servicios.
         """
-        libro = {n: libros[n - 1] for n in range(31, len(libros) + 1)}
+        libro = {n: libros[n] for n in range(31, 42)}
 
         def copia(n, sede):
-            return copias[3 * n - 3] if sede == "central" else copias[3 * n - 1]
+            return copias[3 * n - 2] if sede == "central" else copias[3 * n]
 
         def pedido(n, socio, origen, destino):
             return circulacion.crear_solicitud(
                 socio=socios[socio - 1],
-                libro=libro.get(n) or libros[n - 1],
+                libro=libros[n],
                 sede_origen=origen,
                 sede_destino=destino,
                 tipo="LOCAL" if origen == destino else "INTERBIBLIOTECARIO",
@@ -270,7 +277,7 @@ class Command(BaseCommand):
         ahora = timezone.now()
         responsable = "Personal de biblioteca"
 
-        # Sin City: viaja Central → Norte y llega dañado (RECIBIDO_CON_INCIDENCIAS).
+        # Wolverine: viaja Central → Norte y llega dañado (RECIBIDO_CON_INCIDENCIAS).
         # La solicitud vuelve a PENDIENTE para asignar otra copia.
         _, incidencia = preparado(35, 3, central, norte)
         logistica.empaquetar_remito(remito=incidencia, responsable=responsable)
@@ -283,7 +290,7 @@ class Command(BaseCommand):
         )
         self.fechar(incidencia, ahora - timedelta(days=6), ahora - timedelta(days=3))
 
-        # The Eternaut: envío Norte → Central anulado antes de salir (CANCELADO).
+        # Iron Man: envío Norte → Central anulado antes de salir (CANCELADO).
         eternauta, cancelado = preparado(37, 4, norte, central)
         logistica.empaquetar_remito(remito=cancelado, responsable=responsable)
         logistica.cancelar_remito(
@@ -291,29 +298,29 @@ class Command(BaseCommand):
         )
         circulacion.cancelar_solicitud(solicitud=eternauta)
 
-        # The Walking Dead: paquete cerrado Norte → Central esperando transporte.
+        # X-Men: Dark Phoenix, paquete cerrado Norte → Central esperando transporte.
         _, empaquetado = preparado(33, 2, norte, central)
         logistica.empaquetar_remito(remito=empaquetado, responsable=responsable)
 
-        # Hellboy: envío Central → Norte todavía abierto (EN_PREPARACION).
+        # X-Men: Days of Future Past, envío Central → Norte en preparación.
         preparado(34, 4, central, norte)
 
-        # Saga (local) y Persepolis (interbibliotecaria): asignadas, para mostrar
+        # Naruto (local) y Jujutsu Kaisen (interbibliotecaria): asignadas, para mostrar
         # que el mismo botón «Preparar entrega» actúa distinto según la estrategia.
         asignado(31, 2, central, central)
         asignado(32, 3, norte, central)
 
         # Demanda inter-sedes repetida para que RP02 muestre un ranking real:
-        # Saga y Persepolis quedan con más pedidos que el resto.
+        # Naruto y Jujutsu Kaisen quedan con más pedidos que el resto.
         pedido(31, 4, central, norte)
         pedido(31, 3, central, norte)
         pedido(32, 4, norte, central)
 
-        # Akira: pedido local pendiente en Norte. Maus: pedido rechazado.
+        # Deadpool: pedido local pendiente en Norte. Batman: Killing Joke rechazado.
         pedido(36, 4, norte, norte)
         circulacion.rechazar_solicitud(solicitud=pedido(18, 2, norte, norte))
 
-        # Bone: préstamo vigente en Norte.
+        # Spider-Man: préstamo vigente en Norte.
         bone, _ = preparado(40, 3, norte, norte)
         circulacion.entregar_solicitud(
             solicitud=bone,
@@ -321,7 +328,7 @@ class Command(BaseCommand):
             fecha_vencimiento=ahora + timedelta(days=11),
         )
 
-        # Arkham Asylum: devuelto dañado; la copia queda NO_APTO en revisión.
+        # Captain America: devuelto dañado; la copia queda NO_APTO en revisión.
         arkham, _ = preparado(39, 4, central, central)
         prestamo = circulacion.entregar_solicitud(
             solicitud=arkham,
@@ -334,19 +341,35 @@ class Command(BaseCommand):
             condicion_devolucion="NO_APTO",
         )
 
-        # Calvin and Hobbes: reserva con copia separada, lista para retirar.
+        # Batman: Hush, reserva con copia separada, lista para retirar.
         reserva = circulacion.crear_reserva(socio=socios[1], libro=libro[41], sede_retiro=central)
         circulacion.asignar_reserva(
             reserva=reserva,
             ejemplar=copia(41, "central"),
             fecha_limite_retiro=ahora + timedelta(days=5),
         )
-        # Akira en Central: reserva cancelada por el socio.
+        # Deadpool en Central: reserva cancelada por el socio.
         circulacion.cancelar_reserva(
             reserva=circulacion.crear_reserva(socio=socios[2], libro=libro[36], sede_retiro=central)
         )
 
-        # Y: The Last Man: segundo préstamo vencido de Torcivia, en Norte (multa).
+        # Hawkeye: el plazo pasó sin retiro; la copia se liberó y la
+        # solicitud vinculada quedó cancelada.
+        expirada = circulacion.crear_reserva(
+            socio=socios[3], libro=libros[42], sede_retiro=central
+        )
+        circulacion.asignar_reserva(
+            reserva=expirada,
+            ejemplar=copia(42, "central"),
+            fecha_limite_retiro=ahora + timedelta(days=1),
+        )
+        Reserva.objects.filter(pk=expirada.pk).update(
+            fecha_reserva=ahora - timedelta(days=4),
+            fecha_limite_retiro=ahora - timedelta(days=1),
+        )
+        circulacion.expirar_reserva(reserva=expirada, fecha_actual=ahora)
+
+        # Thor: segundo préstamo vencido de Torcivia, en Norte (multa).
         y_copia = copia(38, "norte")
         y_copia.estado = "PRESTADO"
         y_copia.save(update_fields=["estado"])

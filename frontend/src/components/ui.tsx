@@ -405,22 +405,6 @@ export function Stepper({
   );
 }
 
-/** Explica, en la propia pantalla, qué patrón de diseño está actuando. */
-export function PatternNote({
-  pattern,
-  children,
-}: {
-  pattern: string;
-  children: ReactNode;
-}) {
-  return (
-    <aside className="pattern-note">
-      <span className="tag">Patrón {pattern}</span>
-      <div>{children}</div>
-    </aside>
-  );
-}
-
 /** Cifra integrada a una franja de datos. Sólo lo urgente toma color. */
 export function Kpi({
   value,

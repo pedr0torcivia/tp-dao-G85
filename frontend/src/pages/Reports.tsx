@@ -21,14 +21,14 @@ import {
   Table,
 } from "../components/ui";
 
-const reports: [ReportType, string, string][] = [
-  ["activos", "Préstamos activos y material en tránsito", "Qué está en manos de socios y qué está viajando entre sedes."],
-  ["vencidos", "Préstamos vencidos y multas", "Atrasos por sede, días de demora y multas acumuladas."],
-  ["demanda", "Libros más pedidos entre sedes", "Ranking de solicitudes interbibliotecarias por libro y sede."],
-  ["disponibilidad", "Disponibilidad por sede", "Copias por libro y sede propietaria, y cuántas están disponibles."],
-  ["logistica", "Envíos exitosos e incidencias", "Tasa de éxito de los remitos y ejemplares dañados o extraviados."],
-  ["movimientos", "Movimiento entre sedes", "Envíos por trayecto y tiempo promedio de tránsito."],
-  ["operaciones", "Bitácora de operaciones", "Altas, modificaciones y bajas con usuario y cambios."],
+const reports: [ReportType, string][] = [
+  ["activos", "Préstamos activos y material en tránsito"],
+  ["vencidos", "Préstamos vencidos y multas"],
+  ["demanda", "Libros más pedidos entre sedes"],
+  ["disponibilidad", "Disponibilidad por sede"],
+  ["logistica", "Envíos exitosos e incidencias"],
+  ["movimientos", "Movimiento entre sedes"],
+  ["operaciones", "Bitácora de operaciones"],
 ];
 /** Reportes que muestran el estado a una fecha, no un período. */
 export const SNAPSHOT: ReportType[] = ["activos", "vencidos", "disponibilidad"];
@@ -40,17 +40,13 @@ const firstOfPreviousMonth = () => {
 export function ReportCenter() {
   return (
     <>
-      <Heading
-        title="Reportes"
-        description="Indicadores de circulación, logística y disponibilidad. Todos se filtran por período y sede, y se pueden imprimir o exportar a CSV."
-      />
+      <Heading title="Reportería" />
       <div className="report-list">
-        {reports.map(([id, name, description], i) => (
+        {reports.map(([id, name], i) => (
           <Link key={id} to={`/reportes/${id}`} className="report-card">
             <span className="num">RP{String(i + 1).padStart(2, "0")}</span>
             <div>
               <h2>{name}</h2>
-              <p>{description}</p>
             </div>
             <span className="go hidden sm:inline">Consultar →</span>
           </Link>
@@ -219,9 +215,6 @@ export function ReportPage() {
             </div>
           )}
           <h2 className="section-title !mt-2">{result.summary}</h2>
-          <p className="mb-5 max-w-[90ch] text-sm text-[var(--muted-foreground)]">
-            <b>Criterio:</b> {result.rule}
-          </p>
           <Table
             headers={result.headers}
             rows={result.rows}
@@ -229,10 +222,6 @@ export function ReportPage() {
           />
         </>
       )}
-      <p className="mt-5 text-xs text-[var(--muted-foreground)]">
-        EntreLibros · Grupo 85 · Generado: {new Date().toLocaleString("es-AR")}.
-        Los indicadores corresponden a los filtros aplicados.
-      </p>
     </>
   );
 }

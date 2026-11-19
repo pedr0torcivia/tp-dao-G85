@@ -7,7 +7,6 @@ Sistema de préstamos interbibliotecarios para una red de bibliotecas.
 - [Guía de exposición en PDF](docs/Guia-exposicion-grupo-85.pdf)
 - [Guía de exposición editable](docs/guia-exposicion.md)
 - [Catálogo y casos preparados](docs/catalogo-exposicion.md)
-- [Documentos de reportes](docs/reportes-referencia/)
 
 - [Matriz de cumplimiento del enunciado](docs/matriz-cumplimiento.md)
 - [Presentación del grupo](docs/Presentacion-grupo-85.docx)
@@ -34,9 +33,9 @@ Las reglas operativas vigentes se describen en `docs/reglas-negocio.md`.
 
 ## Estado
 
-La aplicación integra React con la API y PostgreSQL, con autenticación de personal y sesiones protegidas. Incluye sedes, socios, catálogo, préstamos locales e interbibliotecarios, reservas, devolución y retorno de ejemplares, remitos con trazabilidad e incidencias de recepción, multas por atraso y siete reportes consultados en el backend. La interfaz incluye una mesa de trabajo por sede con el próximo paso de cada tarea y una guía (*Cómo funciona*) que explica los circuitos y los patrones State y Strategy (ver `docs/patrones.md`).
+La aplicación integra React con la API y PostgreSQL, con autenticación de personal y sesiones protegidas. Incluye sedes, socios, catálogo, préstamos locales e interbibliotecarios, reservas, devolución y retorno de ejemplares, remitos con trazabilidad e incidencias de recepción, multas por atraso y siete informes en **Reportería**. La interfaz incluye una mesa de trabajo por sede con el próximo paso de cada tarea.
 
-Los cinco reportes exigen Desde y Hasta, permiten CSV e impresión/PDF e incluyen una bitácora que comprueba altas, modificaciones, bajas y operaciones. RP04 filtra altas del período y muestra su estado actual; RP05 muestra la fecha y los cambios de cada escritura de la API.
+Los siete informes exigen Desde y Hasta, permiten CSV e impresión/PDF e incluyen una bitácora que comprueba altas, modificaciones, bajas y operaciones. Disponibilidad por sede filtra altas del período y muestra su estado actual; Bitácora de operaciones muestra la fecha y los cambios de cada escritura de la API.
 
 La documentación de cierre está en [Reglas y alcance](docs/reglas-negocio.md), [Patrones](docs/patrones.md), [Guion de demostración](docs/guion-demostracion.md) y [Verificación](docs/verificacion-entrega.md).
 

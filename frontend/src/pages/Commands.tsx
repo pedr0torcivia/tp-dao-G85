@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import type { Resource, ResultadoRecepcion } from "../domain/models";
 import { api } from "../api";
 import { ApiError, type Command, type CommandInput } from "../api/contracts";
@@ -8,10 +8,9 @@ import {
   inOpenRemito,
   sedeName,
   socioName,
-  statusLabels,
 } from "../domain/selectors";
 import { useLibrary } from "../app/context";
-import { Alert, Button, Dialog, Field, PatternNote } from "../components/ui";
+import { Alert, Button, Dialog, Field } from "../components/ui";
 
 export const actionLabels: Record<Command, string> = {
   habilitar: "Habilitar socio",
@@ -151,42 +150,6 @@ export function CommandDialog({
     return `${e.codigo_inventario} · ${bookName(e.libro_id, db!)}${resource === "remitos" ? ` · ${motivo}` : ""}`;
   };
 
-  // --- Texto que explica la consecuencia ---------------------------------
-  const explain: Partial<Record<Command, ReactNode>> = {
-    inhabilitar:
-      "El socio no podrá iniciar préstamos, reservas ni recibir envíos. Las devoluciones siguen permitidas.",
-    habilitar: "El socio vuelve a poder pedir material.",
-    "dar-de-baja":
-      resource === "sedes"
-        ? "La sede deja de iniciar préstamos, reservas y envíos. Lo que ya está en viaje puede terminar de recibirse."
-        : "El ejemplar sale de circulación. Se conserva en el historial.",
-    reactivar: "La sede vuelve a operar en la red.",
-    "aprobar-disponibilidad":
-      "Confirmás que el material está apto y en su sede: vuelve a estar disponible para préstamo.",
-    rechazar: "La solicitud queda cerrada sin préstamo.",
-    cancelar:
-      resource === "remitos"
-        ? "El envío se anula. Los ejemplares vuelven a su estado anterior (disponibles o reservados para su solicitud)."
-        : resource === "reservas"
-          ? "La reserva se cierra y el ejemplar apartado vuelve a estar disponible."
-          : "La solicitud se cierra y el ejemplar asignado vuelve a estar disponible. Si ya estaba en un remito en preparación, se lo quita del paquete.",
-    entregar:
-      "El préstamo comienza ahora. Se verifica que el socio no tenga préstamos vencidos y que el plazo no supere 60 días.",
-    devolver:
-      "El ejemplar queda en revisión. Si es de otra sede, vas a poder armar su remito de retorno.",
-    "asignar-reserva":
-      "El ejemplar queda apartado en mostrador hasta la fecha límite de retiro.",
-    expirar:
-      "Venció el plazo de retiro: la reserva se cierra y el ejemplar se libera.",
-    empaquetar:
-      "Se cierra el paquete. Ya no se pueden agregar ejemplares salvo que lo reabras.",
-    reabrir: "El remito vuelve a preparación para agregar o quitar ejemplares.",
-    despachar:
-      "El material sale de la sede y queda en tránsito. A partir de acá el envío no puede cancelarse.",
-    recibir:
-      "Indicá cómo llegó cada ejemplar. Si alguno llegó dañado o no llegó, el remito queda con incidencias y la solicitud vuelve a la cola para asignar otra copia.",
-  };
-
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
@@ -277,19 +240,6 @@ export function CommandDialog({
             {sedeName(remito.sede_origen_id, db!)} →{" "}
             {sedeName(remito.sede_destino_id, db!)}
           </p>
-        )}
-        {action === "preparar-entrega" && solicitud ? (
-          <PatternNote pattern="Strategy">
-            Esta solicitud es <b>{statusLabels[solicitud.tipo].toLowerCase()}</b>
-            , así que la tramita <code>{solicitud.estrategia}</code>:{" "}
-            {solicitud.estrategia_descripcion}
-          </PatternNote>
-        ) : (
-          explain[action] && (
-            <p className="mb-4 text-sm leading-relaxed text-[var(--muted-foreground)]">
-              {explain[action]}
-            </p>
-          )
         )}
         {error && <Alert error>{error.message}</Alert>}
 

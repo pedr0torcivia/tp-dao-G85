@@ -32,7 +32,6 @@ import {
   Dialog,
   Heading,
   outlineClass,
-  PatternNote,
   primaryClass,
   Stepper,
   Table,
@@ -250,12 +249,6 @@ export function EntityDetail({ resource }: { resource: Resource }) {
                 </Link>
               )}
             </NextStep>
-            <PatternNote pattern="Strategy">
-              El tipo de la solicitud elige la estrategia{" "}
-              <code>{s.estrategia}</code>. Al preparar la entrega:{" "}
-              {s.estrategia_descripcion} El resto del circuito (asignar,
-              entregar, devolver) es común a ambos tipos.
-            </PatternNote>
           </div>
         </div>
       </>
@@ -275,7 +268,6 @@ export function EntityDetail({ resource }: { resource: Resource }) {
         Remito <Badge value={r.estado} />
       </>
     );
-    const ops: OperacionRemito[] = ["agregar", "quitar", "empaquetar", "reabrir", "despachar", "recibir", "cancelar"];
     body = (
       <>
         <p className="route">
@@ -368,21 +360,6 @@ export function EntityDetail({ resource }: { resource: Resource }) {
                 </Button>
               ))}
             </NextStep>
-            <PatternNote pattern="State">
-              El remito delega cada operación en el objeto de su estado actual,{" "}
-              <code>{r.estado_clase}</code>: {r.estado_descripcion}
-              <div className="ops" aria-label="Operaciones del estado">
-                {ops.map((op) => (
-                  <span key={op} className={`op ${r.acciones.includes(op) ? "on" : "off"}`}>
-                    {op}()
-                  </span>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-                Verde: lo que este estado admite. Tachado: lo rechaza con un
-                error de transición.
-              </p>
-            </PatternNote>
           </div>
         </div>
       </>

@@ -13,51 +13,8 @@ import {
   Field,
   Heading,
   outlineClass,
-  PatternNote,
 } from "../components/ui";
 import { config, fieldsFor, pathOf, tipoSolicitud } from "./resources";
-
-const help: Partial<Record<Resource, { title: string; steps: string[] }>> = {
-  libros: {
-    title: "Una ficha, muchas copias",
-    steps: [
-      "Cargá los datos bibliográficos. El ISBN evita duplicados; sin ISBN se controla título + autor + editorial + edición.",
-      "Después agregá las copias físicas (ejemplares) desde la ficha del libro.",
-    ],
-  },
-  ejemplares: {
-    title: "Cada copia tiene su recorrido",
-    steps: [
-      "El código de inventario identifica la copia y no puede repetirse.",
-      "La sede propietaria es dónde vuelve siempre la copia después de un préstamo interbibliotecario.",
-    ],
-  },
-  socios: {
-    title: "La ficha del lector",
-    steps: [
-      "El número de socio y el documento no pueden repetirse.",
-      "Los socios nuevos empiezan habilitados.",
-    ],
-  },
-  sedes: {
-    title: "Una biblioteca en la red",
-    steps: ["El nombre de la sede no puede repetirse.", "Las sedes nuevas empiezan activas."],
-  },
-  reservas: {
-    title: "Un lugar en la espera",
-    steps: [
-      "Reservá cuando no hay copias libres en la sede donde el socio quiere retirar.",
-      "Cuando aparezca una copia, apartala desde la reserva: queda lista para retirar hasta la fecha límite.",
-    ],
-  },
-  remitos: {
-    title: "Libros que viajan",
-    steps: [
-      "Normalmente no hace falta crearlo a mano: preparar una solicitud interbibliotecaria o un retorno arma el remito solo.",
-      "Si lo creás acá, agregá los ejemplares desde su ficha y seguí: empaquetar → despachar → recibir.",
-    ],
-  },
-};
 
 /** Columna de imagen con vista previa: portada del libro o foto de la copia. */
 function ImagePicker({
@@ -186,7 +143,6 @@ function GenericForm({ resource }: { resource: Resource }) {
       setBusy(false);
     }
   }
-  const h = help[resource];
   const conImagen = resource === "libros";
   const actualLibro = resource === "libros" && record ? (record as { portada_url?: string | null }).portada_url : null;
   const imagenActual = actualLibro ?? null;
@@ -264,17 +220,6 @@ function GenericForm({ resource }: { resource: Resource }) {
             </Button>
           </div>
         </div>
-        {h && (
-          <aside className="side-help">
-            <p className="kicker">Antes de guardar</p>
-            <h2 className="font-heading text-lg font-semibold">{h.title}</h2>
-            <ol>
-              {h.steps.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ol>
-          </aside>
-        )}
       </form>
     </>
   );
@@ -352,10 +297,7 @@ function NuevaSolicitud() {
   return (
     <>
       <Back to="/solicitudes" />
-      <Heading
-        title="Nueva solicitud de préstamo"
-        description="Elegí quién pide, qué libro y dónde lo retira. El sistema muestra dónde hay copias y decide si el préstamo es local o interbibliotecario."
-      />
+      <Heading title="Nueva solicitud de préstamo" />
       <form onSubmit={submit} className="form-layout">
         <div className="grid gap-5">
           {error && <Alert error>{error.message}</Alert>}
@@ -478,26 +420,6 @@ function NuevaSolicitud() {
           </div>
         </div>
 
-        <aside className="grid gap-4">
-          <section className="side-help">
-            <p className="kicker">Resumen</p>
-            <p className="text-sm">
-              Tipo:{" "}
-              <Badge value={tipo} />
-            </p>
-            <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-              {tipo === "LOCAL"
-                ? "La copia ya está en la sede donde se retira: se entrega en el mostrador."
-                : "La copia viaja entre sedes en un remito; se entrega cuando llega."}
-            </p>
-          </section>
-          <PatternNote pattern="Strategy">
-            El tipo define la estrategia de tramitación:{" "}
-            <code>{tipo === "LOCAL" ? "TramitacionLocal" : "TramitacionInterbibliotecaria"}</code>
-            . Ambas validan las sedes al crear y saben “preparar la entrega”,
-            cada una a su manera.
-          </PatternNote>
-        </aside>
       </form>
     </>
   );

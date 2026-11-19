@@ -13,7 +13,6 @@ import { Alert, Button } from "../components/ui";
 interface Section {
   to: string;
   label: string;
-  hint?: string;
   end?: boolean;
 }
 interface Module {
@@ -31,10 +30,10 @@ const MODULES: Module[] = [
     to: "/solicitudes",
     match: ["/solicitudes", "/prestamos", "/reservas"],
     sections: [
-      { to: "/solicitudes", label: "Solicitudes", hint: "Pedidos de socios, de la asignación a la entrega" },
-      { to: "/prestamos", label: "Préstamos", hint: "Libros en manos de socios, vencimientos y multas", end: true },
-      { to: "/prestamos/devolucion", label: "Devoluciones", hint: "Recibir un libro y registrar su estado" },
-      { to: "/reservas", label: "Reservas", hint: "Socios esperando una copia libre" },
+      { to: "/solicitudes", label: "Solicitudes" },
+      { to: "/prestamos", label: "Préstamos", end: true },
+      { to: "/prestamos/devolucion", label: "Devoluciones" },
+      { to: "/reservas", label: "Reservas" },
     ],
   },
   {
@@ -42,7 +41,7 @@ const MODULES: Module[] = [
     label: "Logística",
     to: "/remitos",
     match: ["/remitos"],
-    sections: [{ to: "/remitos", label: "Remitos", hint: "Envíos entre sedes y su trazabilidad" }],
+    sections: [{ to: "/remitos", label: "Remitos" }],
   },
   {
     key: "coleccion",
@@ -50,8 +49,8 @@ const MODULES: Module[] = [
     to: "/catalogo",
     match: ["/catalogo", "/ejemplares"],
     sections: [
-      { to: "/catalogo", label: "Catálogo", hint: "Los títulos de la red y su disponibilidad" },
-      { to: "/ejemplares", label: "Ejemplares", hint: "Cada copia física, dónde está y cómo está" },
+      { to: "/catalogo", label: "Catálogo" },
+      { to: "/ejemplares", label: "Ejemplares" },
     ],
   },
   {
@@ -60,19 +59,16 @@ const MODULES: Module[] = [
     to: "/socios",
     match: ["/socios", "/sedes"],
     sections: [
-      { to: "/socios", label: "Socios", hint: "Lectores, habilitación e historial" },
-      { to: "/sedes", label: "Sedes", hint: "Bibliotecas de la red, horarios y estado" },
+      { to: "/socios", label: "Socios" },
+      { to: "/sedes", label: "Sedes" },
     ],
   },
   {
-    key: "informes",
-    label: "Informes",
+    key: "reporteria",
+    label: "Reportería",
     to: "/reportes",
-    match: ["/reportes", "/guia"],
-    sections: [
-      { to: "/reportes", label: "Reportes", hint: "Siete informes con filtros, PDF y CSV" },
-      { to: "/guia", label: "Cómo funciona", hint: "Circuitos y patrones State / Strategy" },
-    ],
+    match: ["/reportes"],
+    sections: [],
   },
 ];
 
@@ -190,9 +186,6 @@ export function Layout() {
                   >
                     <ThemeIcon size={15} /> Tema {themeLabel}
                   </button>
-                  <Link role="menuitem" to="/guia">
-                    Cómo funciona
-                  </Link>
                   <button role="menuitem" onClick={() => void logout()} aria-label="Cerrar sesión">
                     <LogOut size={15} /> Cerrar sesión
                   </button>
@@ -209,7 +202,6 @@ export function Layout() {
                   key={s.to}
                   to={s.to}
                   end={s.end}
-                  title={s.hint}
                   className={({ isActive }) => `sublink ${isActive ? "active" : ""}`}
                 >
                   {s.label}
