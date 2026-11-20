@@ -210,7 +210,11 @@ export function Access() {
         </button>
       </header>
       <div className="access-stage">
-        <h1 className="access-title">EntreLibros</h1>
+        <h1 className="access-title">
+          Una red<span>.</span>
+          <br />
+          Muchas historias<span>.</span>
+        </h1>
         <form onSubmit={submit} className="access-form">
           <h2>Ingresá a tu biblioteca</h2>
           {(error || authError) && <Alert error>{error || authError}</Alert>}
